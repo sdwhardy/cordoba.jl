@@ -39,7 +39,7 @@ d1="BEdata";d2="UKdata"
 ##############################
 function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{Array{Float64,1}}=[[1.0],[1.0]])
     casename = "cordoba_candidateic_wstrg"
-    file = "./test/data/cordoba/input/$casename.m"
+    file = "./test/data/input/$casename.m"
     data = _PM.parse_file(file)#load data in PM format
     data=additional_candidates(data,candidates)
     _PMACDC.process_additional_data!(data)#add extra DC model data
