@@ -1,3 +1,49 @@
+
+function create_profile_sets(number_of_hours, data, df0, df1,ic_mva,owpp_mva)
+    pu=data["baseMVA"]
+    e2me=1000000/pu#into ME/PU
+    #e2me=1
+    da=0.835;id=0.165
+    #e2me=1#into ME/PU
+    extradata = Dict{String,Any}()
+    extradata["dim"] = Dict{String,Any}()
+    extradata["dim"] = number_of_hours
+    extradata["gen"] = Dict{String,Any}()
+    for (g, gen) in data["gen"]
+        extradata["gen"][g] = Dict{String,Any}()
+        extradata["gen"][g]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["gen"][g]["pmin"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["gen"][g]["cost"] = [Vector{Float64}() for i=1:number_of_hours]
+    end
+
+    for d in 1:number_of_hours
+        #Day ahead BE
+        #source generator
+            extradata["gen"]["1"]["pmax"][1, d] = ic_mva/pu+owpp_mva/pu*df0.wind[d]
+            extradata["gen"]["1"]["pmin"][1, d] = 0
+            extradata["gen"]["1"]["cost"][d] = [da*df0.daprice[d]/e2me+id*df0.idprice[d]/e2me,0]
+        #load generator
+            extradata["gen"]["2"]["pmax"][1, d] = 0
+            extradata["gen"]["2"]["pmin"][1, d] = -ic_mva/pu-owpp_mva/pu*df0.wind[d]
+            extradata["gen"]["2"]["cost"][d] = [da*df0.daprice[d]/e2me+id*df0.idprice[d]/e2me,0]
+
+            #Day ahead UK
+            #source generator
+                extradata["gen"]["3"]["pmax"][1, d] = ic_mva/pu+owpp_mva/pu*df0.wind[d]
+                extradata["gen"]["3"]["pmin"][1, d] = 0
+                extradata["gen"]["3"]["cost"][d] = [da*df1.daprice[d]/e2me+id*df1.idprice[d]/e2me,0]
+            #load generator
+                extradata["gen"]["4"]["pmax"][1, d] = 0
+                extradata["gen"]["4"]["pmin"][1, d] = -ic_mva/pu-owpp_mva/pu*df0.wind[d]
+                extradata["gen"]["4"]["cost"][d] = [da*df1.daprice[d]/e2me+id*df1.idprice[d]/e2me,0]
+            #Wind generator
+                extradata["gen"]["5"]["pmax"][1, d] = owpp_mva/pu*df0.wind[d]
+                extradata["gen"]["5"]["pmin"][1, d] = 0
+                extradata["gen"]["5"]["cost"][d] = [0.0,0.0]
+    end
+    return extradata
+end
+
 function create_profile_sets_wstrg(number_of_hours, data, df0, df1,ic_mva,owpp_mva)
     pu=data["baseMVA"]
     e2me=1000000/pu#into ME/PU
