@@ -119,43 +119,6 @@ function create_profile_sets(number_of_hours, data, df0, df1,ic_mva,owpp_mva)
     return extradata
 end
 
-function add_storage_data!(data)
-    if haskey(data, "storage")
-        for (s, storage) in data["storage"]
-            rescale_power = x -> x/data["baseMVA"]
-            _PM._apply_func!(storage, "max_energy_absorption", rescale_power)
-            _PM._apply_func!(storage, "stationary_energy_outflow", rescale_power)
-            _PM._apply_func!(storage, "stationary_energy_inflow", rescale_power)
-        end
-    else
-        data["storage"] = Dict{String,Any}()
-    end
-
-    if haskey(data, "ne_storage")
-        for (s, storage) in data["ne_storage"]
-            rescale_power = x -> x/data["baseMVA"]
-            _PM._apply_func!(storage, "energy_rating", rescale_power)
-            _PM._apply_func!(storage, "thermal_rating", rescale_power)
-            _PM._apply_func!(storage, "discharge_rating", rescale_power)
-            _PM._apply_func!(storage, "charge_rating", rescale_power)
-            _PM._apply_func!(storage, "energy", rescale_power)
-            _PM._apply_func!(storage, "ps", rescale_power)
-            _PM._apply_func!(storage, "qs", rescale_power)
-            _PM._apply_func!(storage, "q_loss", rescale_power)
-            _PM._apply_func!(storage, "p_loss", rescale_power)
-            _PM._apply_func!(storage, "qmax", rescale_power)
-            _PM._apply_func!(storage, "qmin", rescale_power)
-            _PM._apply_func!(storage, "max_energy_absorption", rescale_power)
-            _PM._apply_func!(storage, "stationary_energy_outflow", rescale_power)
-            _PM._apply_func!(storage, "stationary_energy_inflow", rescale_power)
-        end
-    else
-        data["ne_storage"] = Dict{String,Any}()
-    end
-
-    return data
-end
-
 function scale_bat_data_cordoba!(data, scenario)
     rescale_hourly = x -> (scenario["hours"] / (8760*scenario["planning_horizon"])) * x # yearly limit on energy absoption
     for (s, strg) in get(data, "ne_storage", Dict{String,Any}())

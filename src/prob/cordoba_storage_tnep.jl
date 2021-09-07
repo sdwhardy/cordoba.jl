@@ -1,8 +1,8 @@
 export cordoba_strg_tnep
 ""
-function cordoba_strg_tnep(data::Dict{String,Any}, model_type::Type, solver; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!, add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
+function cordoba_strg_tnep(data::Dict{String,Any}, model_type::Type, solver; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!, _FP.add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
     s = setting
-    return _PM.run_model(data, model_type, solver, cordoba_post_strg_tnep; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!, add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
+    return _PM.run_model(data, model_type, solver, cordoba_post_strg_tnep; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!, _FP.add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
 end
 
 # for distribution models
@@ -31,15 +31,15 @@ function cordoba_post_strg_tnep(pm::_PM.AbstractPowerModel)
         _PMACDC.variable_dc_converter(pm; nw = n)
         _PMACDC.variable_dcbranch_current(pm; nw = n)
         _PMACDC.variable_dcgrid_voltage_magnitude(pm; nw = n)
-        variable_absorbed_energy(pm; nw = n)
-        variable_absorbed_energy_ne(pm; nw = n)
+        _FP.variable_absorbed_energy(pm; nw = n)
+        _FP.variable_absorbed_energy_ne(pm; nw = n)
 
 
         # new variables for TNEP problem
         _PM.variable_ne_branch_indicator(pm; nw = n)
         _PM.variable_ne_branch_power(pm; nw = n)
         _PM.variable_ne_branch_voltage(pm; nw = n)
-        variable_storage_power_ne(pm; nw = n)
+        _FP.variable_storage_power_ne(pm; nw = n)
         _PMACDC.variable_active_dcbranch_flow_ne(pm; nw = n)
         _PMACDC.variable_branch_ne(pm; nw = n)
         _PMACDC.variable_dc_converter_ne(pm; nw = n)
@@ -59,15 +59,15 @@ function cordoba_post_strg_tnep(pm::_PM.AbstractPowerModel)
         end
 
         for i in _PM.ids(pm, n, :bus)
-            constraint_power_balance_acne_dcne_strg(pm, i; nw = n)
+            _FP.constraint_power_balance_acne_dcne_strg(pm, i; nw = n)
         end
         if haskey(pm.setting, "allow_line_replacement") && pm.setting["allow_line_replacement"] == true
             for i in _PM.ids(pm, n, :branch)
-                constraint_ohms_yt_from_repl(pm, i; nw = n)
-                constraint_ohms_yt_to_repl(pm, i; nw = n)
-                constraint_voltage_angle_difference_repl(pm, i; nw = n)
-                constraint_thermal_limit_from_repl(pm, i; nw = n)
-                constraint_thermal_limit_to_repl(pm, i; nw = n)
+                _FP.constraint_ohms_yt_from_repl(pm, i; nw = n)
+                _FP.constraint_ohms_yt_to_repl(pm, i; nw = n)
+                _FP.constraint_voltage_angle_difference_repl(pm, i; nw = n)
+                _FP.constraint_thermal_limit_from_repl(pm, i; nw = n)
+                _FP.constraint_thermal_limit_to_repl(pm, i; nw = n)
             end
         else
             for i in _PM.ids(pm, n, :branch)
@@ -133,15 +133,15 @@ function cordoba_post_strg_tnep(pm::_PM.AbstractPowerModel)
         end
 
         for i in _PM.ids(pm, :storage, nw=n)
-            constraint_storage_excl_slack(pm, i, nw = n)
+            _FP.constraint_storage_excl_slack(pm, i, nw = n)
             _PM.constraint_storage_thermal_limit(pm, i, nw = n)
             _PM.constraint_storage_losses(pm, i, nw = n)
         end
         for i in _PM.ids(pm, :ne_storage, nw=n)
-            constraint_storage_excl_slack_ne(pm, i, nw = n)
-            constraint_storage_thermal_limit_ne(pm, i, nw = n)
-            constraint_storage_losses_ne(pm, i, nw = n)
-            constraint_storage_bounds_ne(pm, i, nw = n)
+            _FP.constraint_storage_excl_slack_ne(pm, i, nw = n)
+            _FP.constraint_storage_thermal_limit_ne(pm, i, nw = n)
+            _FP.constraint_storage_losses_ne(pm, i, nw = n)
+            _FP.constraint_storage_bounds_ne(pm, i, nw = n)
         end
     end
 
@@ -150,131 +150,32 @@ function cordoba_post_strg_tnep(pm::_PM.AbstractPowerModel)
     n_last = network_ids[end]
 
     for i in _PM.ids(pm, :storage, nw = n_1)
-        constraint_storage_state(pm, i, nw = n_1)
-        constraint_maximum_absorption(pm, i, nw = n_1)
+        _FP.constraint_storage_state(pm, i, nw = n_1)
+        _FP.constraint_maximum_absorption(pm, i, nw = n_1)
     end
 
     for i in _PM.ids(pm, :ne_storage, nw = n_1)
-        constraint_storage_state_ne(pm, i, nw = n_1)
-        constraint_maximum_absorption_ne(pm, i, nw = n_1)
+        _FP.constraint_storage_state_ne(pm, i, nw = n_1)
+        _FP.constraint_maximum_absorption_ne(pm, i, nw = n_1)
     end
 
     for i in _PM.ids(pm, :storage, nw = n_last)
-        constraint_storage_state_final(pm, i, nw = n_last)
+        _FP.constraint_storage_state_final(pm, i, nw = n_last)
     end
 
     for i in _PM.ids(pm, :ne_storage, nw = n_last)
-        constraint_storage_state_final_ne(pm, i, nw = n_last)
+        _FP.constraint_storage_state_final_ne(pm, i, nw = n_last)
     end
 
     for n_2 in network_ids[2:end]
         for i in _PM.ids(pm, :storage, nw = n_2)
-            constraint_storage_state(pm, i, n_1, n_2)
-            constraint_maximum_absorption(pm, i, n_1, n_2)
+            _FP.constraint_storage_state(pm, i, n_1, n_2)
+            _FP.constraint_maximum_absorption(pm, i, n_1, n_2)
         end
         for i in _PM.ids(pm, :ne_storage, nw = n_2)
-            constraint_storage_state_ne(pm, i, n_1, n_2)
-            constraint_maximum_absorption_ne(pm, i, n_1, n_2)
-            constraint_storage_investment(pm, n_1, n_2, i)
-        end
-        n_1 = n_2
-    end
-
-end
-
-# distribution version
-""
-function cordoba_post_strg_tnep(pm::_PM.AbstractBFModel)
-
-    for n in _PM.nw_ids(pm)
-        _PM.variable_bus_voltage(pm; nw = n)
-        _PM.variable_gen_power(pm; nw = n)
-        _PM.variable_branch_power(pm; nw = n)
-        _PM.variable_storage_power(pm; nw = n)
-        _PM.variable_branch_current(pm; nw = n)
-        variable_oltc_branch_transform(pm; nw = n)
-
-        variable_absorbed_energy(pm; nw = n)
-        variable_absorbed_energy_ne(pm; nw = n)
-
-        # new variables for TNEP problem
-        _PM.variable_ne_branch_indicator(pm; nw = n)
-        _PM.variable_ne_branch_power(pm; nw = n, bounded = false) # Bounds computed here would be too limiting in the case of ne_branches added in parallel
-        variable_ne_branch_current(pm; nw = n)
-        variable_oltc_ne_branch_transform(pm; nw = n)
-        variable_storage_power_ne(pm; nw = n)
-    end
-
-    objective_min_cost_storage(pm)
-
-    for n in _PM.nw_ids(pm)
-        _PM.constraint_model_current(pm; nw = n)
-        constraint_ne_model_current(pm; nw = n)
-
-        for i in _PM.ids(pm, n, :ref_buses)
-            _PM.constraint_theta_ref(pm, i, nw = n)
-        end
-
-        for i in _PM.ids(pm, n, :bus)
-            constraint_power_balance_acne_strg(pm, i; nw = n)
-        end
-
-        for i in _PM.ids(pm, n, :branch)
-            constraint_dist_branch_tnep(pm, i; nw = n)
-        end
-
-        for i in _PM.ids(pm, n, :ne_branch)
-            constraint_dist_ne_branch_tnep(pm, i; nw = n)
-        end
-
-        for i in _PM.ids(pm, :storage, nw=n)
-            constraint_storage_excl_slack(pm, i, nw = n)
-            _PM.constraint_storage_thermal_limit(pm, i, nw = n)
-            _PM.constraint_storage_losses(pm, i, nw = n)
-        end
-        for i in _PM.ids(pm, :ne_storage, nw=n)
-            constraint_storage_excl_slack_ne(pm, i, nw = n)
-            constraint_storage_thermal_limit_ne(pm, i, nw = n)
-            constraint_storage_losses_ne(pm, i, nw = n)
-            constraint_storage_bounds_ne(pm, i, nw = n)
-        end
-    end
-
-    network_ids = sort(collect(_PM.nw_ids(pm)))
-    n_1 = network_ids[1]
-    n_last = network_ids[end]
-
-    for i in _PM.ids(pm, :storage, nw = n_1)
-        constraint_storage_state(pm, i, nw = n_1)
-        constraint_maximum_absorption(pm, i, nw = n_1)
-    end
-
-    for i in _PM.ids(pm, :ne_storage, nw = n_1)
-        constraint_storage_state_ne(pm, i, nw = n_1)
-        constraint_maximum_absorption_ne(pm, i, nw = n_1)
-    end
-
-    for i in _PM.ids(pm, :storage, nw = n_last)
-        constraint_storage_state_final(pm, i, nw = n_last)
-    end
-
-    for i in _PM.ids(pm, :ne_storage, nw = n_last)
-        constraint_storage_state_final_ne(pm, i, nw = n_last)
-    end
-
-    for n_2 in network_ids[2:end]
-        for i in _PM.ids(pm, :ne_branch, nw = n_2)
-            # Constrains binary activation variable of ne_branch i to the same value in n_2-1 and n_2 nws
-            _PMACDC.constraint_candidate_acbranches_mp(pm, n_2, i)
-        end
-        for i in _PM.ids(pm, :storage, nw = n_2)
-            constraint_storage_state(pm, i, n_1, n_2)
-            constraint_maximum_absorption(pm, i, n_1, n_2)
-        end
-        for i in _PM.ids(pm, :ne_storage, nw = n_2)
-            constraint_storage_state_ne(pm, i, n_1, n_2)
-            constraint_maximum_absorption_ne(pm, i, n_1, n_2)
-            constraint_storage_investment(pm, n_1, n_2, i)
+            _FP.constraint_storage_state_ne(pm, i, n_1, n_2)
+            _FP.constraint_maximum_absorption_ne(pm, i, n_1, n_2)
+            _FP.constraint_storage_investment(pm, n_1, n_2, i)
         end
         n_1 = n_2
     end

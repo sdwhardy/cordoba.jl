@@ -2,12 +2,13 @@ using Ipopt, Juniper, JuMP, Cbc, Gurobi, Cbc, XLSX, DataFrames, Dates, CSV
 import cordoba; const _CBD = cordoba
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
+import FlexPlan; const _FP = FlexPlan
 import InfrastructureModels; const _IM = InfrastructureModels
 include("../test/data/conv_spec.jl")
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#NOTE EENS is set to zero for flexlan !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#NOTE EENS is set to zero for CORDOBA/FlexPlan!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -41,7 +42,7 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
     data = _PM.parse_file(file)#load data in PM format
     data=_CBD.additional_candidates(data,candidates)
     _PMACDC.process_additional_data!(data)#add extra DC model data
-    _CBD.add_storage_data!(data) # Add addtional storage data model
+    _FP.add_storage_data!(data) # Add addtional storage data model
     ##################### Network cost/elec PARAMETERS ######################
     hoa=_CBD.hoa_datastruct_candidateICs(ic_mva,owpp_mva,ic_length,owpp_km,candidates)
     data=_CBD.pm_dict_candidateICs(data,hoa,candidates)
