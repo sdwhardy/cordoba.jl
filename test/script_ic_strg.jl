@@ -105,7 +105,8 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
 
     return resultACDC, mn_data
 end
-
+println(z0)
+println(z1)
 for (k,d) in sort(extradata["ne_storage"],rev=true)
     println(k*": ")
     println("dcr: "*string(d["discharge_rating"]*data["baseMVA"]))
