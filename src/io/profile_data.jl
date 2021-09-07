@@ -1,4 +1,4 @@
-function create_profile_sets(number_of_hours, data, df0, df1,ic_mva,owpp_mva)
+function create_profile_sets_wstrg(number_of_hours, data, df0, df1,ic_mva,owpp_mva)
     pu=data["baseMVA"]
     e2me=1000000/pu#into ME/PU
     #e2me=1

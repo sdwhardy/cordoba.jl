@@ -70,7 +70,7 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
 
      # create a dictionary to pass time series data to data dictionary
     #extradata = create_profile_UKBE_0835_update(dim, data, windgenprofile_beuk, gencostid_beuk, gencost_beuk, nFlow_losses, ic_mva, owpp_mva)
-    extradata = _CBD.create_profile_sets(dim, data, z0,z1,ic_mva,owpp_mva)
+    extradata = _CBD.create_profile_sets_wstrg(dim, data, z0,z1,ic_mva,owpp_mva)
     #extradata =Dict{String,Any}();push!(extradata,"dim"=>2016)
     # Scale cost data
     _CBD.scale_cost_data_cordoba!(data, scenario)
