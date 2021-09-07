@@ -1,8 +1,9 @@
+using XLSX, DataFrames
 include("functions.jl")
 #This file contains the exported functions
 ################################################################################
 ##########################  Default wind profile ###############################
-df = DataFrame(XLSX.readtable("./src/economics/input_data/data.xlsx", "wind_data")...)
+df = DataFrame(XLSX.readtable("../cordoba/src/economics/input_data/data.xlsx", "wind_data")...)
 wnd=wndF_wndPrf([getproperty(df,Symbol("Norther"))])
 wind_module.save_wind4_module(wnd,"Norther")
 ################################################################################
@@ -200,12 +201,6 @@ function get_equipment_tables(km_mva_set,wnd,kv)
     if (hvdc_bit==true)
         hvac_bit=check4hvac(database,km_mva_set,wnd,kv)
     end
-
-    #vheck if mid point compensation is to be included
-    #uncomment if mid point compensation is desired
-    #=bits=Dict([("hvdc", false), ("mpc_ac", true), ("hvac", true)])
-    push!(database,"bits"=>bits)
-    mpc_bit=check4mpc_ac(database,km_mva_set,wnd,kv)=#
     mpc_bit=false
 
     #final bits sets
@@ -262,7 +257,6 @@ function xfo_pcc(xfo0,ks,xfo_data)
     end
     return xfo
 end
-
 
 #finds the hvdc cable using the look up table
 #**

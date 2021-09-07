@@ -1,6 +1,7 @@
 ################################################################################
 ## New storage to reference model
 ################################################################################
+#used
 function add_candidate_storage!(ref::Dict{Symbol,<:Any}, data::Dict{String,<:Any})
     for (n, nw_ref) in ref[:nw]
         if haskey(nw_ref, :ne_storage)

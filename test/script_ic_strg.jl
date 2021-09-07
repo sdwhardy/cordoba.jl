@@ -1,11 +1,9 @@
 using Ipopt, Juniper, JuMP, Cbc, Gurobi, Cbc, XLSX, DataFrames, Dates, CSV
-import cordoba; const _CDB = cordoba
+import cordoba; const _CBD = cordoba
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 import InfrastructureModels; const _IM = InfrastructureModels
-include("../src/economics/main.jl")
-include("../src/cordoba/cordoba.jl")
-include("../data/conv_spec.jl")
+include("../test/data/conv_spec.jl")
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -38,17 +36,17 @@ d1="BEdata";d2="UKdata"
 #800MWh with ic_mva=500;owpp_mva=1000#mva,ic_length=600;#km,owpp_km=300#km,candidates=[[0.5,0.4],[0.5,0.4]],x=3 in storage_costs
 ##############################
 function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{Array{Float64,1}}=[[1.0],[1.0]])
-    casename = "cordoba_candidateic_wstrg"
+    casename = "ic_strg"
     file = "./test/data/input/$casename.m"
     data = _PM.parse_file(file)#load data in PM format
-    data=additional_candidates(data,candidates)
+    data=_CBD.additional_candidates(data,candidates)
     _PMACDC.process_additional_data!(data)#add extra DC model data
-    _FP.add_storage_data!(data) # Add addtional storage data model
+    _CBD.add_storage_data!(data) # Add addtional storage data model
     ##################### Network cost/elec PARAMETERS ######################
-    hoa=hoa_datastruct_candidateICs(ic_mva,owpp_mva,ic_length,owpp_km,candidates)
-    data=pm_dict_candidateICs(data,hoa,candidates)
+    hoa=_CBD.hoa_datastruct_candidateICs(ic_mva,owpp_mva,ic_length,owpp_km,candidates)
+    data=_CBD.pm_dict_candidateICs(data,hoa,candidates)
     converter_parameters_rxb(data)#adjust converter parameters
-    storage_costs(data,2030)#adjust storage parameters - default: 2021 also 2030 included
+    _CBD.storage_costs(data,2030)#adjust storage parameters - default: 2021 also 2030 included
     ##########################################################################
 
     #################### Multi-period INPUT PARAMETERS #######################
@@ -64,22 +62,22 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
     ###########################################################################
      # get wind, generation and load time series
     #data, windgenprofile_beuk, gencostid_beuk, gencost_beuk, nFlow_losses = get_profile_data_UKBE(data, scenario)
-    data, z0,z1 = get_profile_data_sets(d1,d2,data, n, scenario)
+    data, z0,z1 = _CBD.get_profile_data_sets(d1,d2,data, n, scenario)
     n=number_of_hours = length(z0.time_stamp)
     #set problem dimension
     dim = scenario["hours"] * length(data["scenario"])
 
      # create a dictionary to pass time series data to data dictionary
     #extradata = create_profile_UKBE_0835_update(dim, data, windgenprofile_beuk, gencostid_beuk, gencost_beuk, nFlow_losses, ic_mva, owpp_mva)
-    extradata = create_profile_sets(dim, data, z0,z1)
+    extradata = _CBD.create_profile_sets(dim, data, z0,z1,ic_mva,owpp_mva)
     #extradata =Dict{String,Any}();push!(extradata,"dim"=>2016)
     # Scale cost data
-    _FP.scale_cost_data_cordoba!(data, scenario)
-    _FP.scale_cost_data_cordoba!(extradata, scenario)
+    _CBD.scale_cost_data_cordoba!(data, scenario)
+    _CBD.scale_cost_data_cordoba!(extradata, scenario)
 #35.4375 18.71 0.57 -8.11
     # Scale battery parameters
     #println((scenario["hours"] / (8760*scenario["planning_horizon"]))*data["ne_storage"]["1"]["max_energy_absorption"])
-    _FP.scale_bat_data_cordoba!(data, scenario)
+    _CBD.scale_bat_data_cordoba!(data, scenario)
 
     # Create data dictionary where time series data is included at the right place
     mn_data = _PMACDC.multinetwork_data(data, extradata, Set{String}(["source_type","scenario","name", "source_version", "per_unit"]))
@@ -100,7 +98,7 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
 
     #run optimization
     #resultDC = run_tnepopf(data, DCPPowerModel, gurobi, setting = s)
-    resultACDC = _FP.cordoba_strg_tnep(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)
+    resultACDC = _CBD.cordoba_strg_tnep(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)
     [println(i) for (i,res) in resultACDC["solution"]["nw"]["1"]["ne_storage"] if (res["isbuilt"]==1)]
     println();println()
     [println(i) for (i,res) in resultACDC["solution"]["nw"]["1"]["ne_storage"] if (res["isbuilt"]==1)]
