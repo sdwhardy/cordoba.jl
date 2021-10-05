@@ -21,7 +21,7 @@ function calc_ne_storage_cost_cordoba(pm::_PM.AbstractPowerModel, n::Int, add_co
         #if (_PM.var(pm,n,:ps,i)>0)
             cost = -1*cost_i * _PM.var(pm, n, :sd_ne, i)*_PM.var(pm, n, :z_strg_ne, i)# takes profit
         #else
-            cost += cost_a * _PM.var(pm, n, :sc_ne, i)*_PM.var(pm, n, :z_strg_ne, i)# buys energy
+            cost += -1*cost_a * _PM.var(pm, n, :sc_ne, i)*_PM.var(pm, n, :z_strg_ne, i)# buys energy
         #end
         return cost
     end

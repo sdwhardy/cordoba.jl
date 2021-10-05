@@ -22,7 +22,6 @@ function AC_cbl(mva,km)
     return ac_cbl
 end
 #Cost of HVDC cable of capacity mva and length km
-
 function DC_cbl(mva,km)
     cbl=cable();cbl.mva=mva;cbl.wnd="Norther"
     dc_cbl=optimal_hvdc_cable(cbl,get_300kV_cables(),km,get_Cost_Data())

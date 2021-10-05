@@ -47,7 +47,7 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
     hoa=_CBD.hoa_datastruct_candidateICs(ic_mva,owpp_mva,ic_length,owpp_km,candidates)
     data=_CBD.pm_dict_candidateICs(data,hoa,candidates)
     converter_parameters_rxb(data)#adjust converter parameters
-    _CBD.storage_costs(data,2030)#adjust storage parameters - default: 2021 also 2030 included
+    data=_CBD.storage_costs(data,2030)#adjust storage parameters - default: 2021 also 2030 included
     ##########################################################################
 
     #################### Multi-period INPUT PARAMETERS #######################

@@ -65,6 +65,6 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
 
         #run optimization
         resultACDC = _PMACDC.run_mp_acdctnepopf(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)
-
+#resultACDC = _PMACDC.run_acdctnepopf(data, _PM.DCPPowerModel, gurobi, setting = s)
     return resultACDC, mn_data
 end

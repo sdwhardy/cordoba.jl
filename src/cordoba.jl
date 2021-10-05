@@ -4,6 +4,9 @@ import JuMP
 import JSON
 import CSV
 import Memento
+import MultivariateStats
+import Clustering
+import Distances
 import PowerModels
 import PowerModelsACDC
 import FlexPlan
@@ -18,6 +21,7 @@ using JuMP: with_optimizer, optimizer_with_attributes
 export with_optimizer, optimizer_with_attributes
 
 include("prob/cordoba_storage_tnep.jl")
+include("prob/cordoba_acdc_tnep.jl")
 include("prob/common.jl")
 include("core/objective.jl")
 include("core/storage.jl")

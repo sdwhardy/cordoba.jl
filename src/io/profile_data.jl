@@ -44,6 +44,84 @@ function create_profile_sets(number_of_hours, data, df0, df1,ic_mva,owpp_mva)
     return extradata
 end
 
+
+function add_storage_profile(dim, data, extradata, zs_data, zs, number_of_hours)
+    pu=data["baseMVA"]
+    e2me=1000000/pu#into ME/PU
+
+    storage=[(i,b) for (i,b) in data["ne_storage"]]
+    sort!(storage, by=x->x[2]["energy_rating"])
+    extradata["ne_storage"] = Dict{String,Any}()
+    for (b, bat) in data["ne_storage"]
+        extradata["ne_storage"][b] = Dict{String,Any}()
+        extradata["ne_storage"][b]["cost_abs"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["ne_storage"][b]["cost_inj"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["ne_storage"][b]["charge_rating"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["ne_storage"][b]["discharge_rating"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        #up_reg
+        up_pe=[(zs_data["EUR_up"*z][d],zs_data["MWh_up"*z][d]) for z in zs]
+        sort!(up_pe, by = x -> x[1], rev=true)
+        up_pe=(first.(up_pe)./e2me,last.(up_pe)./pu)
+
+        dwn_pe=[(zs_data["EUR_dwn"*z][d],zs_data["MWh_dwn"*z][d]) for z in zs]
+        elec_prices=[(zs_data["EUR_id"*z][d],Inf) for z in zs]
+        sort!(elec_prices, by = x -> x[1])
+        #push!(dwn_pe,elec_prices[1])
+        sort!(dwn_pe, by = x -> x[1])
+        dwn_pe=(first.(dwn_pe)./e2me,last.(dwn_pe)./pu)
+
+
+        for (b,bat) in storage
+            #Set discharge rating and cost
+            dcr_temp=deepcopy(bat["discharge_rating"])
+            extradata["ne_storage"][b]["discharge_rating"][1, d] = 0
+            extradata["ne_storage"][b]["cost_inj"][1, d] = 0
+            for upe=1:1:length(up_pe[1])
+                if (dcr_temp<=last(up_pe)[upe])
+                    extradata["ne_storage"][b]["discharge_rating"][1, d] = extradata["ne_storage"][b]["discharge_rating"][1, d] + dcr_temp
+                    extradata["ne_storage"][b]["cost_inj"][1, d] = extradata["ne_storage"][b]["cost_inj"][1, d] + first(up_pe)[upe]
+                    last(up_pe)[upe]=last(up_pe)[upe]-dcr_temp
+                    break
+                elseif (last(up_pe)[upe]>1e-3 && last(up_pe)[upe]<dcr_temp)
+                    extradata["ne_storage"][b]["discharge_rating"][1, d] = extradata["ne_storage"][b]["discharge_rating"][1, d] + last(up_pe)[upe]
+                    extradata["ne_storage"][b]["cost_inj"][1, d] = ((extradata["ne_storage"][b]["discharge_rating"][1, d]-last(up_pe)[upe])/extradata["ne_storage"][b]["discharge_rating"][1, d])*extradata["ne_storage"][b]["cost_inj"][1, d] + (last(up_pe)[upe]/extradata["ne_storage"][b]["discharge_rating"][1, d])*first(up_pe)[upe]
+                    dcr_temp=dcr_temp-last(up_pe)[upe]
+                    last(up_pe)[upe] = 0
+                elseif (last(up_pe)[upe]<=1e-3 && extradata["ne_storage"][b]["discharge_rating"][1, d] <= 1e-3)
+                    extradata["ne_storage"][b]["discharge_rating"][1, d] = deepcopy(bat["discharge_rating"])
+                    extradata["ne_storage"][b]["cost_inj"][1, d] = 0
+                    break
+                end
+            end
+            #Set charge rating and cost
+            cr_temp=deepcopy(bat["charge_rating"])
+            extradata["ne_storage"][b]["charge_rating"][1, d] = 0
+            extradata["ne_storage"][b]["cost_abs"][1, d] = 0
+            for upe=1:1:length(dwn_pe[1])
+                if (cr_temp<=last(dwn_pe)[upe] && last(dwn_pe)[upe]!=Inf)
+                    extradata["ne_storage"][b]["charge_rating"][1, d] = extradata["ne_storage"][b]["charge_rating"][1, d] + cr_temp
+                    extradata["ne_storage"][b]["cost_abs"][1, d] = extradata["ne_storage"][b]["cost_abs"][1, d] + first(dwn_pe)[upe]
+                    last(dwn_pe)[upe]=last(dwn_pe)[upe]-cr_temp
+                    break
+                elseif (last(dwn_pe)[upe]>1e-3 && last(dwn_pe)[upe]<cr_temp)
+                    extradata["ne_storage"][b]["charge_rating"][1, d] = extradata["ne_storage"][b]["charge_rating"][1, d] + last(dwn_pe)[upe]
+                    extradata["ne_storage"][b]["cost_abs"][1, d] = ((extradata["ne_storage"][b]["charge_rating"][1, d]-last(dwn_pe)[upe])/extradata["ne_storage"][b]["charge_rating"][1, d])*extradata["ne_storage"][b]["cost_abs"][1, d] + (last(dwn_pe)[upe]/extradata["ne_storage"][b]["charge_rating"][1, d])*first(dwn_pe)[upe]
+                    cr_temp=cr_temp-last(dwn_pe)[upe]
+                    last(dwn_pe)[upe] = 0
+                elseif ((last(dwn_pe)[upe]<=1e-3 || last(dwn_pe)[upe]==Inf) && extradata["ne_storage"][b]["charge_rating"][1, d] <= 1e-3)
+                    extradata["ne_storage"][b]["charge_rating"][1, d] = deepcopy(bat["charge_rating"])
+                    extradata["ne_storage"][b]["cost_abs"][1, d] = first(dwn_pe)[upe]
+                    break
+                end
+            end
+        end
+    end
+
+    return extradata,data
+end
+
 function create_profile_sets_wstrg(number_of_hours, data, df0, df1,ic_mva,owpp_mva)
     pu=data["baseMVA"]
     e2me=1000000/pu#into ME/PU
@@ -248,6 +326,113 @@ function get_profile_data_sets(d1,d2,data, n, scenario = Dict{String, Any}())
     end
     # Return info
     return data, df0,df1
+end
+
+function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_grid, owpp_mva)
+    pu=data_orig["baseMVA"]
+    e2me=1000000/pu#into ME/PU
+    extradata = Dict{String,Any}()
+    data=Dict{String,Any}();data["gen"]=Dict{String,Any}()
+    extradata["dim"] = Dict{String,Any}()
+    extradata["dim"] = number_of_hours
+    extradata["gen"] = Dict{String,Any}()
+    data["gen"]=sort(data_orig["gen"])
+    for (g, gen) in data["gen"]
+        extradata["gen"][g] = Dict{String,Any}()
+        extradata["gen"][g]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["gen"][g]["pmin"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["gen"][g]["cost"] = [Vector{Float64}() for i=1:number_of_hours]
+    end
+    for d in 1:number_of_hours
+        #Day ahead BE
+        #source generator
+        for (g, gen) in data["gen"]
+            if (gen["apf"]>0)#market generator onshore
+                extradata["gen"][g]["pmax"][1, d] = inf_grid/pu
+                extradata["gen"][g]["pmin"][1, d] = 0
+                extradata["gen"][g]["cost"][d] = [(zs_data["EUR_da"*zs[gen["gen_bus"]]][d])/e2me,0]
+            else#wind gen
+                extradata["gen"][g]["pmax"][1, d] = (zs_data["Wnd_MWh"*zs[gen["gen_bus"]]][d])*owpp_mva/pu
+                extradata["gen"][g]["pmin"][1, d] = 0
+                extradata["gen"][g]["cost"][d] = [0,0]
+            end
+        end
+    end
+    #add loads
+    loads=Dict{String,Any}()
+    num_of_gens=length(data["gen"])
+    for (g, gen) in extradata["gen"]
+        if (data["gen"][g]["apf"]>0)#market generator onshore
+            load=deepcopy(data["gen"][g])
+            load["index"]=num_of_gens+1
+            load["source_id"][2]=num_of_gens+1
+            load["pmin"]=deepcopy(load["pmax"])*-1
+            load["pmax"]=0
+            push!(loads,string(num_of_gens+1)=>deepcopy(load))
+            num_of_gens=num_of_gens+1
+        end
+    end
+    for (l, load) in loads
+        extradata["gen"][l] = Dict{String,Any}()
+        extradata["gen"][l]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["gen"][l]["pmin"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["gen"][l]["cost"] = [Vector{Float64}() for i=1:number_of_hours]
+    end
+
+    for d in 1:number_of_hours
+        #Day ahead BE
+        #source generator
+        for (l, load) in loads
+            if (load["apf"]>0)#market generator onshore
+                extradata["gen"][l]["pmax"][1, d] = 0
+                extradata["gen"][l]["pmin"][1, d] = (inf_grid/pu)*-1
+                extradata["gen"][l]["cost"][d] = [(zs_data["EUR_da"*zs[load["gen_bus"]]][d])/e2me,0]
+                push!(data_orig["gen"],l=>load)
+            else#wind gen
+            end
+        end
+    end
+
+    #set ["apf"]
+    for (g, gen) in data_orig["gen"]
+        gen["apf"]=0
+    end
+    return extradata,data_orig
+end
+
+function get_profile_data_sets_mesh(zs,data, n, scenario = Dict{String, Any}())
+    data["scenario"] = Dict{String, Any}()
+    data["scenario_prob"] = Dict{String, Any}()
+    windgenprofile_beuk=[];gencostid_beuk=[];gencost_beuk=[];ic_nflow_losses=[];
+    zs_data=[]
+    for z in zs
+        df=CSV.read("./test/data/input/"*z*"data.csv", DataFrames.DataFrame)
+        colnames = ["time_stamp","Wnd_MWh"*z,"EUR_da"*z,"EUR_id"*z,"MWh_up"*z,"EUR_up"*z,"MWh_dwn"*z,"EUR_dwn"*z]
+        names!(df, Symbol.(colnames))
+        push!(zs_data,df)
+    end
+    zsd=zs_data[1];for z in zs_data[2:end];
+    zsd=innerjoin(zsd,z, makeunique=true,on=:time_stamp);end
+    Ytr=PCA_cluster(zsd)
+    Ytr = convert(Matrix, zsd[1:1:end,2:end])'
+    cluster=kmeans_cluster(Ytr)
+    #cluster=kmedoid_cluster(Ytr)
+    n_samples=n_samps(cluster,n)
+    zsd=zsd[n_samples,:];
+    s="1";scenario["sc_years"][s]
+    for (s, scnr) in scenario["sc_years"]
+        start_idx = (parse(Int, s) - 1) * scenario["hours"]
+        scenario["hours"]=length(zsd[!,:time_stamp])
+        data["scenario"][s] = Dict()
+        data["scenario_prob"][s] = scnr["probability"]
+        for h in 1 : scenario["hours"]
+            network = start_idx + h
+            data["scenario"][s]["$h"] = network
+        end
+
+    end
+    # Return info
+    return data, zsd
 end
 
 
