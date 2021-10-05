@@ -9,7 +9,7 @@ include("../test/data/conv_spec.jl")
 
 ################### Input data for script_test.jl ########################
 owpp_mva=4000#mva of wf (in de)
-#format: (mva,(km,type)) type: -1:both ends onshore, 0:both ends offshore, 1:onshore/offshore
+#interconnectors format: (mva,(km,type)) type: -1:both ends onshore, 0:both ends offshore, 1:onshore/offshore
 #must be in same order as .m file ie uk(1)-de(2), uk(1)-dk(3), de(2)-dk(3), wf(4)-uk(1), wf(4)-de(2), wf(4)-dk(3)
 ics=[(2000,(550,-1)),(2000,(760,-1)),(2000,(250,-1)),(2000,(470,1)),(2000,(145,1)),(2000,(246,1))];
 #location of nodes
