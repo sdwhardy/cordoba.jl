@@ -12,8 +12,9 @@ function storage_costs(data,year::Int64=2021)
         x=1
         #csts=[70/x,35/x,17.5/x,8.75/x,4.375/x,2.1875/x,1.09375/x]
         #csts=[280/x,140/x,70/x,35/x,17.5/x,8.75/x,4.375/x]
-        #csts=[1120/x,560/x,280/x,140/x,70/x,35/x,17.5/x,8.75/x,4.375/x]
-        csts=[1120/x,4.375/x]
+        csts=[1120/x,560/x,280/x,140/x,70/x,35/x,17.5/x,8.75/x,4.375/x]
+        #csts=[1120/x,4.375/x]
+        #csts=[35/x,17.5/x,8.75/x]
         #csts=[1,1,1,1,1,1]
     else
         println("No battery cost data for specified year defaulting to 2021.")
@@ -25,6 +26,6 @@ function storage_costs(data,year::Int64=2021)
     end
 
     [data["ne_storage"][string(i)]["eq_cost"]=cst for (i,cst) in enumerate(csts)]
-    for (i,cst) in enumerate(csts);if (data["ne_storage"][string(i)]["inst_cost"]>0); cst=0;end;data["ne_storage"][string(i)]["inst_cost"]=cst; end
+    for (i,cst) in enumerate(csts);if (data["ne_storage"][string(i)]["on_off"]==0); cst=0;end;data["ne_storage"][string(i)]["inst_cost"]=cst; end
     return data
 end

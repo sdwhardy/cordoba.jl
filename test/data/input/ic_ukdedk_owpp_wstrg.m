@@ -21,10 +21,10 @@ mpc.bus = [
 ];
 
 %% generator data
-%	bus	Pg	Qg	Qmax	Qmin	Vg	mBase	status	Pmax	Pmin	Pc1	Pc2	Qc1min	Qc1max	Qc2min	Qc2max	ramp_agc	ramp_10	ramp_30	ramp_q	apf
+%	bus	Pg	Qg	Qmax	Qmin	Vg	mBase	status	Pmax	Pmin	Pc1	Pc2	Qc1min	Qc1max	Qc2min	Qc2max	ramp_agc	ramp_10	ramp_30	ramp_q	apf type
 mpc.gen = [
-1	0		0	0	0	1	100	1	835	0	0	0	0	0	0	0	0	0	0	0	1;
-2	0		0	0	0	1	100	1	835	0	0	0	0	0	0	0	0	0	0	0	0;
+1	0		0	0	0	1	100	1	835	0	0	0	0	0	0	0	0	0	0	0	0 1;
+2	0		0	0	0	1	100	1	835	0	0	0	0	0	0	0	0	0	0	0	0 0;
 ];
 
 %% branch data
@@ -62,13 +62,13 @@ mpc.busdc_ne = [
 %% existing dc branches
 %column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB   rateC status
 mpc.branchdc = [
-1	2	0.0	0.00	 0.00  0	 0	 0	 0.0;
+1	2	0.0	0.00	 0.00  4000	 0	 0	 1;
 ];
 
  %% candidate branches
  %column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB   rateC status cost
  mpc.branchdc_ne = [
- 1	2	0.0	0.00	 0.00  1	 		1	 1	 1.0	0;
+ 1	2	0.0	0.00	 0.00  1	 		1	 1	 1.0	1000000;
  ];
 
  %% existing converters
@@ -89,11 +89,18 @@ mpc.time_elapsed = 1.0
 
 
 %% storage data
-%column_names%   storage_bus ps 	qs 	energy  energy_rating charge_rating  discharge_rating  charge_efficiency  discharge_efficiency  thermal_rating  qmin  	qmax  	r  		x  p_loss  	q_loss  status eq_cost inst_cost co2_cost 	max_energy_absorption 	stationary_energy_inflow 	stationary_energy_outflow 	self_discharge_rate	 	cost_abs 	cost_inj
+%column_names%   storage_bus ps 	qs 	energy  energy_rating charge_rating  discharge_rating  charge_efficiency  discharge_efficiency  thermal_rating  qmin  	qmax  	r  		x  p_loss  	q_loss  status eq_cost inst_cost co2_cost 	max_energy_absorption 	stationary_energy_inflow 	stationary_energy_outflow 	self_discharge_rate	 	cost_abs 	cost_inj on_off
 mpc.ne_storage = [
-											1	 		0.0	 0.0	 0.0	 			6400.0	 			1280.0	 						1600.0	 					0.9	 									0.9	 					1600		-3200.0	  4480.0	 0.1	 0.0	 0.0	 		0.0	  	1 			1120 			0		 			  0 					32000000									0 													0 													1e-4							0     0;
-											1	 		0.0	 0.0	 0.0	 			25.0	 			5.0	 						  6.25	 					0.9	 									0.9	 								62.5	 		-12.5	  15.0	   0.1	 0.0	 0.0	 		0.0	  	1 			4.375 		0		 			  0 					125000									0 													0 													1e-4							0     0;
-										];
+											1	 		0.0	 0.0	 0.0	 			6400.0	 			1280.0	 						1600.0	 					0.9	 									0.9	 					1600		-3200.0	  4480.0	 0.1	 0.0	 0.0	 		0.0	  	1 			1120 			0		 			  0 					32000000									0 													0 													1e-4							0     0 1;
+											1	 		0.0	 0.0	 0.0	 			3200.0	 			640.0	 						  800.0	 					0.9	 									0.9	 					8000	 			-1600	  2240.0   0.1	 0.0	 0.0	 		0.0	  	1 			560 		0		 			  0 					16000000									0 													0 													1e-4							0     0 1;
+											1	 		0.0	 0.0	 0.0	 			1600.0	 		320.0	 						400.0	 					0.9	 									0.9	 							 4000	 		  -800.0	1120.0   0.1	 0.0	 0.0	 		0.0	  	1 			280 		0		 			  0 					8000000				  			0 													0 													1e-4							0     0 1;
+											1	 		0.0	 0.0	 0.0	 			800.0	 			160.0	 					  200.0		 				0.9	 									0.9	 						 2000	      -400.0	560.0	   0.1	 0.0	 0.0	 		0.0	  	1 			140 		0		 			  0 					4000000							  		0 													0 													1e-4							0     0 1;
+											1	 		0.0	 0.0	 0.0	 			400.0	 			80.0	 						100.0	 					0.9	 									0.9	 							 1000	 			-200.0	280.0	   0.1	 0.0	 0.0	 		0.0	  	1 			70 		  	0 					0 					2000000									0 													0 													1e-4							0     0 1;
+											1	 		0.0	 0.0	 0.0	 			200.0	 			40.0	 						50.0	 					0.9	 									0.9	 								500	 			-100.0	140.0	   0.1	 0.0	 0.0	 		0.0	  	1 			35 		  	0 					0 					1000000									0 													0 													1e-4							0     0 1;
+											1	 		0.0	 0.0	 0.0	 			100.0	 			20.0	 						25.0	 					0.9	 									0.9	 								250	 			-50.0	  70.0	   0.1	 0.0	 0.0	 		0.0	  	1 			17.5 			0 					0 					500000									0 													0 													1e-4							0     0 1;
+											1	 		0.0	 0.0	 0.0	 			50.0	 			10.0	 						12.5	 					0.9	 									0.9	 								125	 			-25.0	  30.0	   0.1	 0.0	 0.0	 		0.0	  	1 			8.75 			0		 			  0 					250000									0 													0 													1e-4							0     0 1;
+											1	 		0.0	 0.0	 0.0	 			25.0	 			5.0	 						  6.25	 					0.9	 									0.9	 								62.5	 		-12.5	  15.0	   0.1	 0.0	 0.0	 		0.0	  	1 			4.375 		0		 			  0 					125000									0 													0 													1e-4							0     0 1;
+											];
 
 
 %	1	 		0.0	 0.0	 0.0	 			6400.0	 			1280.0	 						1600.0	 					0.9	 									0.9	 					1600		-3200.0	  4480.0	 0.1	 0.0	 0.0	 		0.0	  	1 			1120 			1		 			  0 					32000000									0 													0 													1e-4							0     0;

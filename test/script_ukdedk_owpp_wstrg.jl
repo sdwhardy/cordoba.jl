@@ -28,6 +28,8 @@ candidate_ics=[1]#[[ic=1000,1200,1600,2000],[owpp]]#
 #800MWh with ic_mva=500;owpp_mva=1000#mva,ic_length=600;#km,owpp_km=300#km,candidates=[[0.5,0.4],[0.5,0.4]],x=3 in storage_costs
 ##############################
 function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{Array{Float64,1}}=[[1.0],[1.0]])
+rez=[]
+for k=10:10:100
     casename = "ic_ukdedk_owpp_wstrg"
     file = "./test/data/input/$casename.m"
     data = _PM.parse_file(file)#load data in PM format
@@ -38,10 +40,10 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
     _FP.add_storage_data!(data) # Add addtional storage data model
     data=_CBD.storage_costs(data,2030)#adjust storage parameters - default: 2021 also 2030 included
 
-    for (i,bdc) in data["branchdc_ne"]#onshore to onshore connections
-    data["branchdc_ne"][i]=_CBD.candidateIC_cost(bdc);end
+    #for (i,bdc) in data["branchdc_ne"]#onshore to onshore connections
+    #data["branchdc_ne"][i]=_CBD.candidateIC_cost(bdc);end
 
-    data["branchdc_ne"]=_CBD.unique_candidateIC(data["branchdc_ne"])#keep only unique candidates
+    #data["branchdc_ne"]=_CBD.unique_candidateIC(data["branchdc_ne"])#keep only unique candidates
 
 
     _PMACDC.process_additional_data!(data)#add extra DC model data
@@ -51,7 +53,7 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
     ##########################################################################
 
     #################### Multi-period INPUT PARAMETERS #######################
-    n=number_of_hours = 4000 # Number of time points in DE
+    n=number_of_hours = 8760 # Number of time points in DE
     scenario = Dict{String, Any}("hours" => number_of_hours, "sc_years" => Dict{String, Any}())
     scenario["sc_years"]["1"] = Dict{String, Any}()
     scenario["sc_years"]["1"]["year"] = 2020#year of data
@@ -61,12 +63,28 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
     ###########################################################################
      # get wind, generation and load time series
     #data, windgenprofile_beuk, gencostid_beuk, gencost_beuk, nFlow_losses = get_profile_data_UKBE(data, scenario)
-    data, zs_data = _CBD.get_profile_data_sets_mesh(unique(zs),data, n, scenario)
+    #data, zs_data = _CBD.get_profile_data_sets_mesh(unique(zs),data, n, scenario)
+    z="DE"
+    zs_data=CSV.read("./test/data/input/DEdata.csv", DataFrames.DataFrame)
+    colnames = ["time_stamp","Wnd_MWh"*z,"EUR_da"*z,"EUR_id"*z,"MWh_up"*z,"EUR_up"*z,"MWh_dwn"*z,"EUR_dwn"*z]
+    names!(zs_data, Symbol.(colnames))
 
 
-    n=number_of_hours = length(zs_data.time_stamp)
+
+    daily_ts=daily_tss(DateTime.(zs_data["time_stamp"]))
+    daily_dwn=daily_tss(Float64.(zs_data["MWh_dwnDE"]))
+    daily_up=daily_tss(Float64.(zs_data["MWh_upDE"]))
+    kshape_clusters_de=ks.kshape(ks.zscore(sqrt.((daily_dwn.^2)+(daily_up.^2))',axis=1), k)
+
+    ts=Vector{DateTime}(); for clusters in last.(kshape_clusters_de); if (length(clusters)>0); ts=vcat(ts,daily_ts[:,rand(clusters)+1]); end;end
+    de=Vector{Float64}(); for clusters in last.(kshape_clusters_deuk); if (length(clusters)>0); de=vcat(de,daily_de[:,rand(clusters)+1]); end;end
+
+    filter!(row -> row.time_stamp in ts, zs_data)
+    #uk=Vector{Float64}(); for clusters in last.(kshape_clusters_deuk); if (length(clusters)>0); uk=vcat(uk,daily_uk[:,rand(clusters)+1]); end;end
+
+    dim = n=number_of_hours = length(zs_data.time_stamp)
     #set problem dimension
-    dim = scenario["hours"] * length(data["scenario"])
+    #dim = scenario["hours"]
 
      # create a dictionary to pass time series data to data dictionary
     extradata,data = _CBD.create_profile_sets_mesh(dim, data, zs_data, zs, infinite_grid, owpp_mva)
@@ -93,7 +111,10 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
     [println(i) for (i,res) in resultACDC["solution"]["nw"]["1"]["ne_storage"] if (res["isbuilt"]==1)]
     println();println()
     [println(i) for (i,res) in resultACDC["solution"]["nw"]["1"]["ne_storage"] if (res["isbuilt"]==1)]
-
+    push!(rez,(k,resultACDC["objective"]))
+    println("k: "*string(k))
+end
+-5.139566317032e+01
     #resultACDC = _PMACDC.run_tnepopf(data, _PM.DCPPowerModel, gurobi, setting = s)
 
     return resultACDC, mn_data
@@ -231,3 +252,13 @@ for (i,ass) in enumerate(cluster.assignments); push!(cs[ass],(eachrow(zsd)[i].Wn
 #cluster=kmedoid_cluster(Ytr)
 n_samples=_CBD.n_samps(cluster,n)
 zsd=zsd[n_samples,:];
+
+
+
+plotly()
+width=750
+height=500
+p=plot(size = (width, height),xaxis = ("Clusters", font(20, "Courier")),yaxis = ("Normalized Objective", font(20, "Courier")))
+plot!(p,first.(rez),last.(rez)./(-5.139566317032),seriestype=:scatter,color=:red, label="Kmedoids",size = (width, height))
+plot!(p,first.(rez),[1 for i in last.(rez)],color=:black,size = (width, height))
+gui()

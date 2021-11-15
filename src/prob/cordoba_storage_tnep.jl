@@ -7,12 +7,12 @@ end
 
 # for distribution models
 ""
-function cordoba_strg_tnep(data::Dict{String,Any}, model_type::Type{T}, optimizer; kwargs...) where T <: _PM.AbstractBFModel
+#=function cordoba_strg_tnep(data::Dict{String,Any}, model_type::Type{T}, optimizer; kwargs...) where T <: _PM.AbstractBFModel
     return _PM.run_model(data, model_type, optimizer, cordoba_post_strg_tnep;
                          ref_extensions = [add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, ref_add_ne_branch_allbranches!, ref_add_frb_branch!, ref_add_oltc_branch!],
                          solution_processors = [_PM.sol_data_model!],
                          kwargs...)
-end
+end=#
 
 
 # Here the problem is defined, which is then sent to the solver.
@@ -20,6 +20,7 @@ end
 ""
 function cordoba_post_strg_tnep(pm::_PM.AbstractPowerModel)
 # VARIABLES: defined within PowerModels(ACDC) can directly be used, other variables need to be defined in the according sections of the code: see storage.jl
+
     for n in _PM.nw_ids(pm)
         _PM.variable_bus_voltage(pm; nw = n)
         _PM.variable_gen_power(pm; nw = n)

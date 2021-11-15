@@ -9,17 +9,16 @@ end
 ""
 function cordoba_mp_acdctnepopf(data::Dict{String,Any}, model_type::Type, solver; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
     if setting["process_data_internally"] == true
-        # PowerModelsACDC.process_additional_data!(data)
         _PMACDC.process_additional_data!(data)
     end
     s = setting
     return _PM.run_model(data, model_type, solver, post_cordoba_mp_acdctnepopf; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
-    # pm = _PM.build_model(data, model_type, post_mp_tnepopf; setting = s, kwargs...)
-    # return _PM.optimize_model!(pm, solver; solution_builder = get_solution_acdc_ne)
 end
 
 ""
 function post_cordoba_mp_acdctnepopf(pm::_PM.AbstractPowerModel)
+
+
     for (n, networks) in pm.ref[:nw]
         _PM.variable_bus_voltage(pm; nw = n)
         _PM.variable_gen_power(pm; nw = n)
@@ -83,13 +82,16 @@ function post_cordoba_mp_acdctnepopf(pm::_PM.AbstractPowerModel)
         for i in _PM.ids(pm, n, :branchdc)
             _PMACDC.constraint_ohms_dc_branch(pm, i; nw = n)
         end
+        candidates_in_corridor=[]
         for i in _PM.ids(pm, :branchdc_ne)
             _PMACDC.constraint_ohms_dc_branch_ne(pm, i; nw = n)
             _PMACDC.constraint_branch_limit_on_off(pm, i; nw = n)
             if n > 1
                 _PMACDC.constraint_candidate_dcbranches_mp(pm, n, i)
             end
+            push!(candidates_in_corridor,collect_4_constraint_candidate_corridor_limit(pm, i; nw = n))
         end
+        constraint_candidate_corridor_limit(pm, candidates_in_corridor; nw = n)
 
         for i in _PM.ids(pm, :convdc)
             _PMACDC.constraint_converter_losses(pm, i; nw = n)
@@ -116,5 +118,29 @@ function post_cordoba_mp_acdctnepopf(pm::_PM.AbstractPowerModel)
                 _PMACDC.constraint_conv_firing_angle_ne(pm, i; nw = n)
             end
         end
+    end
+end
+
+function collect_4_constraint_candidate_corridor_limit(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
+    branch = _PM.ref(pm, nw, :branchdc_ne, i)
+    ft_bus = [branch["fbusdc"],branch["tbusdc"]]
+    z = _PM.var(pm, nw, :branchdc_ne)[i]
+    return (sort!(ft_bus), z)
+end
+
+function constraint_candidate_corridor_limit(pm::_PM.AbstractPowerModel, cs_in_cs; nw::Int=pm.cnw)
+    corridors=Dict{String,Any}()
+    ks=first.(cs_in_cs)
+    unique!(ks)
+    for k in ks
+        push!(corridors, string(k[1])*string(k[2])=>[])
+    end
+
+    for c_in_c in cs_in_cs
+        k=first(c_in_c)
+        push!(corridors[string(k[1])*string(k[2])],last(c_in_c))
+    end
+    for (k,c) in corridors
+        JuMP.@constraint(pm.model, sum(c) <= 1)
     end
 end

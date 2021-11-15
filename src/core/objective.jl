@@ -1,6 +1,157 @@
 ##################################################################
 ##################### Objective with candidate storage
 ##################################################################
+function objective_min_cost_acdc_cordoba(pm::_PM.AbstractPowerModel)
+    add_co2_cost = haskey(pm.setting, "add_co2_cost") && pm.setting["add_co2_cost"]
+    return JuMP.@objective(pm.model, Min,
+        sum(pm.ref[:scenario_prob][s] *
+            sum(
+                _FP.calc_gen_cost(pm, n, add_co2_cost)
+                + _FP.calc_convdc_ne_cost(pm, n, add_co2_cost)
+                + _FP.calc_ne_branch_cost(pm, n, add_co2_cost)
+                + _FP.calc_branchdc_ne_cost(pm, n, add_co2_cost)
+            for (sc, n) in scenario)
+        for (s, scenario) in pm.ref[:scenario])
+    )
+end
+
+function objective_min_cost_opf(pm::_PM.AbstractPowerModel)
+    add_co2_cost = haskey(pm.setting, "add_co2_cost") && pm.setting["add_co2_cost"]
+    return JuMP.@objective(pm.model, Min,
+        sum(pm.ref[:scenario_prob][s] *
+            sum(
+                _FP.calc_gen_cost(pm, n, add_co2_cost)
+            for (sc, n) in scenario)
+        for (s, scenario) in pm.ref[:scenario])
+    )
+end
+
+function objective_min_cost_acdc_convex_conv(pm::_PM.AbstractPowerModel)
+    return JuMP.@objective(pm.model, Min,
+        sum(pm.ref[:scenario_prob][s] *
+            sum(
+                calc_gen_cost(pm, n)
+                + calc_convdc_convexafy_cost(pm, n)
+                + calc_ne_branch_cost(pm, n)
+                + calc_branchdc_ne_cost(pm, n)
+            for (sc, n) in scenario)
+        for (s, scenario) in pm.ref[:scenario])
+    )
+end
+
+function calc_branchdc_ne_cost(pm::_PM.AbstractPowerModel, n::Int)
+    cost = 0.0
+    if haskey(_PM.ref(pm, n), :branchdc_ne)
+        branchdc_ne = _PM.ref(pm, n, :branchdc_ne)
+        if !isempty(branchdc_ne)
+            cost = sum(branch["cost"]*_PM.var(pm, n, :branchdc_ne, i) for (i,branch) in branchdc_ne)
+        end
+    end
+    return cost
+end
+
+function calc_ne_branch_cost(pm::_PM.AbstractPowerModel, n::Int)
+    cost = 0.0
+    if haskey(_PM.ref(pm, n), :ne_branch)
+        ne_branch = _PM.ref(pm, n, :ne_branch)
+        if !isempty(ne_branch)
+            cost = sum(branch["construction_cost"]*_PM.var(pm, n, :branch_ne, i) for (i,branch) in ne_branch)
+        end
+    end
+    return cost
+end
+
+function calc_gen_cost(pm::_PM.AbstractPowerModel, n::Int)
+
+    function calc_single_gen_cost(i, g_cost)
+        len = length(g_cost)
+        cost = 0.0
+        if len >= 1
+            cost = g_cost[len] # Constant term
+            if len >= 2
+                cost += g_cost[len-1] * _PM.var(pm,n,:pg,i) # Adds linear term
+            end
+        end
+        return cost
+    end
+
+    gen = _PM.ref(pm, n, :gen)
+    cost = sum(calc_single_gen_cost(i,g["cost"]) for (i,g) in gen)
+    return cost
+end
+
+
+function objective_min_cost_acdc_convexafy(pm::_PM.AbstractPowerModel)
+    add_co2_cost = haskey(pm.setting, "add_co2_cost") && pm.setting["add_co2_cost"]
+    return JuMP.@objective(pm.model, Min,
+        sum(pm.ref[:scenario_prob][s] *
+            sum(
+                _FP.calc_gen_cost(pm, n, add_co2_cost)
+                + calc_convdc_convexafy_cost(pm, n)
+                + calc_branchdc_ne_cost(pm, n)
+                #+ calc_branchdc_convexafy_cost(pm, n)
+            for (sc, n) in scenario)
+        for (s, scenario) in pm.ref[:scenario])
+    )
+end
+
+function calc_convdc_convexafy_cost(pm::_PM.AbstractPowerModel, n::Int)
+
+    function calc_single_convdc_cost(i, b_cost)
+        cost = 0.0
+        cost += b_cost * _PM.var(pm,n,:p_pacmax,i) #
+        return cost
+    end
+
+    yl=pm.setting["years_length"]
+    hl=pm.setting["hours_length"]
+    convdc = _PM.ref(pm, n, :convdc)
+    if (mod(n-1,yl*hl)>=(yl-1)*hl)
+        #println("n: "*string(n)*", mod(n,yl*hl): "*string(mod(n,yl*hl))*", hl: "*string(hl))
+        cost = sum(calc_single_convdc_cost(i,b["cost"]) for (i,b) in convdc)
+    else
+        cost = 0#sum(calc_single_branchdc_yr2on_cost(i,b["rateC"],hl) for (i,b) in branchdc)
+    end
+    return cost
+end
+
+function calc_branchdc_convexafy_cost(pm::_PM.AbstractPowerModel, n::Int)
+
+    function calc_single_branchdc_cost(i, b_cost)
+        cost = 0.0
+        cost += b_cost * _PM.var(pm,n,:p_rateA,i) #
+        return cost
+    end
+    function calc_single_branchdc_yr2on_cost(i, b_cost,hl)
+        cost = 0.0
+        cost += b_cost * _PM.var(pm,n,:p_rateA,i)
+        cost -= b_cost * _PM.var(pm,n-hl,:p_rateA,i) #
+        return cost
+    end
+    yl=pm.setting["years_length"]
+    hl=pm.setting["hours_length"]
+    branchdc = _PM.ref(pm, n, :branchdc)
+    if (mod(n-1,yl*hl)>=(yl-1)*hl)
+        #println("n: "*string(n)*", mod(n,yl*hl): "*string(mod(n,yl*hl))*", hl: "*string(hl))
+        cost = sum(calc_single_branchdc_cost(i,b["cost"]) for (i,b) in branchdc)
+    else
+        cost = 0#sum(calc_single_branchdc_yr2on_cost(i,b["rateC"],hl) for (i,b) in branchdc)
+    end
+    return cost
+end
+
+function calc_branchdc_cost(pm::_PM.AbstractPowerModel, n::Int)
+
+    function calc_single_branchdc_cost(i, b_cost)
+        cost = 0.0
+        cost += b_cost * _PM.var(pm,n,:p_rateA,i) #
+        return cost
+    end
+
+    branchdc = _PM.ref(pm, n, :branchdc)
+    cost = sum(calc_single_branchdc_cost(i,b["cost"]) for (i,b) in branchdc)
+    return cost
+end
 
 function objective_min_cost_storage_cordoba(pm::_PM.AbstractPowerModel)
     add_co2_cost = haskey(pm.setting, "add_co2_cost") && pm.setting["add_co2_cost"]

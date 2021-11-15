@@ -1,5 +1,5 @@
 
-function gen(data,mva)
+#=function gen(data,mva)
     data["pmax"]=mva
     data["pmin"]=mva
     return data
@@ -40,9 +40,9 @@ function converterdc(conv,nde,mbase)
     conv["Qacmax"]=nde.mva/mbase
     conv["Qacmin"]=-1*nde.mva/mbase
     return conv
-end
+end=#
 
-function branchdc_ne(b_ne,dc_can,mbase)
+#=function branchdc_ne(b_ne,dc_can,mbase)
     b_ne["rateA"]=(dc_can.num*dc_can.elec.mva)/mbase
     b_ne["rateB"]=(dc_can.num*dc_can.elec.mva)/mbase
     b_ne["rateC"]=(dc_can.num*dc_can.elec.mva)/mbase
@@ -53,9 +53,9 @@ function branchdc_ne(b_ne,dc_can,mbase)
     #b_ne["cost"]=0
     #######
     return b_ne
-end
+end=#
 
-function ne_branch(ne_b,ac_can,mbase)
+#=function ne_branch(ne_b,ac_can,mbase)
     ne_b["mva"]=ac_can.num*ac_can.elec.mva
     ne_b["rate_a"]=ac_can.num*ac_can.elec.mva/mbase
     ne_b["rate_b"]=ac_can.num*ac_can.elec.mva/mbase
@@ -70,9 +70,9 @@ function ne_branch(ne_b,ac_can,mbase)
     #ne_b["construction_cost"]=0
     ##########
     return ne_b
-end
+end=#
 
-function branch_xfo(ne_b,ne_xfo,mbase)
+#=function branch_xfo(ne_b,ne_xfo,mbase)
     #ne_b["construction_cost"]=ne_b["construction_cost"]+(ne_xfo.costs.cpx_p+ne_xfo.costs.cpx_i)/mbase
 
     #NOTE change
@@ -80,9 +80,9 @@ function branch_xfo(ne_b,ne_xfo,mbase)
     #ne_b["construction_cost"]=ne_b["construction_cost"]+0
     ##########
     return ne_b
-end
+end=#
 
-function branch_plat(ne_b,ne_plat,mbase)
+#=function branch_plat(ne_b,ne_plat,mbase)
     #ne_b["construction_cost"]=ne_b["construction_cost"]+(ne_plat.costs.cpx)/mbase
 
     #NOTE change
@@ -90,9 +90,9 @@ function branch_plat(ne_b,ne_plat,mbase)
     #ne_b["construction_cost"]=ne_b["construction_cost"]+0
     ##########
     return ne_b
-end
+end=#
 
-function pm_dict_candidateICs(data,hoa,candidates)
+#=function pm_dict_candidateICs(data,hoa,candidates)
     #WF AC candidate lines
     for (i,k) in enumerate(vcat(candidates[2],candidates[2]))
         if (i<=length(candidates[2]))
@@ -127,32 +127,14 @@ function pm_dict_candidateICs(data,hoa,candidates)
     data["convdc"]["2"]=converterdc(data["convdc"]["2"],hoa["candidates"]["ic"][mx_key]["conv_on"],data["gen"]["1"]["mbase"])
 
     return data
-end
+end=#
 
-function additional_candidatesICS(data,candidates,ic_data)
-    #DC
-    #IC
-    ics=[]
-    data["branchdc_ne"]=sort(data["branchdc_ne"])
-    for (i,dcb) in data["branchdc_ne"]; push!(ics,deepcopy(dcb));end
 
-    data["branchdc_ne"]=Dict{String,Any}()
-    for (i,ic) in enumerate(ics)
-        for j=1:1:length(candidates);
-            ic["source_id"][2]=j+length(candidates)*(i-1);
-            ic["index"]=j+length(candidates)*(i-1);
-            ic["rateA"]=candidates[j]*first(ic_data[i]);
-            ic["rateB"]=last(ic_data[i])[1];
-            ic["rateC"]=last(ic_data[i])[2];
-            push!(data["branchdc_ne"],string(j+length(candidates)*(i-1))=>deepcopy(ic));
-        end
-    end
-    return data
-end
+#
 
-function additional_candidatesWFSdc(data,candidate_wfs,wf_data)
-    #DC
-    #IC
+
+#=function additional_candidatesWFSdc(data,candidate_wfs,wf_data)
+    #DC, IC
     wfs=[]
     for (i,dcb) in data["branchdc_ne"]; push!(wfs,deepcopy(dcb));end
 
@@ -168,9 +150,9 @@ function additional_candidatesWFSdc(data,candidate_wfs,wf_data)
         end
     end
     return data
-end
+end=#
 
-function additional_candidatesWFSac(data,candidate_wfs,wf_data)
+#=function additional_candidatesWFSac(data,candidate_wfs,wf_data)
     #DC
     #IC
     wfs=[]
@@ -188,9 +170,9 @@ function additional_candidatesWFSac(data,candidate_wfs,wf_data)
         end
     end
     return data
-end
+end=#
 
-function additional_candidatesWFS(data,candidates,ic_data)
+#=function additional_candidatesWFS(data,candidates,ic_data)
     #DC
     #IC
     ics=[]
@@ -208,9 +190,9 @@ function additional_candidatesWFS(data,candidates,ic_data)
         end
     end
     return data
-end
+end=#
 
-function additional_candidates(data,candidates)
+#=function additional_candidates(data,candidates)
     #AC
     c2be=deepcopy(data["ne_branch"]["1"]);c2uk=deepcopy(data["ne_branch"]["2"])
     data["ne_branch"]=Dict{String,Any}()
@@ -228,9 +210,10 @@ function additional_candidates(data,candidates)
     for i=1:1:length(candidates[1]); c2be["source_id"][2]=i;c2be["index"]=i; push!(data["branchdc_ne"],string(i)=>deepcopy(c2be)); end
     for i=length(candidates[1])+1:1:length(candidates[1])*2; c2uk["source_id"][2]=i;c2uk["index"]=i; push!(data["branchdc_ne"],string(i)=>deepcopy(c2uk)); end
     return data
-end
+end=#
+
 #calculates candidate equipment and sorts in struct
-function hoa_datastruct_candidateIC_w_onshore_converters(hoa,ic_mva,ic_length,candis,f,t)
+#=function hoa_datastruct_candidateIC_w_onshore_converters(hoa,ic_mva,ic_length,candis,f,t)
 
     #datastructure
     if !(haskey(hoa,"nodes")); push!(hoa,"nodes"=>Dict{String,Any}()); end
@@ -256,22 +239,17 @@ function hoa_datastruct_candidateIC_w_onshore_converters(hoa,ic_mva,ic_length,ca
     [push!(hoa["candidates"]["ic"][string(f)*"_"*string(t)][k],"cable"=>DC_cbl(ic_mva/2*parse(Float64,k), ic_length)) for (k,p) in hoa["candidates"]["ic"][string(f)*"_"*string(t)]]
 
     return hoa
-end
+end=#
 
-function candidateIC_cost(bdc)
-    if (bdc["rateC"]<0)#on-on
-        println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
-        bdc["cost"],bdc["r"],bdc["rateA"]=on_on_ic(bdc["rateA"],bdc["rateB"])
-    elseif (bdc["rateC"]>0)#off-off
-        println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
-        bdc["cost"],bdc["r"],bdc["rateA"]=on_off_ic(bdc["rateA"],bdc["rateB"])
-    else#on-off
-        bdc["cost"],bdc["r"],bdc["rateA"]=off_off_ic(bdc["rateA"],bdc["rateB"])
-    end
-    bdc["rateC"]=bdc["rateB"]=bdc["rateA"]
-    return bdc
-end
-
+#=n=2;mva=2000
+off_xfm(mva).costs.cpx_p+off_xfm(mva).costs.cpx_i+off_conv(mva).costs.cpx+DC_plat(mva).costs.cpx
+(1+0.25*(n-2))*0.084*mva + 0.0589*mva+54.895 + 0.04*mva+165
+(1+0.25*(n-2))*0.08*mva + 0.1*mva+220
+(1+0.25*(n-2))*0.0975*mva + 0.1925*mva#offshore
+0.1925*mva#onshore
+on_xfm(mva).costs.cpx_p+on_xfm(mva).costs.cpx_i+on_conv(mva).costs.cpx
+0.01*mva+0.06*mva+55=#
+#=
 function on_off_ic(mva,km)
     #ic dc
     cb=DC_cbl(mva, km)
@@ -283,82 +261,18 @@ function on_off_ic(mva,km)
     #println("DC connection cost: cb "*string(cb.costs.cpx_i+cb.costs.cpx_p)*" x_off "*string(xf_off.costs.cpx_p+xf_off.costs.cpx_i)*" x_on "*string(xf_on.costs.cpx_p+xf_on.costs.cpx_i)*" c_off "*string(cn_off.costs.cpx)*" c_on "*string(cn_off.costs.cpx)*" plat "*string(dc_plat.costs.cpx))
     #xf=on_xfm(mva)
     #cn=on_conv(mva)
-    cost=dc_plat.costs.cpx+xf_off.costs.cpx_p+xf_off.costs.cpx_i+cn_off.costs.cpx+xf_on.costs.cpx_p+xf_on.costs.cpx_i+cn_on.costs.cpx+cb.costs.cpx_i+cb.costs.cpx_p
+    transformer()
+    #################### Original Costs
+    #cost=dc_plat.costs.cpx+xf_off.costs.cpx_p+xf_off.costs.cpx_i+cn_off.costs.cpx+xf_on.costs.cpx_p+xf_on.costs.cpx_i+cn_on.costs.cpx+cb.costs.cpx_i+cb.costs.cpx_p
+    #################### SEST Costs
+    cost=0.1925*(cb.num*cb.elec.mva)*2+((1+0.25*(xf_off.num-2))*0.0975*cb.num*cb.elec.mva)+cb.costs.cpx_i+cb.costs.cpx_p
     println("DC connection cost: total "*string(cost)*" mva "*string(cb.num*cb.elec.mva)*" km "*string(km))
     return cost,(cb.elec.ohm/cb.num)*km,cb.num*cb.elec.mva
     #return cost,(cb.elec.ohm/cb.num)*km,mva
 end
+=#
 
-function create_profile_sets_owpps(number_of_hours, data, zs_data, zs, inf_grid, owpp_mva)
-    pu=data["baseMVA"]
-    e2me=1000000/pu#into ME/PU
-    extradata = Dict{String,Any}()
-    extradata["dim"] = Dict{String,Any}()
-    extradata["dim"] = number_of_hours
-    extradata["gen"] = Dict{String,Any}()
-    for (g, gen) in data["gen"]
-        extradata["gen"][g] = Dict{String,Any}()
-        extradata["gen"][g]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
-        extradata["gen"][g]["pmin"] = Array{Float64,2}(undef, 1, number_of_hours)
-        extradata["gen"][g]["cost"] = [Vector{Float64}() for i=1:number_of_hours]
-    end
-    for d in 1:number_of_hours
-        #Day ahead BE
-        #source generator
-        for (g, gen) in data["gen"]
-            if (gen["apf"]>0)#market generator onshore
-                extradata["gen"][g]["pmax"][1, d] = inf_grid/pu
-                extradata["gen"][g]["pmin"][1, d] = 0
-                extradata["gen"][g]["cost"][d] = [(zs_data["EUR_da"*zs[gen["gen_bus"]]][d])/e2me,0]
-            else#wind gen
-                extradata["gen"][g]["pmax"][1, d] = owpp_mva/pu
-                extradata["gen"][g]["pmin"][1, d] = 0
-                extradata["gen"][g]["cost"][d] = [0,0]
-            end
-        end
-    end
-    #add loads
-    loads=Dict{String,Any}()
-    num_of_gens=length(data["gen"])
-    for (g, gen) in extradata["gen"]
-        if (data["gen"][g]["apf"]>0)#market generator onshore
-            load=deepcopy(data["gen"][g])
-            load["index"]=num_of_gens+1
-            load["source_id"][2]=num_of_gens+1
-            load["pmin"]=deepcopy(load["pmax"])*-1
-            load["pmax"]=0
-            push!(loads,string(num_of_gens+1)=>deepcopy(load))
-            num_of_gens=num_of_gens+1
-        end
-    end
-    for (l, load) in loads
-        extradata["gen"][l] = Dict{String,Any}()
-        extradata["gen"][l]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
-        extradata["gen"][l]["pmin"] = Array{Float64,2}(undef, 1, number_of_hours)
-        extradata["gen"][l]["cost"] = [Vector{Float64}() for i=1:number_of_hours]
-    end
-
-    for d in 1:number_of_hours
-        #Day ahead BE
-        #source generator
-        for (l, load) in loads
-            if (load["apf"]>0)#market generator onshore
-                extradata["gen"][l]["pmax"][1, d] = 0
-                extradata["gen"][l]["pmin"][1, d] = (inf_grid/pu)*-1
-                extradata["gen"][l]["cost"][d] = [(zs_data["EUR_da"*zs[load["gen_bus"]]][d])/e2me,0]
-                push!(data["gen"],l=>load)
-            else#wind gen
-            end
-        end
-    end
-
-    #set ["apf"]
-    for (g, gen) in data["gen"]
-        gen["apf"]=0
-    end
-    return extradata,data
-end
-
+#=
 function candidateACWF_cost(owpp_mva,bac)
     if (bac["rate_c"]<0)#on-on
         bac["construction_cost"],bdc["r"],bac["rate_a"]=on_on_ic(owpp_mva*bac["rate_a"],bac["rate_b"])
@@ -384,7 +298,10 @@ function on_off_wfac(mva,km)
     return cost,(cb.elec.ohm/cb.num)*km,cb.num*cb.elec.mva
     #return cost,(cb.elec.ohm/cb.num)*km,mva
 end
-
+#cb=DC_cbl(2000, 550)
+#cb.costs.cpx_i+cb.costs.cpx_p+(0.1925*cb.num*cb.elec.mva)*2
+=#
+#=
 function on_on_ic(mva,km)
     #ic dc
     cb=DC_cbl(mva, km)
@@ -398,25 +315,17 @@ function on_on_ic(mva,km)
 
     #xf=on_xfm(mva)
     #cn=on_conv(mva)
-    cost=(xf.costs.cpx_p+xf.costs.cpx_i+cn.costs.cpx)*2+cb.costs.cpx_i+cb.costs.cpx_p
+    ##################### Original cost
+    #cost=(xf.costs.cpx_p+xf.costs.cpx_i+cn.costs.cpx)*2+cb.costs.cpx_i+cb.costs.cpx_p
+
+    ##################### for SEST
+    cost=(0.1925*cb.num*cb.elec.mva)*2+cb.costs.cpx_i+cb.costs.cpx_p
     println("DC connection cost: total "*string(cost)*" mva "*string(cb.num*cb.elec.mva)*" km "*string(km))
     return cost,(cb.elec.ohm/cb.num)*km,cb.num*cb.elec.mva
     #return cost,(cb.elec.ohm/cb.num)*km,mva
 end
-
-function unique_candidateIC(cand_ics)
-    copy_cand_ics=deepcopy(cand_ics)
-    for (i,dcb) in cand_ics
-        for (j,tdcb) in copy_cand_ics
-            if (i!=j && dcb["fbusdc"]==tdcb["fbusdc"] && dcb["tbusdc"]==tdcb["tbusdc"] &&  isapprox(dcb["rateA"],tdcb["rateA"]; atol = 1))
-                delete!(copy_cand_ics,j)
-                break
-            end
-        end
-    end
-    return copy_cand_ics
-end
-
+=#
+#=
 #calculates candidate equipment and sorts in struct
 function hoa_datastruct_candidateICs(ic_mva,owpp_mva,ic_length,owpp_km,candidates)
     #location
@@ -480,3 +389,4 @@ function hoa_datastruct_candidateICs(ic_mva,owpp_mva,ic_length,owpp_km,candidate
 
     return hoa
 end
+=#

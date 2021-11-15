@@ -3,6 +3,9 @@ uuid = "e2452cbb-75db-4735-b721-a4abbc529286"
 authors = ["Su-"]
 version = "0.1.0"
 
+[deps]
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+
 [compat]
 julia = "1.5.3"
 
