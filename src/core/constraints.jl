@@ -56,7 +56,36 @@ function constraint_convdc_t0t1(vss, pm)
             end
         end
     end
+    #println("vdb end!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+end
 
+function constraint_branchdc_ne_t0t1(vss, pm)
+    #println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!vdb start: "
+    sl=pm.setting["scenarios_length"]
+    yl=pm.setting["years_length"]
+    hl=pm.setting["hours_length"]
+    s=1
+    y=1
+    for (i,vs) in enumerate(vss)
+        for (j,v) in enumerate(last(vs))
+            if (mod(i,hl)!=1)
+                JuMP.@constraint(pm.model, last(vss[i])[j] == last(vss[i-1])[j])
+            end
+            if (i+hl*yl<=length(vss))
+                JuMP.@constraint(pm.model, last(vss[i])[j]  == last(vss[i+hl*yl])[j])
+            end
+            if (i==y*hl+(s-1)*yl*hl+1)
+                y+=1
+            end
+            if (i==s*yl*hl+1)
+                s+=1
+                y=1
+            end
+            if (i+hl<=s*yl*hl && i+hl<=sl*yl*hl && y<yl)
+                    JuMP.@constraint(pm.model, last(vss[i])[j]  <= last(vss[i+hl])[j])
+            end
+        end
+    end
     #println("vdb end!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 end
 
@@ -208,4 +237,24 @@ function variable_active_dcbranch_flow(pm::_PM.AbstractPowerModel; nw::Int=pm.cn
         end
     end
     report && _IM.sol_component_value_edge(pm, nw, :branchdc, :pf, :pt, _PM.ref(pm, nw, :arcs_dcgrid_from), _PM.ref(pm, nw, :arcs_dcgrid_to), p)
+end
+
+"variable: `0 <= convdc_ne[c] <= 1` for `c` in `candidate converters"
+function variable_branch_ne(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, relax::Bool=false, report::Bool=true)
+    if !relax
+        Z_dc_branch_ne = _PM.var(pm, nw)[:branchdc_ne] = JuMP.@variable(pm.model, #branch_ne is also name in PowerModels, branchdc_ne is candidate branches
+        [l in _PM.ids(pm, nw, :branchdc_ne)], base_name="$(nw)_branch_ne",
+        binary = true,
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :branchdc_ne, l), "convdc_tnep_start",  0.0)
+        )
+    else
+        Z_dc_branch_ne = _PM.var(pm, nw)[:branchdc_ne] = JuMP.@variable(pm.model, #branch_ne is also name in PowerModels, branchdc_ne is candidate branches
+        [l in _PM.ids(pm, nw, :branchdc_ne)], base_name="$(nw)_branch_ne",
+        lower_bound = 0,
+        upper_bound = 1,
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :branchdc_ne, l), "convdc_tnep_start",  0.0)
+        )
+    end
+    report && _IM.sol_component_value(pm, nw, :branchdc_ne, :isbuilt, _PM.ids(pm, nw, :branchdc_ne), Z_dc_branch_ne)
+    return (nw,Z_dc_branch_ne)
 end

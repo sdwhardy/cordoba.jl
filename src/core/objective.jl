@@ -39,12 +39,26 @@ function objective_min_cost_acdc_convex_conv(pm::_PM.AbstractPowerModel)
     )
 end
 
+function objective_min_cost_acdc_convex_conv_npv(pm::_PM.AbstractPowerModel)
+    return JuMP.@objective(pm.model, Min,
+        sum(pm.ref[:scenario_prob][s] *
+            sum(
+                #calc_gen_cost(pm, n)
+                calc_convdc_convexafy_cost_npv(pm, n)
+                #+ calc_ne_branch_cost(pm, n)
+                #+ calc_branchdc_ne_cost(pm, n)
+            for (sc, n) in scenario)
+        for (s, scenario) in pm.ref[:scenario])
+    )
+end
+
 function calc_branchdc_ne_cost(pm::_PM.AbstractPowerModel, n::Int)
     cost = 0.0
     if haskey(_PM.ref(pm, n), :branchdc_ne)
         branchdc_ne = _PM.ref(pm, n, :branchdc_ne)
         if !isempty(branchdc_ne)
             cost = sum(branch["cost"]*_PM.var(pm, n, :branchdc_ne, i) for (i,branch) in branchdc_ne)
+            #println(cost)
         end
     end
     return cost
@@ -111,6 +125,38 @@ function calc_convdc_convexafy_cost(pm::_PM.AbstractPowerModel, n::Int)
         cost = sum(calc_single_convdc_cost(i,b["cost"]) for (i,b) in convdc)
     else
         cost = 0#sum(calc_single_branchdc_yr2on_cost(i,b["rateC"],hl) for (i,b) in branchdc)
+    end
+    return cost
+end
+
+
+
+
+function calc_convdc_convexafy_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
+
+    function calc_single_convdc_cost_npv(i, b_cost)
+        cost = 0.0
+        cost += b_cost * _PM.var(pm,n,:p_pacmax,i)
+        return cost
+    end
+    sl=pm.setting["scenarios_length"]
+    yl=pm.setting["years_length"]
+    hl=pm.setting["hours_length"]
+    _sc=floor(Int64,(n-1)/(yl*hl))
+    _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+    convdc0 = _PM.ref(pm, n, :convdc)
+    #=k0=keys(convdc0)
+    c0=[k for k in k0]
+    println(string(n)*" convdc0: "*string(convdc0[c0[1]]["cost"])*" - "*string(convdc0[c0[2]]["cost"]))=#
+    if (_yr<yl)
+        convdc1 = _PM.ref(pm, n+hl, :convdc)
+        #=k1=keys(convdc1)
+        c1=[k for k in k1]
+        println(string(n+hl)*" convdc1: "*string(convdc1[c1[1]]["cost"])*" - "*string(convdc1[c1[2]]["cost"]))=#
+        cost = sum(calc_single_convdc_cost_npv(i,b["cost"]) for (i,b) in convdc0)
+        cost = cost+sum(calc_single_convdc_cost_npv(i,b["cost"]*-1) for (i,b) in convdc1)
+    else
+        cost = sum(calc_single_convdc_cost_npv(i,b["cost"]) for (i,b) in convdc0)
     end
     return cost
 end

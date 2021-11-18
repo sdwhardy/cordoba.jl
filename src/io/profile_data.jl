@@ -1,3 +1,87 @@
+function npvs_costs_datas_4mip(data, scenario, _yrs)
+    _scs=data["scenario"]
+    _hrs=deepcopy(scenario["hours"])
+    #_yrs=[k for k in keys(scenario["sc_names"][_scs[1]])]
+    for (_sci,_sc) in _scs
+        _sc=sort!(OrderedCollections.OrderedDict(_sc),byvalue=true)
+        _sc_first=first(_sc)[2]
+        for (_str,_num) in _sc
+            if (_num<=_sc_first+(length(_yrs)-1)*_hrs-1)
+                data["nw"][string(_num)]=deepcopy(npv_cost_data_4mip(deepcopy(data["nw"][string(_num)]),data["nw"][string(_num+_hrs)]))
+            end
+        end
+    end
+    return data
+end
+
+
+function npv_cost_data_4mip(data0,data1)
+    function mip(cost0, cost1)
+        return cost0-cost1
+    end
+
+    for (b, branch) in get(data0, "ne_branch", Dict{String,Any}())
+        data0["ne_branch"][b]["construction_cost"] = mip(data0["ne_branch"][b]["construction_cost"],data1["ne_branch"][b]["construction_cost"])
+    end
+    for (b, branch) in get(data0, "branchdc_ne", Dict{String,Any}())
+        data0["branchdc_ne"][b]["cost"] = mip(data0["branchdc_ne"][b]["cost"],data1["branchdc_ne"][b]["cost"])
+    end
+    for (c, conv) in get(data0, "convdc_ne", Dict{String,Any}())
+        data0["convdc_ne"][c]["cost"] = mip(data0["convdc_ne"][c]["cost"],data1["convdc_ne"][c]["cost"])
+    end
+    return data0
+end
+
+function npvs_costs_datas(data, scenario, _yrs)
+    _scs=data["scenario"]
+    base_yr=parse(Int64,_yrs[1])
+    _hrs=deepcopy(scenario["hours"])
+    #_yrs=[k for k in keys(scenario["sc_names"][_scs[1]])]
+    for (_sci,_sc) in _scs
+        _sc_temp=sort!(OrderedCollections.OrderedDict(deepcopy(_sc)),byvalue=true)
+        _sc_first=first(_sc_temp)[2]
+        _yr=1
+        for (_str,_num) in _sc_temp
+            if (_num<=_sc_first+_yr*_hrs-1)
+                data["nw"][string(_num)]=deepcopy(npv_cost_data(deepcopy(data["nw"][string(_num)]),base_yr,parse(Int64,_yrs[_yr])))
+                if (_num==_sc_first+_yr*_hrs-1)
+                    _yr=_yr+1
+                end
+            end
+        end
+    end
+    return data
+end
+
+function npv_cost_data(data,base_yr,current_yr,_dr::Float64=0.04)
+    npv = x -> (1 / (1+_dr)^(current_yr-base_yr)) * x # npv
+    for (g, gen) in get(data, "gen", Dict{String,Any}())
+        _PM._apply_func!(gen, "cost", npv)
+    end
+    for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
+        _PM._apply_func!(branch, "construction_cost", npv)
+    end
+    for (b, branch) in get(data, "branchdc_ne", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", npv)
+    end
+    for (c, conv) in get(data, "convdc_ne", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", npv)
+    end
+    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "eq_cost", npv)
+        _PM._apply_func!(strg, "inst_cost", npv)
+        _PM._apply_func!(strg, "cost_abs", npv)
+        _PM._apply_func!(strg, "cost_inj", npv)
+    end
+    for (b, branch) in get(data, "branchdc", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", npv)
+    end
+    for (c, conv) in get(data, "convdc", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", npv)
+    end
+    return data
+end
+
 function converter_parameters_rxb(data)
     for (c,conv) in data["convdc_ne"]
         # display("converter")
@@ -48,7 +132,7 @@ end
 function additional_candidatesICS(data,candidates,ic_data)
     #DC, IC
     ics=[]
-    data["branchdc_ne"]=sort(data["branchdc_ne"])
+    data["branchdc_ne"]=sort!(OrderedCollections.OrderedDict(data["branchdc_ne"]))
     for (i,dcb) in data["branchdc_ne"]; push!(ics,deepcopy(dcb));end
 
     data["branchdc_ne"]=Dict{String,Any}()
@@ -195,7 +279,14 @@ end
     return scenario_data
 end=#
 
-#=
+function daily_tss(ts)
+    ts_daily=ts[1:24]
+    for i=25:24:length(ts)-24
+        ts_daily=hcat(ts_daily,ts[i:i+23])
+    end
+    return ts_daily
+end
+
 function get_scenario_year_tss(sc_nms,sc_yrs)
     scenario_data = Dict{String,Any}()
     for _sc in sc_nms
@@ -206,10 +297,10 @@ function get_scenario_year_tss(sc_nms,sc_yrs)
         end
     end
     return scenario_data
-end=#
+end
 
-#=
-function get_scenario_year_tss(sc_nms,sc_yrs)
+
+#=function get_scenario_year_tss(sc_nms,sc_yrs)
     scenario_data = Dict{String,Any}()
     for _sc in sc_nms
         push!(scenario_data,_sc=>Dict{String,Any}())
@@ -417,11 +508,43 @@ end
     end
 end=#
 #
-function scale_cost_data_cordoba!(data, scenario)
-    #rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"]*scenario["years"])) * x # scale hourly costs to the planning horizon
-    #rescale_total  = x -> (                                1 / (scenario["hours"]*scenario["years"])) * x # scale total costs to the planning horizon
+function scale_cost_data_per_scenario!(data, scenario)
+    rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"]*scenario["years"])) * x # scale hourly costs to the planning horizon
+    rescale_total  = x -> (                                1 / (scenario["hours"]*scenario["years"])) * x # scale total costs to the planning horizon
+    #rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
+    #rescale_total  = x -> (                                1 / (scenario["hours"])) * x # scale total costs to the planning horizon
+
+    for (g, gen) in data["gen"]
+        _PM._apply_func!(gen, "cost", rescale_hourly)
+    end
+    for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
+        _PM._apply_func!(branch, "construction_cost", rescale_total)
+    end
+    for (b, branch) in get(data, "branchdc_ne", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (c, conv) in get(data, "convdc_ne", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", rescale_total)
+    end
+    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "eq_cost", rescale_total)
+        _PM._apply_func!(strg, "inst_cost", rescale_total)
+        _PM._apply_func!(strg, "cost_abs", rescale_hourly)
+        _PM._apply_func!(strg, "cost_inj", rescale_hourly)
+    end
+    for (b, branch) in get(data, "branchdc", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (c, conv) in get(data, "convdc", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", rescale_total)
+    end
+end
+
+function scale_cost_data_per_year!(data, scenario)
     rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
     rescale_total  = x -> (                                1 / (scenario["hours"])) * x # scale total costs to the planning horizon
+    #rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
+    #rescale_total  = x -> (                                1 / (scenario["hours"])) * x # scale total costs to the planning horizon
 
     for (g, gen) in data["gen"]
         _PM._apply_func!(gen, "cost", rescale_hourly)
@@ -458,7 +581,7 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
     extradata["dim"] = Dict{String,Any}()
     extradata["dim"] = number_of_hours
     extradata["gen"] = Dict{String,Any}()
-    data["gen"]=sort(data_orig["gen"])
+    data["gen"]=sort!(OrderedCollections.OrderedDict(data_orig["gen"]))
     for (g, gen) in data["gen"]
         extradata["gen"][g] = Dict{String,Any}()
         extradata["gen"][g]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
@@ -472,9 +595,9 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
             if (gen["type"]>0)#market generator onshore
                 extradata["gen"][g]["pmax"][1, d] = inf_grid/pu
                 extradata["gen"][g]["pmin"][1, d] = 0
-                extradata["gen"][g]["cost"][d] = [(zs_data["EUR_da"*zs[1][gen["gen_bus"]]][d])/e2me,0]
+                extradata["gen"][g]["cost"][d] = [(zs_data[!,"EUR_da"*zs[1][gen["gen_bus"]]][d])/e2me,0]
             else#wind gen
-                extradata["gen"][g]["pmax"][1, d] = (zs_data["Wnd_MWh"*zs[2][gen["gen_bus"]-length(zs[1])]][d])*owpp_mva[gen["gen_bus"]-length(zs[1])]/pu
+                extradata["gen"][g]["pmax"][1, d] = (zs_data[!,"Wnd_MWh"*zs[2][gen["gen_bus"]-length(zs[1])]][d])*owpp_mva[gen["gen_bus"]-length(zs[1])]/pu
                 extradata["gen"][g]["pmin"][1, d] = 0
                 extradata["gen"][g]["cost"][d] = [0,0]
             end
@@ -508,7 +631,7 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
             if (load["type"]>0)#market generator onshore
                 extradata["gen"][l]["pmax"][1, d] = 0
                 extradata["gen"][l]["pmin"][1, d] = (inf_grid/pu)*-1
-                extradata["gen"][l]["cost"][d] = [(zs_data["EUR_da"*zs[1][load["gen_bus"]]][d])/e2me,0]
+                extradata["gen"][l]["cost"][d] = [(zs_data[!,"EUR_da"*zs[1][load["gen_bus"]]][d])/e2me,0]
                 push!(data_orig["gen"],l=>load)
             else#wind gen
             end
