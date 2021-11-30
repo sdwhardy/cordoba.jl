@@ -221,7 +221,7 @@ end
 #**
 function get_onshore_conv_failure_data(conv)
     conv.relia.fr=0.12#/yr
-    conv.relia.mttr=0.6#month
+    conv.relia.mttr=0.3#month
     conv.relia.mc=0.56#
     return conv.relia
 end
@@ -229,7 +229,7 @@ end
 #**
 function get_offshore_conv_failure_data(conv)
     conv.relia.fr=0.12#/yr
-    conv.relia.mttr=2#month
+    conv.relia.mttr=1#month
     conv.relia.mc=0.56#
     return conv.relia
 end

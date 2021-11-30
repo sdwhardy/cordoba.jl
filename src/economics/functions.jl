@@ -32,7 +32,7 @@ function cost_hvac_cable(cbl,ks)
     #cost of corrective maintenance
     cbl.costs.cm=cost_cm(cbl.costs.cpx_p,ks.opx_c)
     #cost of expected energy not served
-    cbl.costs.eens=0#cost_eens(cbl,ks)
+    cbl.costs.eens=cost_eens(cbl,ks)
     #totals the cable cost
     cbl.costs.ttl=cost_cbl_sum(cbl)
     cbl.costs.grand_ttl=cbl.costs.ttl
@@ -52,7 +52,7 @@ function cost_mvac_cable(cbl,ks)
     #cost of corrective maintenance
     cbl.costs.cm=cost_cm(cbl.costs.cpx_p,ks.opx_c)
     #cost of expected energy not served
-    cbl.costs.eens=0#cost_eens(cbl,ks)
+    cbl.costs.eens=cost_eens(cbl,ks)
     #totals the cable cost
     cbl.costs.ttl=cost_cbl_sum(cbl)
     cbl.costs.grand_ttl=cbl.costs.ttl
@@ -68,7 +68,7 @@ function cost_hvdc_cable(cbl,ks)
     #cost of corrective maintenance
     cbl.costs.cm=cost_cm(cbl.costs.cpx_p,ks.opx_c)
     #cost of expected energy not served
-    cbl.costs.eens=0#cost_eens(cbl,ks)
+    cbl.costs.eens=cost_eens(cbl,ks)
     #totals the cable cost
     cbl.costs.ttl=cost_cbl_sum(cbl)
     cbl.costs.grand_ttl=cbl.costs.ttl
@@ -102,7 +102,7 @@ end
 #**
 function cost_rlc_hvdc(cbl,ks)
     #AC cable loss cost **
-    eta=0.9828#assumed efficiency of transformers
+    eta=0.994#assumed efficiency of transformers
     A=cbl.mva*eta#eta is the efficiency of a feeder transformer, s power to transmit
     B=cbl.elec.volt*2
     I=A/B#cable current
@@ -195,7 +195,7 @@ function cost_xfo_oss(xfo,ks)
     #corrective maintenance
     xfo.costs.cm=cost_cm(xfo.costs.cpx_p,ks.opx_x)
     #eens calculation
-    xfo.costs.eens=0#cost_eens(xfo,ks)
+    xfo.costs.eens=cost_eens(xfo,ks)
     #totals the xfo cost
     xfo.costs.ttl=cost_xfo_sum(xfo)
     return xfo
@@ -211,7 +211,7 @@ function cost_xfo_pcc(xfo,ks)
     #corrective maintenance
     xfo.costs.cm=cost_cm(xfo.costs.cpx_p,ks.opx_x)
     #eens calculation
-    xfo.costs.eens=0#cost_eens(xfo,ks)
+    xfo.costs.eens=cost_eens(xfo,ks)
     #totals the xfo cost
     xfo.costs.ttl=cost_xfo_sum(xfo)
     return xfo

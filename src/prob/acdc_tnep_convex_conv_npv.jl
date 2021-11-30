@@ -14,51 +14,51 @@ function post_acdc_tnep_convex_conv_npv(pm::_PM.AbstractPowerModel)
     # VARIABLES: defined within PowerModels(ACDC) can directly be used, other variables need to be defined in the according sections of the code: flexible_demand.jl
     vcp=[];vbp=[]
         for n in _PM.nw_ids(pm)
-            #=_PM.variable_bus_voltage(pm; nw = n)#CREATES voltage angle variables and sets voltage magnitudes to 1.0 at all AC nodes
+            _PM.variable_bus_voltage(pm; nw = n)#CREATES voltage angle variables and sets voltage magnitudes to 1.0 at all AC nodes
             _PM.variable_gen_power(pm; nw = n)#CREATES pg variables of all generators and sets upper and lower limits
             _PM.variable_branch_power(pm; nw = n)#CREATES real and imaginary branch power variables, sets upper and lower limits and initial values
-=#
+
             #_PMACDC.variable_dc_converter(pm; nw = n)#CREATES pconv_ac, pconv_dc, vaf, vac(internal converter angle), [pconv_tf_fr, pconv_tf_to(transformer)]-AC side, pconv_pr_fr (phase reactor),
             ####################### cordoba ########################
             push!(vcp,variable_convdc_peak(pm; nw = n))
             variable_dc_converter(pm; nw = n)
             ########################################################
-#=
+
             ######################### May use in future ###########################################
             #_PM.variable_storage_power(pm; nw = n)
             _PMACDC.variable_voltage_slack(pm; nw = n)#CREATES va_du(angle @ transformer?), vaf_du(angle @ filter), vac_du(angle @ converter?) for each convdc_ne and bounds between -2pi and 2pi, intiallizes to 0
             _PMACDC.variable_active_dcbranch_flow(pm; nw = n)#CREATES pdcgrid for each branchdc and bounds between +/- rateA
-            =#
-            #_PMACDC.variable_dcbranch_current(pm; nw = n)#ONLY ACTIVE IN BF MODEL(not doing anything even with branch flow = true?), CREATES: ccm_dcgrid and bounds.
-            #_PMACDC.variable_dcgrid_voltage_magnitude(pm; nw = n)# IN DC flow MODEL not USED
+
+            _PMACDC.variable_dcbranch_current(pm; nw = n)#ONLY ACTIVE IN BF MODEL(not doing anything even with branch flow = true?), CREATES: ccm_dcgrid and bounds.
+            _PMACDC.variable_dcgrid_voltage_magnitude(pm; nw = n)# IN DC flow MODEL not USED
             #variable_absorbed_energy(pm; nw = n)#storage (not investigated yet)
             #variable_absorbed_energy_ne(pm; nw = n)#storage (not investigated yet)
             #variable_flexible_demand(pm; nw = n)#storage (not investigated yet)
             #######################################################################################
 
             # variables for TNEP problem
-            #=
+
             _PM.variable_ne_branch_indicator(pm; nw = n)#CREATES: branch_ne {0,1} for each branch_ne
             _PM.variable_ne_branch_power(pm; nw = n)#CREATES p_ne branch power variable and sets bounds
             push!(vbp,variable_branch_ne(pm; nw = n))#CREATES: branch_ne {0,1} for each branchdc_ne
             _PMACDC.variable_active_dcbranch_flow_ne(pm; nw = n)#CREATES: pdcgrid_ne for each branchdc_ne and sets upper and lower bounds
-            =#
+
             ######################### May use in future ###########################################
-            #_PM.variable_ne_branch_voltage(pm; nw = n)#DOES nothing in DC model - there are no voltages on branches
+            _PM.variable_ne_branch_voltage(pm; nw = n)#DOES nothing in DC model - there are no voltages on branches
             #variable_storage_power_ne(pm; nw = n)#storage (not investigated yet)
-            #variable_dc_converter_ne(pm; nw = n)#CREATES: pconv_ac_ne, pconv_dc_ne, vaf_ne, vac_ne, pconv_tf_fr_ne, pconv_tf_to_ne, pconv_pr_from_ne and sets bounds (equivalent to existing conv vars)
-            #_PMACDC.variable_dcbranch_current_ne(pm; nw = n)##ONLY ACTIVE IN BF MODEL(not doing anything even with branch flow = true?),CREATES: ccm_dcgrid_ne
-            #_PMACDC.variable_dcgrid_voltage_magnitude_ne(pm; nw = n)# IN DC flow MODEL not USED=#
+            _PMACDC.variable_dc_converter_ne(pm; nw = n)#CREATES: pconv_ac_ne, pconv_dc_ne, vaf_ne, vac_ne, pconv_tf_fr_ne, pconv_tf_to_ne, pconv_pr_from_ne and sets bounds (equivalent to existing conv vars)
+            _PMACDC.variable_dcbranch_current_ne(pm; nw = n)##ONLY ACTIVE IN BF MODEL(not doing anything even with branch flow = true?),CREATES: ccm_dcgrid_ne
+            variable_dcgrid_voltage_magnitude_ne(pm; nw = n)# IN DC flow MODEL not USED=#
             #######################################################################################
         end
-    #    sort!(vbp, by = x -> x[1])
-    #    constraint_branchdc_ne_t0t1(vbp,pm)
+        sort!(vbp, by = x -> x[1])
+        constraint_branchdc_ne_t0t1(vbp,pm)
         sort!(vcp, by = x -> x[1])
         constraint_convdc_t0t1(vcp,pm)
     #OBJECTIVE see objective.jl
         objective_min_cost_acdc_convex_conv_npv(pm)
     #CONSTRAINTS: defined within PowerModels(ACDC) can directly be used, other constraints need to be defined in the according sections of the code: flexible_demand.jl
-    #=    for n in _PM.nw_ids(pm)
+        for n in _PM.nw_ids(pm)
             _PM.constraint_model_voltage(pm; nw = n)
             _PM.constraint_ne_model_voltage(pm; nw = n)
             _PMACDC.constraint_voltage_dc(pm; nw = n)
@@ -151,7 +151,7 @@ function post_acdc_tnep_convex_conv_npv(pm::_PM.AbstractPowerModel)
                 if pm.ref[:nw][n][:convdc_ne][i]["islcc"] == 1
                     _PMACDC.constraint_conv_firing_angle_ne(pm, i; nw = n)
                 end
-            end=#
+            end
     #=
             for i in _PM.ids(pm, :load, nw = n)
                 if _PM.ref(pm, n, :load, i, "flex") == 0
@@ -173,7 +173,7 @@ function post_acdc_tnep_convex_conv_npv(pm::_PM.AbstractPowerModel)
                 constraint_storage_losses_ne(pm, i, nw = n)
                 constraint_storage_bounds_ne(pm, i, nw = n)
             end=#
-    #=    end
+        #=end
 
         for (s, scenario) in pm.ref[:scenario]
 
@@ -249,5 +249,6 @@ function post_acdc_tnep_convex_conv_npv(pm::_PM.AbstractPowerModel)
             end
             n_1 = n_2
         end=#
-    println(pm.model)
+    #println(pm.model)
+    end
 end

@@ -1,3 +1,116 @@
+function variable_dcgrid_voltage_magnitude_ne(pm::_PM.AbstractDCPModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
+    # not used
+end
+
+function variable_dcgrid_voltage_magnitude_ne(pm::_PM.AbstractWModels; kwargs...)
+    variable_dcgrid_voltage_magnitude_sqr_ne(pm; kwargs...)
+    variable_dcgrid_voltage_magnitude_sqr_du(pm; kwargs...) # duplicated to cancel out existing dc voltages(W) from ohms constraint when z = 0
+end
+
+function variable_dcgrid_voltage_magnitude_sqr_ne(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
+    bi_bp = Dict([(i, (b["fbusdc"], b["tbusdc"])) for (i,b) in _PM.ref(pm, nw, :branchdc_ne)])
+    bus_vdcmax = merge(Dict([(b,bus["Vdcmax"]) for (b,bus) in _PM.ref(pm, nw, :busdc)]),
+    Dict([(b,bus["Vdcmax"]) for (b,bus) in _PM.ref(pm, nw, :busdc_ne)]))
+    bus_vdcmin = merge(Dict([(b,bus["Vdcmin"]) for (b,bus) in _PM.ref(pm, nw, :busdc)]),
+    Dict([(b,bus["Vdcmin"]) for (b,bus) in _PM.ref(pm, nw, :busdc_ne)]))
+         # display(_PM.ids(pm, nw, :buspairsdc_ne))
+        wdc_ne = _PM.var(pm, nw)[:wdc_ne] = JuMP.@variable(pm.model,
+        [i in _PM.ids(pm, nw, :busdc)], base_name="$(nw)_wdc_ne",
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :busdc, i), "Vdc",  1.0)^2,
+        )
+        wdcr_ne = _PM.var(pm, nw)[:wdcr_ne] = JuMP.@variable(pm.model,
+        [l in _PM.ids(pm, nw, :branchdc_ne)], base_name="$(nw)_wdcr_ne",
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :busdc, bi_bp[l][1]), "Vdc",  1.0)^2,
+        )
+        if bounded
+            for (i, busdc) in _PM.ref(pm, nw, :busdc)
+                JuMP.set_lower_bound(wdc_ne[i],  busdc["Vdcmin"]^2)
+                JuMP.set_upper_bound(wdc_ne[i],  busdc["Vdcmax"]^2)
+            end
+            for (br, branchdc) in _PM.ref(pm, nw, :branchdc_ne)
+                JuMP.set_lower_bound(wdcr_ne[br],  0)
+                JuMP.set_upper_bound(wdcr_ne[br],  bus_vdcmax[bi_bp[br][1]] * bus_vdcmax[bi_bp[br][2]])
+            end
+        end
+        report && _IM.sol_component_value(pm, nw, :busdc, :wdc_ne, _PM.ids(pm, nw, :busdc), wdc_ne)
+        report && _IM.sol_component_value(pm, nw, :branchdc_ne, :wdcr_ne, _PM.ids(pm, nw, :branchdc_ne), wdcr_ne)
+end
+
+function variable_dcgrid_voltage_magnitude_ne(pm::_PM.AbstractLPACModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
+        phivdcm_ne = _PM.var(pm, nw)[:phi_vdcm_ne] = JuMP.@variable(pm.model,
+        [i in _PM.ids(pm, nw, :busdc_ne)], base_name="$(nw)_phi_vdcm_ne",
+        lower_bound = _PM.ref(pm, nw, :busdc_ne, i, "Vdcmin") - 1,
+        upper_bound = _PM.ref(pm, nw, :busdc_ne, i, "Vdcmax") - 1,
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :busdc_ne, i), "Vdc")
+        )
+        if bounded
+            for (i, busdc) in _PM.ref(pm, nw, :busdc_ne)
+                JuMP.set_lower_bound(phivdcm_ne[i],  busdc["Vdcmin"] - 1)
+                JuMP.set_upper_bound(phivdcm_ne[i],  busdc["Vdcmax"] -1 )
+            end
+        end
+        report && _IM.sol_component_value(pm, nw, :busdc_ne, :phivdcm_ne, _PM.ids(pm, nw, :busdc_ne), phivdcm_ne)
+
+#TODO
+# think about creating an arc/dict with branchdc_ne pointing to both existing and new buses. Then update limits with corresponding buses.
+        phivdcm_fr_ne = _PM.var(pm, nw)[:phi_vdcm_fr] = JuMP.@variable(pm.model,
+        [i in _PM.ids(pm, nw, :branchdc_ne)], base_name="$(nw)_phi_vdcm_fr",
+        start = 0
+        )
+        if bounded
+            for (i, branchdc) in _PM.ref(pm, nw, :branchdc_ne)
+                JuMP.set_lower_bound(phivdcm_fr_ne[i],  -0.2)
+                JuMP.set_upper_bound(phivdcm_fr_ne[i],  0.2 )
+            end
+        end
+        report && _IM.sol_component_value(pm, nw, :branchdc_ne, :phivdcm_fr, _PM.ids(pm, nw, :branchdc_ne), phivdcm_fr_ne)
+
+
+        phivdcm_to_ne = _PM.var(pm, nw)[:phi_vdcm_to] = JuMP.@variable(pm.model,
+        [i in _PM.ids(pm, nw, :branchdc_ne)], base_name="$(nw)_phi_vdcm_to",
+        start = 0
+        )
+
+        if bounded
+            for (i, branchdc) in _PM.ref(pm, nw, :branchdc_ne)
+                JuMP.set_lower_bound(phivdcm_to_ne[i],  -0.2)
+                JuMP.set_upper_bound(phivdcm_to_ne[i],  0.2 )
+            end
+        end
+        report && _IM.sol_component_value(pm, nw, :branchdc_ne, :phivdcm_to, _PM.ids(pm, nw, :branchdc_ne), phivdcm_to_ne)
+end
+
+function variable_dcgrid_voltage_magnitude_sqr_du(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true) # this has to to every branch, different than its counterpart(Wdc_fr) since two candidate branches can be connected to same node and two duplicate variables will be needed
+    bi_bp = Dict([(i, (b["fbusdc"], b["tbusdc"])) for (i,b) in _PM.ref(pm, nw, :branchdc_ne)])
+    wdc_fr_ne = _PM.var(pm, nw)[:wdc_du_fr] = JuMP.@variable(pm.model,
+    [i in _PM.ids(pm, nw, :branchdc_ne)], base_name="$(nw)_wdc_du_fr",
+    start = _PM.comp_start_value(_PM.ref(pm, nw, :busdc, bi_bp[i][1]), "Vdc",  1.0)^2,
+    )
+    wdc_to_ne = _PM.var(pm, nw)[:wdc_du_to] = JuMP.@variable(pm.model,
+    [i in _PM.ids(pm, nw, :branchdc_ne)], base_name="$(nw)_wdc_du_to",
+    start = _PM.comp_start_value(_PM.ref(pm, nw, :busdc, bi_bp[i][1]), "Vdc",  1.0)^2,
+    )
+    #TODO replace wdc_du_fr and wdc_du_to with wdc_fr and wdc_to make make it consistent with PM, there multiplication is defined by wr - real and wi- imag
+    wdcr_frto_ne = _PM.var(pm, nw)[:wdcr_du] = JuMP.@variable(pm.model,
+    [i in _PM.ids(pm, nw, :branchdc_ne)], base_name="$(nw)_wdcr_du",
+    start = _PM.comp_start_value(_PM.ref(pm, nw, :busdc, bi_bp[i][1]), "Vdc",  1.0)^2,
+    )
+
+    if bounded
+        for (i, branchdc) in _PM.ref(pm, nw, :branchdc_ne)
+            JuMP.set_lower_bound(wdc_fr_ne[i],  0)
+            JuMP.set_upper_bound(wdc_fr_ne[i],  1.21)
+            JuMP.set_lower_bound(wdc_to_ne[i],  0)
+            JuMP.set_upper_bound(wdc_to_ne[i],  1.21)
+            JuMP.set_lower_bound(wdcr_frto_ne[i],  0)
+            JuMP.set_upper_bound(wdcr_frto_ne[i],  1.21)
+        end
+    end
+    report && _IM.sol_component_value(pm, nw, :branchdc_ne, :wdc_du_fr, _PM.ids(pm, nw, :branchdc_ne), wdc_fr_ne)
+    report && _IM.sol_component_value(pm, nw, :branchdc_ne, :wdc_du_to, _PM.ids(pm, nw, :branchdc_ne), wdc_to_ne)
+    report && _IM.sol_component_value(pm, nw, :branchdc_ne, :wdcr_du, _PM.ids(pm, nw, :branchdc_ne), wdcr_frto_ne)
+end
+
 function constraint_dcbranch_t0t1(vss, pm)
     #println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!vdb start: "
     sl=pm.setting["scenarios_length"]
@@ -185,11 +298,18 @@ function variable_converter_active_power(pm::_PM.AbstractPowerModel; nw::Int=pm.
     start = _PM.comp_start_value(_PM.ref(pm, nw, :convdc, i), "P_g", 1.0)
     )
 
-    if bounded
+    #if bounded
         for (c, convdc) in _PM.ref(pm, nw, :convdc)
             p_pacmax = _PM.var(pm, nw, :p_pacmax, c)
             JuMP.@constraint(pm.model, pc[c]-p_pacmax  <= 0)
             JuMP.@constraint(pm.model, pc[c]+p_pacmax  >= 0)
+        end
+    #end
+
+    if bounded
+        for (c, convdc) in _PM.ref(pm, nw, :convdc)
+            JuMP.set_lower_bound(pc[c],  convdc["Pacmin"])
+            JuMP.set_upper_bound(pc[c],  convdc["Pacmax"])
         end
     end
 

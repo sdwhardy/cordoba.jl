@@ -27,6 +27,13 @@ mpc.gen = [
 2	0		0	0	0	1	100	1	835	0	0	0	0	0	0	0	0	0	0	0	0 0;
 ];
 
+%%Additional generator fields, type=0(wind generator), type=1(onshore market ie load and generator created)
+%column_names% 		type
+mpc.gen_type = [
+										1
+										0
+];
+
 %% branch data
 %	fbus	tbus	r	       x	    b	  rateA	rateB	rateC	ratio	angle	status	angmin	angmax
 mpc.branch = [
@@ -68,7 +75,7 @@ mpc.branchdc = [
  %% candidate branches
  %column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB   rateC status cost
  mpc.branchdc_ne = [
- 1	2	0.0	0.00	 0.00  1	 		1	 1	 1.0	1000000;
+ 1	2	0.0	0.00	 0.00  1	 		1	 1	 1.0	0;
  ];
 
  %% existing converters

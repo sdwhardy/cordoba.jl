@@ -1,4 +1,4 @@
-using Ipopt, Juniper, JuMP, Cbc, Gurobi, Cbc, XLSX, DataFrames, Dates, CSV
+using Ipopt, Juniper, JuMP, Cbc, Gurobi, Cbc, XLSX, DataFrames, Dates, CSV, Distances
 using MultivariateStats, Clustering
 import cordoba; const _CBD = cordoba
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
@@ -6,34 +6,47 @@ import PowerModels; const _PM = PowerModels
 import FlexPlan; const _FP = FlexPlan
 import InfrastructureModels; const _IM = InfrastructureModels
 include("../test/data/conv_spec.jl")
+using PyCall; ks = pyimport_conda("kshape.core", "kshape.core")
+#Conda.pip("install","dtw-python")
+#dtw = pyimport_conda("dtw", "*")
 
+#################### Multi-period INPUT PARAMETERS #######################
+scenario_names=["STRG20"]
+#scenario_names=["DG20"]
 
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#NOTE EENS is set to zero for CORDOBA/FlexPlan!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+scenario_years=["2020"]
+#scenario_years=["2020","2030"]
+#scenario_years=["2020"]
 
+scenario_planning_horizon=30
 
-owpp_mva=4000#mva additional 2.5GW capacity nearby
+################### Input data for script_test.jl ########################
+owpp_mva=[4000]#mva of wf (in de)
+#owpp_mva=[0]#mva of wf (in de)
 
-#-1:both ends onshore, 0:both ends offshore, 1:onshore/offshore
-#ics=[(2000,(615,-1)),(2000,(677,-1)),(2000,(215,-1)),(2000,(480,1)),(2000,(176,1)),(2000,(224,1))];#must be in same order as zs uk(1)-de(2), uk(1)-dk(3), de(2)-dk(3)
-#zs=["UK","DE","DK","DE"]#must be in same order as .m file gens
+#interconnectors format: (mva,km)
+#ics=[(4000,550),(4000,760),(4000,250),(4000,470),(4000,145),(4000,246)];
+ics=[(4000,145)];
+conv_lim=4000
 
-ics=[(4000,(145,1))];#must be in same order as zs uk(1)-de(2), uk(1)-dk(3), de(2)-dk(3)
-
-zs=["DE","DE"]#must be in same order as .m file gens
-infinite_grid=sum(first.(ics))+owpp_mva#ensures enough generation and consumption in all markets
-candidate_ics=[1]#[[ic=1000,1200,1600,2000],[owpp]]#
+#location of nodes
+#markets_wfs=[["UK","DE","DK"],["DE"]]#must be in same order as .m file gens
+markets_wfs=[["DE"],["DE"]]
+infinite_grid=sum(first.(ics))+sum(owpp_mva)#ensures enough generation and consumption in all markets
 
 #800MWh with ic_mva=500;owpp_mva=1000#mva,ic_length=600;#km,owpp_km=300#km,candidates=[[0.5,0.4],[0.5,0.4]],x=3 in storage_costs
 ##############################
-function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{Array{Float64,1}}=[[1.0],[1.0]])
 rez=[]
-for k=10:10:100
+for k=5:1:300
     casename = "ic_ukdedk_owpp_wstrg"
     file = "./test/data/input/$casename.m"
     data = _PM.parse_file(file)#load data in PM format
+    candidate_ics=[1,4/5,3/5,1/2]#Candidate Cable sizes
+    z_base_dc=(data["busdc"]["1"]["basekVdc"])^2/data["baseMVA"]
     data=_CBD.additional_candidatesICS(data,candidate_ics,ics)
+    for (i,bdc) in data["branchdc_ne"]
+    data["branchdc_ne"][i]=_CBD.candidateIC_cost_impedance(bdc,z_base_dc);end
+    data["branchdc_ne"]=_CBD.unique_candidateIC(data["branchdc_ne"])#keep only unique candidates
 
     #delete!(data["branchdc_ne"],"4");delete!(data["branchdc_ne"],"3");delete!(data["branchdc_ne"],"2")
     #delete!(data["branchdc_ne"],"5");delete!(data["branchdc_ne"],"6")
@@ -49,52 +62,60 @@ for k=10:10:100
     _PMACDC.process_additional_data!(data)#add extra DC model data
     ##################### Network cost/elec PARAMETERS ######################
 
-    converter_parameters_rxb(data)#adjust converter parameters
+    _CBD.converter_parameters_rxb(data)#adjust converter parameters
     ##########################################################################
+    ##################### load time series data ##############################
+    #k=5
+    scenario_data = _CBD.get_scenario_year_tss(scenario_names,scenario_years)#Retrieve the scenario time series
+    #k=365
+    ##################### Cluster time series data ###########################
+    for (sc,yrs_ts) in scenario_data
+        for (yr,ts) in yrs_ts
+            daily_ts=_CBD.half_daily_tss(DateTime.(ts[!,"time_stamp"]),6)
+            #daily_dk=_CBD.daily_tss(Float64.(ts[!,"Wnd_MWhDK"]))
+            daily_de=_CBD.half_daily_tss(Float64.(ts[!,"EUR_daDE"]),6)
+            #daily_uk=_CBD.daily_tss(Float64.(ts[!,"EUR_daUK"]))
 
-    #################### Multi-period INPUT PARAMETERS #######################
-    n=number_of_hours = 8760 # Number of time points in DE
-    scenario = Dict{String, Any}("hours" => number_of_hours, "sc_years" => Dict{String, Any}())
-    scenario["sc_years"]["1"] = Dict{String, Any}()
-    scenario["sc_years"]["1"]["year"] = 2020#year of data
-    scenario["sc_years"]["1"]["start"] = Dates.datetime2epochms(DateTime(scenario["sc_years"]["1"]["year"]))   #seconds from year 0 (2020 = 63745056000000)
-    scenario["sc_years"]["1"]["probability"] = 1
-    scenario["planning_horizon"] = 30 # in years, to scale generation cost
-    ###########################################################################
-     # get wind, generation and load time series
-    #data, windgenprofile_beuk, gencostid_beuk, gencost_beuk, nFlow_losses = get_profile_data_UKBE(data, scenario)
-    #data, zs_data = _CBD.get_profile_data_sets_mesh(unique(zs),data, n, scenario)
-    z="DE"
-    zs_data=CSV.read("./test/data/input/DEdata.csv", DataFrames.DataFrame)
-    colnames = ["time_stamp","Wnd_MWh"*z,"EUR_da"*z,"EUR_id"*z,"MWh_up"*z,"EUR_up"*z,"MWh_dwn"*z,"EUR_dwn"*z]
-    names!(zs_data, Symbol.(colnames))
+            #=kshape_clusters_deuk=ks.kshape(ks.zscore(sqrt.((daily_de.^2))',axis=1), k)
+            ts=Vector{Float64}(); for clusters in last.(kshape_clusters_deuk); if (length(clusters)>0); ts=vcat(ts,daily_ts[:,rand(clusters)+1]); end;end
+=#
+            kmedoids_clusters=Clustering.kmedoids(Distances.pairwise(Distances.Euclidean(), daily_de, daily_de), k)
+            ts=Vector{Float64}(); for cluster in kmedoids_clusters.medoids; ts=vcat(ts,daily_ts[:,cluster]); end
+
+            filter!(row -> row.time_stamp in ts, scenario_data[sc][yr])
+        end
+    end
 
 
+    #scenario_data=load("./test/data/input/EUSTDG_TS_k"*string(k)*".jld2")
 
-    daily_ts=daily_tss(DateTime.(zs_data["time_stamp"]))
-    daily_dwn=daily_tss(Float64.(zs_data["MWh_dwnDE"]))
-    daily_up=daily_tss(Float64.(zs_data["MWh_upDE"]))
-    kshape_clusters_de=ks.kshape(ks.zscore(sqrt.((daily_dwn.^2)+(daily_up.^2))',axis=1), k)
+    ##################### Find minimum length scenario
+    #scenario_data=load("./test/data/input/EUSTDG_TS_k5.jld2")
+    ls=[];for (_sc, data_by_scenario) in scenario_data; for (_yr, data_by_yr) in data_by_scenario;
+    #scenario_data[_sc][_yr]=scenario_data[_sc][_yr][1:2,:]
+    push!(ls,length(scenario_data[_sc][_yr].time_stamp))
+    end;end;ls=minimum(ls)
 
-    ts=Vector{DateTime}(); for clusters in last.(kshape_clusters_de); if (length(clusters)>0); ts=vcat(ts,daily_ts[:,rand(clusters)+1]); end;end
-    de=Vector{Float64}(); for clusters in last.(kshape_clusters_deuk); if (length(clusters)>0); de=vcat(de,daily_de[:,rand(clusters)+1]); end;end
-
-    filter!(row -> row.time_stamp in ts, zs_data)
-    #uk=Vector{Float64}(); for clusters in last.(kshape_clusters_deuk); if (length(clusters)>0); uk=vcat(uk,daily_uk[:,rand(clusters)+1]); end;end
-
-    dim = n=number_of_hours = length(zs_data.time_stamp)
+    ##################### Make all scenarios the same length
+    for (_yr, data_by_yr) in scenario_data; for (_sc, data_by_scenario) in data_by_yr;
+    scenario_data[_yr][_sc]=scenario_data[_yr][_sc][1:ls,:]
+    end;end
     #set problem dimension
     #dim = scenario["hours"]
 
      # create a dictionary to pass time series data to data dictionary
-    extradata,data = _CBD.create_profile_sets_mesh(dim, data, zs_data, zs, infinite_grid, owpp_mva)
-    extradata,data = _CBD.add_storage_profile(dim, data, extradata, zs_data, unique(zs), number_of_hours)
+     all_scenario_data,data,scenario, dim = _CBD.multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
+     scenario["planning_horizon"] = scenario_planning_horizon # in years, to scale generation cost
 
+    extradata,data = _CBD.create_profile_sets_mesh(dim, data, all_scenario_data, markets_wfs, infinite_grid, owpp_mva)
+    extradata,data = _CBD.add_storage_profile(dim, data, extradata, all_scenario_data, markets_wfs, ls)
+
+    #################### Scale cost data
 
     # Scale cost data
-    _CBD.scale_cost_data_cordoba!(data, scenario)
-    _CBD.scale_cost_data_cordoba!(extradata, scenario)
-    _CBD.scale_bat_data_cordoba!(data, scenario)
+    _CBD.scale_cost_data_per_scenario!(data, scenario)
+    _CBD.scale_cost_data_per_scenario!(extradata, scenario)
+
 
     # Create data dictionary where time series data is included at the right place
     mn_data = _PMACDC.multinetwork_data(data, extradata, Set{String}(["source_type","scenario","name", "source_version", "per_unit"]))
@@ -114,7 +135,7 @@ for k=10:10:100
     push!(rez,(k,resultACDC["objective"]))
     println("k: "*string(k))
 end
--5.139566317032e+01
+-13360.189595985426
     #resultACDC = _PMACDC.run_tnepopf(data, _PM.DCPPowerModel, gurobi, setting = s)
 
     return resultACDC, mn_data
@@ -254,11 +275,14 @@ n_samples=_CBD.n_samps(cluster,n)
 zsd=zsd[n_samples,:];
 
 
-
+using Plots
 plotly()
 width=750
 height=500
-p=plot(size = (width, height),xaxis = ("Clusters", font(20, "Courier")),yaxis = ("Normalized Objective", font(20, "Courier")))
-plot!(p,first.(rez),last.(rez)./(-5.139566317032),seriestype=:scatter,color=:red, label="Kmedoids",size = (width, height))
+p=plot(size = (width, height),yticks = 0.6:0.3:1.5,xlims=(0,300),ylims=(0.4,1.7),xaxis = ("Clusters", font(20, "Courier")),yaxis = ("Normalized Objective", font(20, "Courier")))
+plot!(p,first.(rez),last.(rez)./(-13360.189595985426),seriestype=:scatter,color=:red, label="Kmedoids",size = (width, height))
 plot!(p,first.(rez),[1 for i in last.(rez)],color=:black,size = (width, height))
 gui()
+
+
+rez300=deepcopy(rez)

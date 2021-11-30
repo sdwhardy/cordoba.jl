@@ -127,6 +127,50 @@ function converter_parameters_rxb(data)
             # display("Casldfjew;afjz;lsdjf ;ljewbaf;ahjdfkj daslvncf;ahfdjasf newohf::$c")
         end
     end
+    for (c,conv) in data["convdc"]
+        # display("converter")
+        # xtf = conv["xtf"]
+        # bf = conv["bf"]
+        # xc = conv["xc"]
+        # Pmax = conv["Pacmax"]
+        # Qmax = conv["Qacmax"]
+        # println("convter:$c", "xtf:$xtf", "bf:$bf", "xc:$xc", "P: $Pmax", "Q: $Qmax")
+
+        bus = conv["busac_i"]
+        #display(bus)
+        base_kV = data["bus"]["$bus"]["base_kv"]
+        base_S = sqrt((100*conv["Pacmax"])^2+(100*conv["Qacmax"])^2) #base MVA = 100
+        base_Z = base_kV^2/base_S # L-L votlage/3 phase power
+        base_Y= 1/base_Z
+        #display("baseS:$base_S")
+        conv["xtf"] = 0.10*100/base_S #new X =old X *(100MVA/old Sbase)
+        # display(conv["xtf"])
+        # display(base_Z)
+        conv["rtf"] = conv["xtf"]/100
+        conv["bf"] = 0.08*base_S/100
+        conv["xc"] = 0.07*100/base_S #new X =old X *(100MVA/old Zbase)
+        # display(conv["xc"])
+        # display(base_Z)
+        conv["rc"] = conv["xc"]/100 #new X =old X *(100MVA/old Zbase)
+        rtf = conv["rtf"]
+        xtf = conv["xtf"]
+        bf = conv["bf"]
+        Pmax = conv["Pacmax"]
+        Pmin =  conv["Pacmin"]
+        Qmax = conv["Qacmax"]
+        Qmin =  conv["Qacmin"]
+
+        conv["Imax"] = sqrt(Pmax^2+Qmax^2)
+        xc = conv["xc"]
+        rc = conv["rc"]
+        Imax = conv["Imax"]
+
+        # println("convter:$c", "xtf:$xtf", "bf:$bf", "xc:$xc","baseS:$base_S", "baseZ:$base_Z","Pmin: $Pmin", "Pmax: $Pmax", "Qmin: $Qmin", "Qmax: $Qmax")
+        #println("rtf:$rtf","     ", "xtf:$xtf","     ", "bf:$bf", "     ","rc:$rc", "     ","xc:$xc", "     ","Imax:$Imax","     ","Pmin: $Pmin", "     ","Pmax: $Pmax" )
+        if xtf > 0.1 || xc > 0.1
+            # display("Casldfjew;afjz;lsdjf ;ljewbaf;ahjdfkj daslvncf;ahfdjasf newohf::$c")
+        end
+    end
 end
 
 function additional_candidatesICS(data,candidates,ic_data)
@@ -152,7 +196,8 @@ end
 function candidateIC_cost_impedance(bdc,z_base)
     cb=DC_cbl(bdc["rateA"], bdc["length"])
     bdc["cost"]=cb.costs.cpx_i+cb.costs.cpx_p
-    bdc["r"]=((cb.elec.ohm*10^3/cb.num)*cb.length)/z_base
+    #bdc["r"]=((cb.elec.ohm*10^3/cb.num)*cb.length)/z_base
+    bdc["r"]=((cb.elec.ohm/cb.num)*cb.length)/z_base
     bdc["rateC"]=bdc["rateB"]=bdc["rateA"]=cb.num*cb.elec.mva
     return bdc
 end
@@ -283,6 +328,14 @@ function daily_tss(ts)
     ts_daily=ts[1:24]
     for i=25:24:length(ts)-24
         ts_daily=hcat(ts_daily,ts[i:i+23])
+    end
+    return ts_daily
+end
+
+function half_daily_tss(ts,n)
+    ts_daily=ts[1:n]
+    for i=(n+1):n:length(ts)-n
+        ts_daily=hcat(ts_daily,ts[i:i+(n-1)])
     end
     return ts_daily
 end
@@ -422,7 +475,7 @@ function combine_profile_data_sets_entso_scenario(zs,data, n,_sc,_yr, scenario)
     zs_data["EUR_daDE"]=zs_data["EUR_daDE"].*(5/25).+zs_dataB["EUR_daDE"].*(10/25).+zs_dataC["EUR_daDE"].*(10/25)
     return data,zs_data
 end=#
-#=
+
 function add_storage_profile(dim, data, extradata, zs_data, zs, number_of_hours)
     pu=data["baseMVA"]
     e2me=1000000/pu#into ME/PU
@@ -439,12 +492,13 @@ function add_storage_profile(dim, data, extradata, zs_data, zs, number_of_hours)
     end
     for d in 1:number_of_hours
         #up_reg
-        up_pe=[(zs_data["EUR_up"*z][d],zs_data["MWh_up"*z][d]) for z in zs]
+
+        up_pe=[(zs_data["EUR_up"*z][d],zs_data["MWh_up"*z][d]) for z in zs[2]]
         sort!(up_pe, by = x -> x[1], rev=true)
         up_pe=(first.(up_pe)./e2me,last.(up_pe)./pu)
 
-        dwn_pe=[(zs_data["EUR_dwn"*z][d],zs_data["MWh_dwn"*z][d]) for z in zs]
-        elec_prices=[(zs_data["EUR_id"*z][d],Inf) for z in zs]
+        dwn_pe=[(zs_data["EUR_dwn"*z][d],zs_data["MWh_dwn"*z][d]) for z in zs[2]]
+        elec_prices=[(zs_data["EUR_id"*z][d],Inf) for z in zs[2]]
         sort!(elec_prices, by = x -> x[1])
         #push!(dwn_pe,elec_prices[1])
         sort!(dwn_pe, by = x -> x[1])
@@ -498,7 +552,7 @@ function add_storage_profile(dim, data, extradata, zs_data, zs, number_of_hours)
     end
 
     return extradata,data
-end
+end#=
 =#
 
 #=function scale_bat_data_cordoba!(data, scenario)

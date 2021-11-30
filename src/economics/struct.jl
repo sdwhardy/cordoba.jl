@@ -245,4 +245,4 @@ mutable struct converter
    costs::costs_hvdc
    wnd::String
 end
-converter()=converter(0.0,0.9828,1,reliability(),elec_conv(),costs_hvdc(),"")
+converter()=converter(0.0,0.99,1,reliability(),elec_conv(),costs_hvdc(),"")

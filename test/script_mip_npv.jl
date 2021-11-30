@@ -9,11 +9,11 @@
     include("../aux/post_process/functions.jl")
 
     ################### ENTSO-E scenario description ####################################
-    #scenario_names=["EU19","EU20","ST19","ST20","DG19","DG20"]
-    scenario_names=["DG20"]
+    scenario_names=["EU19"]
+    #scenario_names=["DG20"]
 
-    #scenario_years=["2020","2030","2040"]
-    scenario_years=["2020","2030"]
+    #scenario_years=["2020"]
+    scenario_years=["2020","2030","2040"]
     #scenario_years=["2020"]
 
     scenario_planning_horizon=30
@@ -23,18 +23,18 @@
     #owpp_mva=[0]#mva of wf (in de)
 
     #interconnectors format: (mva,km)
-    #ics=[(4000,550),(4000,760),(4000,250),(4000,470),(4000,145),(4000,246)];
-    ics=[(4000,145)];
+    ics=[(4000,550),(4000,760),(4000,250),(4000,470),(4000,145),(4000,246)];
+    #ics=[(4000,145)];
     conv_lim=4000
 
     #location of nodes
-    #markets_wfs=[["UK","DE","DK"],["DE"]]#must be in same order as .m file gens
-    markets_wfs=[["DE"],["DE"]]
+    markets_wfs=[["UK","DE","DK"],["DE"]]#must be in same order as .m file gens
+    #markets_wfs=[["DE"],["DE"]]
     infinite_grid=sum(first.(ics))+sum(owpp_mva)#ensures enough generation and consumption in all markets
 
     ##################### load time series data ##############################
-    k=5
-    scenario_data = _CBD.get_scenario_year_tss(scenario_names,scenario_years)#Retrieve the scenario time series
+    k=2
+    #=scenario_data = _CBD.get_scenario_year_tss(scenario_names,scenario_years)#Retrieve the scenario time series
 
     ##################### Cluster time series data ###########################
     for (sc,yrs_ts) in scenario_data
@@ -48,14 +48,15 @@
             ts=Vector{Float64}(); for clusters in last.(kshape_clusters_deuk); if (length(clusters)>0); ts=vcat(ts,daily_ts[:,rand(clusters)+1]); end;end
             filter!(row -> row.time_stamp in ts, scenario_data[sc][yr])
         end
-    end
+    end=#
 
-    #scenario_data=load("./test/data/input/EUSTDG_TS_k"*string(k)*".jld2")
+    scenario_data=load("./test/data/input/EUSTDG_TS_k"*string(k)*".jld2")
+    d_keys=keys(scenario_data);for k in d_keys;if !(issubset([string(k)],scenario_names));delete!(scenario_data,k);end;end
 
     ##################### Find minimum length scenario
     #scenario_data=load("./test/data/input/EUSTDG_TS_k5.jld2")
     ls=[];for (_sc, data_by_scenario) in scenario_data; for (_yr, data_by_yr) in data_by_scenario;
-    scenario_data[_sc][_yr]=scenario_data[_sc][_yr][1:2,:]
+    #scenario_data[_sc][_yr]=scenario_data[_sc][_yr][1:2,:]
     push!(ls,length(scenario_data[_sc][_yr].time_stamp))
     end;end;ls=minimum(ls)
 
@@ -66,29 +67,30 @@
     #save("./test/data/input/EUSTDG_TS_k"*string(k)*".jld2",scenario_data)
 
     #optimation settings
-    s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => false, "process_data_internally" => false, "scenarios_length" => length(scenario_names), "years_length" => length(scenario_years), "hours_length" => ls, "corridor_limit" => true, "ic_lim"=>conv_lim/100, "compare_mode" => true)
+    s = Dict("output" => Dict("branch_flows" => false), "conv_losses_mp" => false, "process_data_internally" => false, "scenarios_length" => length(scenario_names), "years_length" => length(scenario_years), "hours_length" => ls, "corridor_limit" => true, "ic_lim"=>conv_lim/100, "compare_mode" => true)
     #select solver
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)
 
 
     ################################################# MIP TNEP #######################################
     ################## reads .m input file name ######################
-    casename = "test_convex_wf"
-    #casename = "test_convex_conv"
+    #casename = "test_convex_wf"
+    casename = "test_convex_conv"
     file = "./test/data/input/$casename.m"
     data_mip = _PM.parse_file(file)#load data in PM format
 
     #################### Calculates cables for DC lines
-    z_base_dc=(data_mip["busdc_ne"]["1"]["basekVdc"])^2/data_mip["baseMVA"]
+    z_base_dc=(data_mip["busdc"]["1"]["basekVdc"])^2/data_mip["baseMVA"]
     #candidate_ics=[1]#Candidate Cable sizes
     #candidate_ics=[1,4/5,1/2,1/4]#Candidate Cable sizes
-    #candidate_ics=[1,4/5,3/5,1/2]#Candidate Cable sizes
-    candidate_ics=[1]#Candidate Cable sizes
+    candidate_ics=[1,4/5,3/5,1/2]#Candidate Cable sizes
+    #candidate_ics=[1]#Candidate Cable sizes
     data_mip=_CBD.additional_candidatesICS(data_mip,candidate_ics,ics)#adds additional candidates
     for (i,bdc) in data_mip["branchdc_ne"]
     data_mip["branchdc_ne"][i]=_CBD.candidateIC_cost_impedance(bdc,z_base_dc);end
     data_mip["branchdc_ne"]=_CBD.unique_candidateIC(data_mip["branchdc_ne"])#keep only unique candidates
     _PMACDC.process_additional_data!(data_mip)#add extra DC model data
+    _CBD.converter_parameters_rxb(data_mip)
 
     #################### Multi-period input parameters #######################
     all_scenario_data,data_mip,scenario, dim = _CBD.multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data_mip)
@@ -103,13 +105,16 @@
 
     # Create data dictionary where time series data is included at the right place
     mn_data_mip = _PMACDC.multinetwork_data(data_mip, extradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
-    [println(k*" "*b*" "*string(br["cost"])) for (k,nw) in mn_data_mip["nw"] for (b,br) in nw["convdc"]];println()
+    #[println(k*" "*b*" "*string(br["cost"])) for (k,nw) in mn_data_mip["nw"] for (b,br) in nw["convdc"]];println()
     mn_data_mip= _CBD.npvs_costs_datas(mn_data_mip, scenario, scenario_years)
-    [println(k*" "*b*" "*string(br["cost"])) for (k,nw) in mn_data_mip["nw"] for (b,br) in nw["convdc"]];println()
+    #[println(k*" "*b*" "*string(br["cost"])) for (k,nw) in mn_data_mip["nw"] for (b,br) in nw["convdc"]];println()
     mn_data_mip= _CBD.npvs_costs_datas_4mip(mn_data_mip, scenario, scenario_years)
-    [println(k*" "*b*" "*string(br["cost"])) for (k,nw) in mn_data_mip["nw"] for (b,br) in nw["convdc"]];println()
+    #[println(k*" "*b*" "*string(br["cost"])) for (k,nw) in mn_data_mip["nw"] for (b,br) in nw["convdc"]];println()
     #run optimization
-    result_mip = _CBD.acdc_tnep_convex_conv_npv(mn_data_mip, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)
+    #
+    #result_mip = _CBD.acdc_tnep_convex_conv_npv(mn_data_mip, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)
+    #result_mip = _CBD.acdc_tnep_convex_conv_npv(mn_data_mip, _PM.LPACCPowerModel, gurobi, multinetwork=true; setting = s)
+    result_mip = _CBD.acdc_tnep_convex_conv_npv(mn_data_mip, _PM.SOCWRPowerModel, gurobi, multinetwork=true; setting = s)
 
 
     #print results

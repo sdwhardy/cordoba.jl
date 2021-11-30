@@ -9,11 +9,9 @@ wind_module.save_wind4_module(wnd,"Norther")
 ################################################################################
 ########################### Base equipment functions  ##########################
 ################################################################################
-
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #NOTE EENS is set to zero for flexlan !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 #Cost of HVAC cable of capacity mva and length km
 function AC_cbl(mva,km)
     cbl=cable();cbl.mva=mva;cbl.wnd="Norther"
@@ -22,6 +20,7 @@ function AC_cbl(mva,km)
     return ac_cbl
 end
 #Cost of HVDC cable of capacity mva and length km
+
 function DC_cbl(mva,km)
     cbl=cable();cbl.mva=mva;cbl.wnd="Norther"
     dc_cbl=optimal_hvdc_cable(cbl,get_300kV_cables(),km,get_Cost_Data())
@@ -42,6 +41,7 @@ function AC_plat(mva, m::Float64=17.1)
     return plat
 end
 #Cost of DC platform of capacity mva and depth m
+
 function DC_plat(mva, m::Float64=17.1)
     plat=platform();
     plat.mva=mva

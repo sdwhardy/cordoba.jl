@@ -167,6 +167,7 @@ end
 
 #finds the hvdc cable for the look up table
 #**
+
 function optimal_hvdc_cable(cbl0,cbl_data,km,ks)
     cbl=cable()
     cbl.costs.ttl=Inf

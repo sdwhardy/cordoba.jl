@@ -43,10 +43,10 @@ function objective_min_cost_acdc_convex_conv_npv(pm::_PM.AbstractPowerModel)
     return JuMP.@objective(pm.model, Min,
         sum(pm.ref[:scenario_prob][s] *
             sum(
-                #calc_gen_cost(pm, n)
-                calc_convdc_convexafy_cost_npv(pm, n)
+                calc_gen_cost(pm, n)
+                +calc_convdc_convexafy_cost_npv(pm, n)
                 #+ calc_ne_branch_cost(pm, n)
-                #+ calc_branchdc_ne_cost(pm, n)
+                + calc_branchdc_ne_cost(pm, n)
             for (sc, n) in scenario)
         for (s, scenario) in pm.ref[:scenario])
     )
