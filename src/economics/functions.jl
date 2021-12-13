@@ -62,13 +62,13 @@ end
 #**
 function cost_hvdc_cable(cbl,ks)
     #cost of losses in the hvdc cable
-    cbl.costs.rlc=cost_rlc_hvdc(cbl,ks)
+    cbl.costs.rlc=0#cost_rlc_hvdc(cbl,ks)
     #capex of cable
     cbl.costs.cpx_p,cbl.costs.cpx_i=capex_cable(cbl,ks.ldc)
     #cost of corrective maintenance
     cbl.costs.cm=cost_cm(cbl.costs.cpx_p,ks.opx_c)
     #cost of expected energy not served
-    cbl.costs.eens=cost_eens(cbl,ks)
+    cbl.costs.eens=0#cost_eens(cbl,ks)
     #totals the cable cost
     cbl.costs.ttl=cost_cbl_sum(cbl)
     cbl.costs.grand_ttl=cbl.costs.ttl

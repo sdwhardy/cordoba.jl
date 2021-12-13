@@ -194,6 +194,13 @@ end
 ############################## Change made here ########################### Temporary kana???
 #returns the optimal cable for a hvac for the look up table
 #**
+
+#=mva=1000
+km=100
+cbl0=cable();cbl0.mva=mva;cbl0.wnd="Norther"
+cbl_data=get_220kV_cables()
+ks=get_Cost_Data()
+cb=cbl_data[4]=#
 function optimal_ac_cable(cbl0,cbl_data,km,ks)
     cbl=cable()
     cbl.costs.ttl=Inf

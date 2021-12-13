@@ -23,7 +23,8 @@ end
 
 function DC_cbl(mva,km)
     cbl=cable();cbl.mva=mva;cbl.wnd="Norther"
-    dc_cbl=optimal_hvdc_cable(cbl,get_300kV_cables(),km,get_Cost_Data())
+    dc_cbl=optimal_hvdc_cable(cbl,get_500kV_cables(),km,get_Cost_Data())
+    #
     return dc_cbl
 end
 #Cost of AC platform of capacity mva and depth m

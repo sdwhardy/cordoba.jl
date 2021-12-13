@@ -91,8 +91,8 @@ mpc.branchdc = [
  %% existing converters
  %column_names%   busdc_i busac_i type_dc type_ac P_g   Q_g  islcc  	Vtar 		rtf  xtf  transformer tm   bf  filter    rc      xc  reactor   basekVac Vmmax   Vmmin   Imax     status   LossA  LossB  LossCrec LossCinv   droop   Pdcset     Vdcset  dVdcset Pacmax Pacmin Qacmax   Qacmin cost
  mpc.convdc = [
- 										1       1     	 2       3   4000    0   	0     	1.0     0.01 0.01       0 		 1 	0.01 	 1 			0.001   0.09 		0  				220    1.1     0.9    100000      1     1.103  0.887   1.885    1.885     0.0050  -52.7     	1.0079    0  		4000  -4000   4000    -4000  19.25;
- 										2       2      	 3       2   4000    0   	0    	  1.0   	0.01 0.01       0 		 1 	0.01 	 1 			0.001   0.09 		0  				220    1.1     0.9    100000      1     1.103  0.887   1.885    1.885     0.0050  -52.7  	    1.0079    0  		4000  -4000   4000    -4000  70.75;
+ 										1       1     	 2       3   4000    0   	0     	1.0     0.01 0.01       0 		 1 	0.01 	 1 			0.001   0.09 		0  				220    1.1     0.9    100000      1     1.103  0.887   1.885    1.885     0.0050  -52.7     	1.0079    0  		3214  -3214   3214    -3214  19.25;
+ 										2       2      	 3       2   4000    0   	0    	  1.0   	0.01 0.01       0 		 1 	0.01 	 1 			0.001   0.09 		0  				220    1.1     0.9    100000      1     1.103  0.887   1.885    1.885     0.0050  -52.7  	    1.0079    0  		3231  -3231   3231    -3231  19.25;
  								 ];
 
  %trans, filter, reactor, vmin vmax same as conv

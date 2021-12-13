@@ -192,10 +192,10 @@ function additional_candidatesICS(data,candidates,ic_data)
     return data
 end
 
-
 function candidateIC_cost_impedance(bdc,z_base)
     cb=DC_cbl(bdc["rateA"], bdc["length"])
-    bdc["cost"]=cb.costs.cpx_i+cb.costs.cpx_p
+    #bdc["cost"]=cb.costs.cpx_i+cb.costs.cpx_p
+    bdc["cost"]=cb.costs.ttl
     #bdc["r"]=((cb.elec.ohm*10^3/cb.num)*cb.length)/z_base
     bdc["r"]=((cb.elec.ohm/cb.num)*cb.length)/z_base
     bdc["rateC"]=bdc["rateB"]=bdc["rateA"]=cb.num*cb.elec.mva
