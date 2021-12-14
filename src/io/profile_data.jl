@@ -699,6 +699,18 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
     return extradata,data_orig
 end
 
+#=for (k0,ss) in scenario_data; for (k1,s) in ss
+    s.time_stamp=format_datetime(s.time_stamp);end;end
+for (k0,ss) in scenario_data; for (k1,s) in ss
+CSV.write("./test/data/input/scenarios/convex/"*string(k0)*string(k1)*".csv",s);end;end
+function format_datetime(ts)
+    formated_date=[]
+    for t in ts
+        push!(formated_date,DateTime(string(t[1:16]), dateformat"dd.mm.yyyy HH:MM"))#01.01.2018 00:00
+    end
+    return formated_date
+end=#
+
 #=
 function get_profile_data_sets_mesh(zs,data, n, scenario = Dict{String, Any}())
     data["scenario"] = Dict{String, Any}()
