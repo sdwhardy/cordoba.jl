@@ -1,7 +1,7 @@
+#ensures binary candidates (array) costs sum to proper NPV value over the number of years
 function npvs_costs_datas_4mip(data, scenario, _yrs)
     _scs=data["scenario"]
     _hrs=deepcopy(scenario["hours"])
-    #_yrs=[k for k in keys(scenario["sc_names"][_scs[1]])]
     for (_sci,_sc) in _scs
         _sc=sort!(OrderedCollections.OrderedDict(_sc),byvalue=true)
         _sc_first=first(_sc)[2]
@@ -14,7 +14,7 @@ function npvs_costs_datas_4mip(data, scenario, _yrs)
     return data
 end
 
-
+#ensures binary candidate (single) cost sum to proper NPV value over the number of years
 function npv_cost_data_4mip(data0,data1)
     function mip(cost0, cost1)
         return cost0-cost1
@@ -32,6 +32,7 @@ function npv_cost_data_4mip(data0,data1)
     return data0
 end
 
+#translates costs (array) to yearly NPV value
 function npvs_costs_datas(data, scenario, _yrs)
     _scs=data["scenario"]
     base_yr=parse(Int64,_yrs[1])
@@ -53,10 +54,14 @@ function npvs_costs_datas(data, scenario, _yrs)
     return data
 end
 
+#translates cost (single) to yearly NPV value
 function npv_cost_data(data,base_yr,current_yr,_dr::Float64=0.04)
     npv = x -> (1 / (1+_dr)^(current_yr-base_yr)) * x # npv
     for (g, gen) in get(data, "gen", Dict{String,Any}())
         _PM._apply_func!(gen, "cost", npv)
+    end
+    for (g, gen) in get(data, "gen", Dict{String,Any}())
+        _PM._apply_func!(gen, "invest", npv)
     end
     for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
         _PM._apply_func!(branch, "construction_cost", npv)
@@ -79,34 +84,25 @@ function npv_cost_data(data,base_yr,current_yr,_dr::Float64=0.04)
     for (c, conv) in get(data, "convdc", Dict{String,Any}())
         _PM._apply_func!(conv, "cost", npv)
     end
+    for (s, strg) in get(data, "storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "cost", npv)
+    end
     return data
 end
 
+#Converts parameters of a converter - left over from Jay Dave
 function converter_parameters_rxb(data)
     for (c,conv) in data["convdc_ne"]
-        # display("converter")
-        # xtf = conv["xtf"]
-        # bf = conv["bf"]
-        # xc = conv["xc"]
-        # Pmax = conv["Pacmax"]
-        # Qmax = conv["Qacmax"]
-        # println("convter:$c", "xtf:$xtf", "bf:$bf", "xc:$xc", "P: $Pmax", "Q: $Qmax")
 
         bus = conv["busac_i"]
-        #display(bus)
         base_kV = data["bus"]["$bus"]["base_kv"]
         base_S = sqrt((100*conv["Pacmax"])^2+(100*conv["Qacmax"])^2) #base MVA = 100
         base_Z = base_kV^2/base_S # L-L votlage/3 phase power
         base_Y= 1/base_Z
-        #display("baseS:$base_S")
         conv["xtf"] = 0.10*100/base_S #new X =old X *(100MVA/old Sbase)
-        # display(conv["xtf"])
-        # display(base_Z)
         conv["rtf"] = conv["xtf"]/100
         conv["bf"] = 0.08*base_S/100
         conv["xc"] = 0.07*100/base_S #new X =old X *(100MVA/old Zbase)
-        # display(conv["xc"])
-        # display(base_Z)
         conv["rc"] = conv["xc"]/100 #new X =old X *(100MVA/old Zbase)
         rtf = conv["rtf"]
         xtf = conv["xtf"]
@@ -121,36 +117,18 @@ function converter_parameters_rxb(data)
         rc = conv["rc"]
         Imax = conv["Imax"]
 
-        # println("convter:$c", "xtf:$xtf", "bf:$bf", "xc:$xc","baseS:$base_S", "baseZ:$base_Z","Pmin: $Pmin", "Pmax: $Pmax", "Qmin: $Qmin", "Qmax: $Qmax")
-        #println("rtf:$rtf","     ", "xtf:$xtf","     ", "bf:$bf", "     ","rc:$rc", "     ","xc:$xc", "     ","Imax:$Imax","     ","Pmin: $Pmin", "     ","Pmax: $Pmax" )
-        if xtf > 0.1 || xc > 0.1
-            # display("Casldfjew;afjz;lsdjf ;ljewbaf;ahjdfkj daslvncf;ahfdjasf newohf::$c")
-        end
     end
     for (c,conv) in data["convdc"]
-        # display("converter")
-        # xtf = conv["xtf"]
-        # bf = conv["bf"]
-        # xc = conv["xc"]
-        # Pmax = conv["Pacmax"]
-        # Qmax = conv["Qacmax"]
-        # println("convter:$c", "xtf:$xtf", "bf:$bf", "xc:$xc", "P: $Pmax", "Q: $Qmax")
 
         bus = conv["busac_i"]
-        #display(bus)
         base_kV = data["bus"]["$bus"]["base_kv"]
         base_S = sqrt((100*conv["Pacmax"])^2+(100*conv["Qacmax"])^2) #base MVA = 100
         base_Z = base_kV^2/base_S # L-L votlage/3 phase power
         base_Y= 1/base_Z
-        #display("baseS:$base_S")
         conv["xtf"] = 0.10*100/base_S #new X =old X *(100MVA/old Sbase)
-        # display(conv["xtf"])
-        # display(base_Z)
         conv["rtf"] = conv["xtf"]/100
         conv["bf"] = 0.08*base_S/100
         conv["xc"] = 0.07*100/base_S #new X =old X *(100MVA/old Zbase)
-        # display(conv["xc"])
-        # display(base_Z)
         conv["rc"] = conv["xc"]/100 #new X =old X *(100MVA/old Zbase)
         rtf = conv["rtf"]
         xtf = conv["xtf"]
@@ -165,18 +143,14 @@ function converter_parameters_rxb(data)
         rc = conv["rc"]
         Imax = conv["Imax"]
 
-        # println("convter:$c", "xtf:$xtf", "bf:$bf", "xc:$xc","baseS:$base_S", "baseZ:$base_Z","Pmin: $Pmin", "Pmax: $Pmax", "Qmin: $Qmin", "Qmax: $Qmax")
-        #println("rtf:$rtf","     ", "xtf:$xtf","     ", "bf:$bf", "     ","rc:$rc", "     ","xc:$xc", "     ","Imax:$Imax","     ","Pmin: $Pmin", "     ","Pmax: $Pmax" )
-        if xtf > 0.1 || xc > 0.1
-            # display("Casldfjew;afjz;lsdjf ;ljewbaf;ahjdfkj daslvncf;ahfdjasf newohf::$c")
-        end
     end
 end
 
+#Sets DC candidate dictionaries with desired candidate qualities
 function additional_candidatesICS(data,candidates,ic_data)
     #DC, IC
     ics=[]
-    data["branchdc_ne"]=sort!(OrderedCollections.OrderedDict(data["branchdc_ne"]))
+    data["branchdc_ne"]=sort!(OrderedCollections.OrderedDict(data["branchdc_ne"]), by=x->parse(Int64,x))
     for (i,dcb) in data["branchdc_ne"]; push!(ics,deepcopy(dcb));end
 
     data["branchdc_ne"]=Dict{String,Any}()
@@ -192,6 +166,7 @@ function additional_candidatesICS(data,candidates,ic_data)
     return data
 end
 
+#for each DC candidate capacity an appropriate cable is selected and characteristics stored
 function candidateIC_cost_impedance(bdc,z_base)
     cb=DC_cbl(bdc["rateA"], bdc["length"])
     #bdc["cost"]=cb.costs.cpx_i+cb.costs.cpx_p
@@ -202,31 +177,164 @@ function candidateIC_cost_impedance(bdc,z_base)
     return bdc
 end
 
-function candidateIC_cost(bdc)
-    println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
-    bdc["cost"],bdc["r"],bdc["rateA"],bdc["r"]=dc_cable_cost_impedance(bdc["rateA"],bdc["length"])
-    #=if (bdc["rateC"]==-1)#on-on
-        println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
-        bdc["cost"],bdc["r"],bdc["rateA"]=on_on_ic(bdc["rateA"],bdc["rateB"])
-    elseif (bdc["rateC"]==0)#off-off
-        println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
-        bdc["cost"],bdc["r"],bdc["rateA"]=off_off_ic(bdc["rateA"],bdc["rateB"])
-    elseif (bdc["rateC"]==1)#on-off
-        println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
-        bdc["cost"],bdc["r"],bdc["rateA"]=on_off_ic(bdc["rateA"],bdc["rateB"])
-    end=#
-    bdc["rateC"]=bdc["rateB"]=bdc["rateA"]
-    return bdc
+#ensures that the only candidates considered are unique cable sizes
+function unique_candidateIC(cand_ics)
+    copy_cand_ics=deepcopy(cand_ics)
+    for (i,dcb) in cand_ics
+        for (j,tdcb) in copy_cand_ics
+            if (i!=j && dcb["fbusdc"]==tdcb["fbusdc"] && dcb["tbusdc"]==tdcb["tbusdc"] &&  isapprox(dcb["rateA"],tdcb["rateA"]; atol = 1))
+                delete!(copy_cand_ics,j)
+                break
+            end
+        end
+    end
+    return copy_cand_ics
 end
 
 
-function create_profile_sets_owpps(number_of_hours, data, zs_data, zs, inf_grid, owpp_mva)
-    pu=data["baseMVA"]
+#divides time series into 24 hour groups
+function daily_tss(ts)
+    ts_daily=ts[1:24]
+    for i=25:24:length(ts)-24
+        ts_daily=hcat(ts_daily,ts[i:i+23])
+    end
+    return ts_daily
+end
+
+#divides time series in n hour groups
+function half_daily_tss(ts,n)
+    ts_daily=ts[1:n]
+    for i=(n+1):n:length(ts)-n
+        ts_daily=hcat(ts_daily,ts[i:i+(n-1)])
+    end
+    return ts_daily
+end
+
+#reads time series from file into dataframe for a given set of scenarios and years
+function get_scenario_year_tss(sc_nms,sc_yrs)
+    scenario_data = Dict{String,Any}()
+    for _sc in sc_nms
+        push!(scenario_data,_sc=>Dict{String,Any}())
+        for _yr in sc_yrs
+            df=CSV.read("./test/data/input/scenarios/convex_wBE/"*_sc*_yr*".csv", DataFrames.DataFrame)
+            push!(scenario_data[_sc],_yr=>df)
+        end
+    end
+    return scenario_data
+end
+
+#Organizes nw numbers per scenario-year
+function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
+    scenario = Dict{String, Any}("hours" => ls,"years" => length(scenario_years), "sc_names" => Dict{String, Any}())
+    data["scenario"] = Dict{String, Any}()
+    data["scenario_prob"] = Dict{String, Any}()
+    all_scenario_data=DataFrame()
+    #set problem dimension
+    dim = scenario["hours"] * length(scenario_years) * length(scenario_names)
+    for _nm in scenario_names; push!(scenario["sc_names"], _nm=> Dict{String, Any}());for _yr in scenario_years; push!(scenario["sc_names"][_nm], _yr=> []);end;end
+
+    for (s,(_sc, data_by_sc)) in enumerate(scenario_data);
+        data["scenario"][string(s)] = Dict()
+        data["scenario_prob"][string(s)] = 1/(length(scenario_names))
+        for (t,(_yr, data_by_yr)) in enumerate(data_by_sc);
+            all_scenario_data=vcat(all_scenario_data,scenario_data[_sc][_yr])
+            start_idx=(s-1)*scenario["hours"]*length(scenario_years)
+            start_idx=start_idx+(t-1)*scenario["hours"]
+            for h in 1 : scenario["hours"]
+                network = start_idx + h
+                h2=h+(t-1)*scenario["hours"]
+                data["scenario"][string(s)]["$h2"] = network
+                push!(scenario["sc_names"][_sc][_yr],network)
+            end
+        end;
+    end
+    return all_scenario_data,data,scenario, dim
+end
+
+#scales data to hourly cost spread over horizon years
+function scale_cost_data_2yearlyhourly!(data, scenario)
+    rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"]*scenario["years"])) * x # scale hourly costs to the planning horizon
+    rescale_total  = x -> (                                1 / (scenario["hours"]*scenario["years"])) * x # scale total costs to the planning horizon
+
+    for (g, gen) in data["gen"]
+        _PM._apply_func!(gen, "cost", rescale_hourly)
+    end
+    for (g, gen) in data["gen"]
+        _PM._apply_func!(gen, "invest", rescale_total)
+    end
+    for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
+        _PM._apply_func!(branch, "construction_cost", rescale_total)
+    end
+    for (b, branch) in get(data, "branchdc_ne", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (c, conv) in get(data, "convdc_ne", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", rescale_total)
+    end
+    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "eq_cost", rescale_total)
+        _PM._apply_func!(strg, "inst_cost", rescale_total)
+        _PM._apply_func!(strg, "cost_abs", rescale_hourly)
+        _PM._apply_func!(strg, "cost_inj", rescale_hourly)
+    end
+    for (b, branch) in get(data, "branchdc", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (c, conv) in get(data, "convdc", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", rescale_total)
+    end
+    for (s, strg) in get(data, "storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "cost", rescale_total)
+    end
+end
+
+#scale investment to hourly cost spread over the year
+function scale_cost_data_2hourly!(data, scenario)
+    rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
+    rescale_total  = x -> (                                1 / (scenario["hours"])) * x # scale total costs to the planning horizon
+
+    for (g, gen) in data["gen"]
+        _PM._apply_func!(gen, "cost", rescale_hourly)
+    end
+    for (g, gen) in data["gen"]
+        _PM._apply_func!(gen, "invest", rescale_total)
+    end
+    for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
+        _PM._apply_func!(branch, "construction_cost", rescale_total)
+    end
+    for (b, branch) in get(data, "branchdc_ne", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (c, conv) in get(data, "convdc_ne", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", rescale_total)
+    end
+    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "eq_cost", rescale_total)
+        _PM._apply_func!(strg, "inst_cost", rescale_total)
+        _PM._apply_func!(strg, "cost_abs", rescale_hourly)
+        _PM._apply_func!(strg, "cost_inj", rescale_hourly)
+    end
+    for (b, branch) in get(data, "branchdc", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (c, conv) in get(data, "convdc", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", rescale_total)
+    end
+    for (s, strg) in get(data, "storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "cost", rescale_total)
+    end
+end
+
+#loads generator cost and profile time series In multi-period simulation
+function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_grid, owpp_mva)
+    pu=data_orig["baseMVA"]
     e2me=1000000/pu#into ME/PU
     extradata = Dict{String,Any}()
+    data=Dict{String,Any}();data["gen"]=Dict{String,Any}()
     extradata["dim"] = Dict{String,Any}()
     extradata["dim"] = number_of_hours
     extradata["gen"] = Dict{String,Any}()
+    data["gen"]=sort!(OrderedCollections.OrderedDict(data_orig["gen"]))
     for (g, gen) in data["gen"]
         extradata["gen"][g] = Dict{String,Any}()
         extradata["gen"][g]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
@@ -240,9 +348,14 @@ function create_profile_sets_owpps(number_of_hours, data, zs_data, zs, inf_grid,
             if (gen["type"]>0)#market generator onshore
                 extradata["gen"][g]["pmax"][1, d] = inf_grid/pu
                 extradata["gen"][g]["pmin"][1, d] = 0
-                extradata["gen"][g]["cost"][d] = [(zs_data["EUR_da"*zs[gen["gen_bus"]]][d])/e2me,0]
+                extradata["gen"][g]["cost"][d] = [(zs_data[!,"EUR_da"*zs[1][gen["gen_bus"]]][d])/e2me,0]
             else#wind gen
-                extradata["gen"][g]["pmax"][1, d] = owpp_mva/pu
+                extradata["gen"][g]["pmax"][1, d] = (zs_data[!,"Wnd_MWh"*zs[2][gen["gen_bus"]-length(zs[1])]][d])*owpp_mva[gen["gen_bus"]-length(zs[1])]/pu
+
+                #extradata["gen"][g]["pmax"][1, d]
+                #zs_data[!,"Wnd_MWh"*zs[2][gen["gen_bus"]-length(zs[1])]][d]
+                #owpp_mva[gen["gen_bus"]-length(zs[1])]/pu
+
                 extradata["gen"][g]["pmin"][1, d] = 0
                 extradata["gen"][g]["cost"][d] = [0,0]
             end
@@ -276,206 +389,52 @@ function create_profile_sets_owpps(number_of_hours, data, zs_data, zs, inf_grid,
             if (load["type"]>0)#market generator onshore
                 extradata["gen"][l]["pmax"][1, d] = 0
                 extradata["gen"][l]["pmin"][1, d] = (inf_grid/pu)*-1
-                extradata["gen"][l]["cost"][d] = [(zs_data["EUR_da"*zs[load["gen_bus"]]][d])/e2me,0]
-                push!(data["gen"],l=>load)
+                extradata["gen"][l]["cost"][d] = [(zs_data[!,"EUR_da"*zs[1][load["gen_bus"]]][d])/e2me,0]
+                push!(data_orig["gen"],l=>load)
             else#wind gen
             end
         end
     end
 
     #set ["type"]
-    for (g, gen) in data["gen"]
+    for (g, gen) in data_orig["gen"]
         gen["type"]=0
     end
-    return extradata,data
-end
-function dc_cable_cost_impedance(mva,km)
-    cb=DC_cbl(mva, km)
-    cost=cb.costs.cpx_i+cb.costs.cpx_p
-    println("DC connection cost: total "*string(cost)*" mva "*string(cb.num*cb.elec.mva)*" km "*string(km))
-    return cost,(cb.elec.ohm/cb.num)*km,cb.num*cb.elec.mva,cb.elec.ohm
+    return extradata,data_orig
 end
 
-#
-function unique_candidateIC(cand_ics)
-    copy_cand_ics=deepcopy(cand_ics)
-    for (i,dcb) in cand_ics
-        for (j,tdcb) in copy_cand_ics
-            if (i!=j && dcb["fbusdc"]==tdcb["fbusdc"] && dcb["tbusdc"]==tdcb["tbusdc"] &&  isapprox(dcb["rateA"],tdcb["rateA"]; atol = 1))
-                delete!(copy_cand_ics,j)
-                break
+#used to run a sim wjile fixing the values of candidate cables and converters
+function fix_cables_and_converters(mn_data_nw, fixed_variables,cables, converters)
+    for (key,nw) in mn_data_nw
+        push!(fixed_variables,key=>Dict{String,Any}())
+        push!(fixed_variables[key],"baseMVA" => nw["baseMVA"])
+        #initialize all branchdc_ne values in dictionary to zero
+        push!(fixed_variables[key],"branchdc_ne" => Dict{String, Any}())
+        for (key_br,br) in nw["branchdc_ne"]
+            push!(fixed_variables[key]["branchdc_ne"],key_br => Dict{String, Any}())
+            if (issubset([parse(Int64,key_br)],cables))
+                push!(fixed_variables[key]["branchdc_ne"][key_br],"isbuilt" => 1.00)
+            else
+                push!(fixed_variables[key]["branchdc_ne"][key_br],"isbuilt" => 0.00)
             end
         end
+
+        #if needed add convdc_ne here
+        #initialize all branchdc_ne values in dictionary to zero
+        push!(fixed_variables[key],"convdc" => Dict{String, Any}())
+        for (key_c,c) in nw["convdc"]
+            push!(fixed_variables[key]["convdc"],key_c => Dict{String, Any}())
+            push!(fixed_variables[key]["convdc"][key_c],"p_pacmax" => converters[parse(Int64,key_c)])
+        end
     end
-    return copy_cand_ics
+    return fixed_variables
 end
 
 
-#########################
-#=function get_scenario_tss(sc_nms,sc_yrs)
-    scenario_data = Dict{String,Any}()
-    for _yr in sc_yrs
-        push!(scenario_data,_yr=>Dict{String,Any}())
-        for _sc in sc_nms
-            df=CSV.read("./test/data/input/scenarios/scenario_"*_sc*_yr*".csv", DataFrames.DataFrame)
-            push!(scenario_data[_yr],_sc=>df)
-        end
-    end
-    return scenario_data
-end=#
-
-function daily_tss(ts)
-    ts_daily=ts[1:24]
-    for i=25:24:length(ts)-24
-        ts_daily=hcat(ts_daily,ts[i:i+23])
-    end
-    return ts_daily
-end
-
-function half_daily_tss(ts,n)
-    ts_daily=ts[1:n]
-    for i=(n+1):n:length(ts)-n
-        ts_daily=hcat(ts_daily,ts[i:i+(n-1)])
-    end
-    return ts_daily
-end
-
-function get_scenario_year_tss(sc_nms,sc_yrs)
-    scenario_data = Dict{String,Any}()
-    for _sc in sc_nms
-        push!(scenario_data,_sc=>Dict{String,Any}())
-        for _yr in sc_yrs
-            df=CSV.read("./test/data/input/scenarios/convex/"*_sc*_yr*".csv", DataFrames.DataFrame)
-            push!(scenario_data[_sc],_yr=>df)
-        end
-    end
-    return scenario_data
-end
-
-
-#=function get_scenario_year_tss(sc_nms,sc_yrs)
-    scenario_data = Dict{String,Any}()
-    for _sc in sc_nms
-        push!(scenario_data,_sc=>Dict{String,Any}())
-        for _yr in sc_yrs
-            df=CSV.read("./test/data/input/scenarios/scenario_"*_sc*_yr*".csv", DataFrames.DataFrame)
-            push!(scenario_data[_sc],_yr=>df)
-        end
-    end
-    return scenario_data
-end=#
-
-#=function multi_period_setup(ls,scenario_years,scenario_names,scenario_data,data)
-    scenario = Dict{String, Any}("hours" => ls, "sc_years" => Dict{String, Any}())
-    data["scenario"] = Dict{String, Any}()
-    data["scenario_prob"] = Dict{String, Any}()
-    all_scenario_data=DataFrame()
-    #set problem dimension
-    scenario["hours"]= ls
-    dim = scenario["hours"] * length(scenario_years) * length(scenario_names)
-    scene_count=1;for (_yr, data_by_yr) in scenario_data; for (_sc, data_by_scenario) in data_by_yr;
-        scenario["sc_years"][string(scene_count)] = Dict{String, Any}()
-        scenario["sc_years"][string(scene_count)]["year"] = parse(Int64,_yr)#year of data
-        scenario["sc_years"][string(scene_count)]["probability"] = 1/(length(scenario_years) * length(scenario_names))
-        all_scenario_data=vcat(all_scenario_data,scenario_data[_yr][_sc])
-        data["scenario"][string(scene_count)] = Dict()
-        data["scenario_prob"][string(scene_count)] = scenario["sc_years"][string(scene_count)]["probability"]
-        start_idx=(scene_count-1)*scenario["hours"]
-        for h in 1 : scenario["hours"]
-            network = start_idx + h
-            data["scenario"][string(scene_count)]["$h"] = network
-        end
-        scene_count=scene_count+1
-    end;end
-    return all_scenario_data,data,scenario, dim
-end=#
-
-#
-function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
-    scenario = Dict{String, Any}("hours" => ls,"years" => length(scenario_years), "sc_names" => Dict{String, Any}())
-    data["scenario"] = Dict{String, Any}()
-    data["scenario_prob"] = Dict{String, Any}()
-    all_scenario_data=DataFrame()
-    #set problem dimension
-    dim = scenario["hours"] * length(scenario_years) * length(scenario_names)
-    for _nm in scenario_names; push!(scenario["sc_names"], _nm=> Dict{String, Any}());for _yr in scenario_years; push!(scenario["sc_names"][_nm], _yr=> []);end;end
-
-    for (s,(_sc, data_by_sc)) in enumerate(scenario_data);
-        data["scenario"][string(s)] = Dict()
-        data["scenario_prob"][string(s)] = 1/(length(scenario_names))
-        for (t,(_yr, data_by_yr)) in enumerate(data_by_sc);
-            all_scenario_data=vcat(all_scenario_data,scenario_data[_sc][_yr])
-            start_idx=(s-1)*scenario["hours"]*length(scenario_years)
-            start_idx=start_idx+(t-1)*scenario["hours"]
-            for h in 1 : scenario["hours"]
-                network = start_idx + h
-                h2=h+(t-1)*scenario["hours"]
-                data["scenario"][string(s)]["$h2"] = network
-                push!(scenario["sc_names"][_sc][_yr],network)
-            end
-        end;
-    end
-    return all_scenario_data,data,scenario, dim
-end
-
-#=
-function scale_cost_data_cordoba_convexafy!(data, scenario)
-    rescale_hourly = x -> (8760*scenario["planning_horizon"] / scenario["hours"]) * x # scale hourly costs to the planning horizon
-    rescale_total  = x -> (                                1 / scenario["hours"]) * x # scale total costs to the planning horizon
-    for (b, branch) in data["branchdc"]
-        _PM._apply_func!(branch, "cost", rescale_total)
-    end
-    for (c, conv) in data["convdc"]
-        _PM._apply_func!(conv, "cost", rescale_total)
-    end
-end=#
-#=
-function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
-    scenario = Dict{String, Any}("hours" => ls, "sc_years" => Dict{String, Any}())
-    data["scenario"] = Dict{String, Any}()
-    data["scenario_prob"] = Dict{String, Any}()
-    all_scenario_data=DataFrame()
-    #set problem dimension
-    scenario["hours"]= ls
-    dim = scenario["hours"] * length(scenario_years) * length(scenario_names)
-    scene_count=1;for (_yr, data_by_yr) in scenario_data; for (_sc, data_by_scenario) in data_by_yr;
-        scenario["sc_years"][string(scene_count)] = Dict{String, Any}()
-        scenario["sc_years"][string(scene_count)]["year"] = parse(Int64,_yr)#year of data
-        scenario["sc_years"][string(scene_count)]["probability"] = 1/(length(scenario_years) * length(scenario_names))
-        all_scenario_data=vcat(all_scenario_data,scenario_data[_yr][_sc])
-        data["scenario"][string(scene_count)] = Dict()
-        data["scenario_prob"][string(scene_count)] = scenario["sc_years"][string(scene_count)]["probability"]
-        start_idx=(scene_count-1)*scenario["hours"]
-        for h in 1 : scenario["hours"]
-            network = start_idx + h
-            data["scenario"][string(scene_count)]["$h"] = network
-        end
-        scene_count=scene_count+1
-    end;end
-    return all_scenario_data,data,scenario, dim
-end=#
-
+###################################################### DEPRICATED ##########################################
 #############################################
-#=
-function combine_profile_data_sets_entso_scenario(zs,data, n,_sc,_yr, scenario)
-    data, zs_data = get_profile_data_sets_entso_scenario(zs,data, n,_sc[1],_yr, scenario)
-    unique!(zs_data,:time_stamp)
-    data, zs_dataB = get_profile_data_sets_entso_scenario(zs,data, n,_sc[2],_yr, scenario)
-    unique!(zs_dataB,:time_stamp)
-    data, zs_dataC = get_profile_data_sets_entso_scenario(zs,data, n,_sc[3],_yr, scenario)
-    unique!(zs_dataC,:time_stamp)
-    filter!(row -> row.time_stamp in zs_data.time_stamp, zs_dataB)
-    filter!(row -> row.time_stamp in zs_data.time_stamp, zs_dataC)
-    filter!(row -> row.time_stamp in zs_dataB.time_stamp, zs_data)
-    filter!(row -> row.time_stamp in zs_dataB.time_stamp, zs_dataC)
-    filter!(row -> row.time_stamp in zs_dataC.time_stamp, zs_data)
-    filter!(row -> row.time_stamp in zs_dataC.time_stamp, zs_dataB)
-    zs_data["EUR_daUK"]=zs_data["EUR_daUK"].*(5/25).+zs_dataB["EUR_daUK"].*(10/25).+zs_dataC["EUR_daUK"].*(10/25)
-    zs_data["EUR_daDK"]=zs_data["EUR_daDK"].*(5/25).+zs_dataB["EUR_daDK"].*(10/25).+zs_dataC["EUR_daDK"].*(10/25)
-    zs_data["EUR_daDE"]=zs_data["EUR_daDE"].*(5/25).+zs_dataB["EUR_daDE"].*(10/25).+zs_dataC["EUR_daDE"].*(10/25)
-    return data,zs_data
-end=#
-
+#storage setup for Ancillary services analysis
+#not verified and will likely be depricated as WP2 is handling this
 function add_storage_profile(dim, data, extradata, zs_data, zs, number_of_hours)
     pu=data["baseMVA"]
     e2me=1000000/pu#into ME/PU
@@ -552,90 +511,35 @@ function add_storage_profile(dim, data, extradata, zs_data, zs, number_of_hours)
     end
 
     return extradata,data
-end#=
-=#
+end
 
-#=function scale_bat_data_cordoba!(data, scenario)
-    rescale_hourly = x -> (scenario["hours"] / (8760*scenario["planning_horizon"])) * x # yearly limit on energy absoption
-    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
-        _PM._apply_func!(strg, "max_energy_absorption", rescale_hourly)
-    end
+#
+#=
+function candidateIC_cost(bdc)
+    println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
+    bdc["cost"],bdc["r"],bdc["rateA"],bdc["r"]=dc_cable_cost_impedance(bdc["rateA"],bdc["length"])
+    #=if (bdc["rateC"]==-1)#on-on
+        println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
+        bdc["cost"],bdc["r"],bdc["rateA"]=on_on_ic(bdc["rateA"],bdc["rateB"])
+    elseif (bdc["rateC"]==0)#off-off
+        println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
+        bdc["cost"],bdc["r"],bdc["rateA"]=off_off_ic(bdc["rateA"],bdc["rateB"])
+    elseif (bdc["rateC"]==1)#on-off
+        println("from: "*string(bdc["fbusdc"])*" to: "*string(bdc["tbusdc"]))
+        bdc["cost"],bdc["r"],bdc["rateA"]=on_off_ic(bdc["rateA"],bdc["rateB"])
+    end=#
+    bdc["rateC"]=bdc["rateB"]=bdc["rateA"]
+    return bdc
 end=#
-#
-function scale_cost_data_per_scenario!(data, scenario)
-    rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"]*scenario["years"])) * x # scale hourly costs to the planning horizon
-    rescale_total  = x -> (                                1 / (scenario["hours"]*scenario["years"])) * x # scale total costs to the planning horizon
-    #rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
-    #rescale_total  = x -> (                                1 / (scenario["hours"])) * x # scale total costs to the planning horizon
 
-    for (g, gen) in data["gen"]
-        _PM._apply_func!(gen, "cost", rescale_hourly)
-    end
-    for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
-        _PM._apply_func!(branch, "construction_cost", rescale_total)
-    end
-    for (b, branch) in get(data, "branchdc_ne", Dict{String,Any}())
-        _PM._apply_func!(branch, "cost", rescale_total)
-    end
-    for (c, conv) in get(data, "convdc_ne", Dict{String,Any}())
-        _PM._apply_func!(conv, "cost", rescale_total)
-    end
-    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
-        _PM._apply_func!(strg, "eq_cost", rescale_total)
-        _PM._apply_func!(strg, "inst_cost", rescale_total)
-        _PM._apply_func!(strg, "cost_abs", rescale_hourly)
-        _PM._apply_func!(strg, "cost_inj", rescale_hourly)
-    end
-    for (b, branch) in get(data, "branchdc", Dict{String,Any}())
-        _PM._apply_func!(branch, "cost", rescale_total)
-    end
-    for (c, conv) in get(data, "convdc", Dict{String,Any}())
-        _PM._apply_func!(conv, "cost", rescale_total)
-    end
-end
-
-function scale_cost_data_per_year!(data, scenario)
-    rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
-    rescale_total  = x -> (                                1 / (scenario["hours"])) * x # scale total costs to the planning horizon
-    #rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
-    #rescale_total  = x -> (                                1 / (scenario["hours"])) * x # scale total costs to the planning horizon
-
-    for (g, gen) in data["gen"]
-        _PM._apply_func!(gen, "cost", rescale_hourly)
-    end
-    for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
-        _PM._apply_func!(branch, "construction_cost", rescale_total)
-    end
-    for (b, branch) in get(data, "branchdc_ne", Dict{String,Any}())
-        _PM._apply_func!(branch, "cost", rescale_total)
-    end
-    for (c, conv) in get(data, "convdc_ne", Dict{String,Any}())
-        _PM._apply_func!(conv, "cost", rescale_total)
-    end
-    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
-        _PM._apply_func!(strg, "eq_cost", rescale_total)
-        _PM._apply_func!(strg, "inst_cost", rescale_total)
-        _PM._apply_func!(strg, "cost_abs", rescale_hourly)
-        _PM._apply_func!(strg, "cost_inj", rescale_hourly)
-    end
-    for (b, branch) in get(data, "branchdc", Dict{String,Any}())
-        _PM._apply_func!(branch, "cost", rescale_total)
-    end
-    for (c, conv) in get(data, "convdc", Dict{String,Any}())
-        _PM._apply_func!(conv, "cost", rescale_total)
-    end
-end
-
-#
-function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_grid, owpp_mva)
-    pu=data_orig["baseMVA"]
+#=
+function create_profile_sets_owpps(number_of_hours, data, zs_data, zs, inf_grid, owpp_mva)
+    pu=data["baseMVA"]
     e2me=1000000/pu#into ME/PU
     extradata = Dict{String,Any}()
-    data=Dict{String,Any}();data["gen"]=Dict{String,Any}()
     extradata["dim"] = Dict{String,Any}()
     extradata["dim"] = number_of_hours
     extradata["gen"] = Dict{String,Any}()
-    data["gen"]=sort!(OrderedCollections.OrderedDict(data_orig["gen"]))
     for (g, gen) in data["gen"]
         extradata["gen"][g] = Dict{String,Any}()
         extradata["gen"][g]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
@@ -649,9 +553,9 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
             if (gen["type"]>0)#market generator onshore
                 extradata["gen"][g]["pmax"][1, d] = inf_grid/pu
                 extradata["gen"][g]["pmin"][1, d] = 0
-                extradata["gen"][g]["cost"][d] = [(zs_data[!,"EUR_da"*zs[1][gen["gen_bus"]]][d])/e2me,0]
+                extradata["gen"][g]["cost"][d] = [(zs_data["EUR_da"*zs[gen["gen_bus"]]][d])/e2me,0]
             else#wind gen
-                extradata["gen"][g]["pmax"][1, d] = (zs_data[!,"Wnd_MWh"*zs[2][gen["gen_bus"]-length(zs[1])]][d])*owpp_mva[gen["gen_bus"]-length(zs[1])]/pu
+                extradata["gen"][g]["pmax"][1, d] = owpp_mva/pu
                 extradata["gen"][g]["pmin"][1, d] = 0
                 extradata["gen"][g]["cost"][d] = [0,0]
             end
@@ -685,19 +589,142 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
             if (load["type"]>0)#market generator onshore
                 extradata["gen"][l]["pmax"][1, d] = 0
                 extradata["gen"][l]["pmin"][1, d] = (inf_grid/pu)*-1
-                extradata["gen"][l]["cost"][d] = [(zs_data[!,"EUR_da"*zs[1][load["gen_bus"]]][d])/e2me,0]
-                push!(data_orig["gen"],l=>load)
+                extradata["gen"][l]["cost"][d] = [(zs_data["EUR_da"*zs[load["gen_bus"]]][d])/e2me,0]
+                push!(data["gen"],l=>load)
             else#wind gen
             end
         end
     end
 
     #set ["type"]
-    for (g, gen) in data_orig["gen"]
+    for (g, gen) in data["gen"]
         gen["type"]=0
     end
-    return extradata,data_orig
+    return extradata,data
 end
+=#
+#=
+function dc_cable_cost_impedance(mva,km)
+    cb=DC_cbl(mva, km)
+    cost=cb.costs.cpx_i+cb.costs.cpx_p
+    println("DC connection cost: total "*string(cost)*" mva "*string(cb.num*cb.elec.mva)*" km "*string(km))
+    return cost,(cb.elec.ohm/cb.num)*km,cb.num*cb.elec.mva,cb.elec.ohm
+end
+=#
+#
+#=function get_scenario_tss(sc_nms,sc_yrs)
+    scenario_data = Dict{String,Any}()
+    for _yr in sc_yrs
+        push!(scenario_data,_yr=>Dict{String,Any}())
+        for _sc in sc_nms
+            df=CSV.read("./test/data/input/scenarios/scenario_"*_sc*_yr*".csv", DataFrames.DataFrame)
+            push!(scenario_data[_yr],_sc=>df)
+        end
+    end
+    return scenario_data
+end=#
+
+#=function get_scenario_year_tss(sc_nms,sc_yrs)
+    scenario_data = Dict{String,Any}()
+    for _sc in sc_nms
+        push!(scenario_data,_sc=>Dict{String,Any}())
+        for _yr in sc_yrs
+            df=CSV.read("./test/data/input/scenarios/scenario_"*_sc*_yr*".csv", DataFrames.DataFrame)
+            push!(scenario_data[_sc],_yr=>df)
+        end
+    end
+    return scenario_data
+end=#
+
+#=function multi_period_setup(ls,scenario_years,scenario_names,scenario_data,data)
+    scenario = Dict{String, Any}("hours" => ls, "sc_years" => Dict{String, Any}())
+    data["scenario"] = Dict{String, Any}()
+    data["scenario_prob"] = Dict{String, Any}()
+    all_scenario_data=DataFrame()
+    #set problem dimension
+    scenario["hours"]= ls
+    dim = scenario["hours"] * length(scenario_years) * length(scenario_names)
+    scene_count=1;for (_yr, data_by_yr) in scenario_data; for (_sc, data_by_scenario) in data_by_yr;
+        scenario["sc_years"][string(scene_count)] = Dict{String, Any}()
+        scenario["sc_years"][string(scene_count)]["year"] = parse(Int64,_yr)#year of data
+        scenario["sc_years"][string(scene_count)]["probability"] = 1/(length(scenario_years) * length(scenario_names))
+        all_scenario_data=vcat(all_scenario_data,scenario_data[_yr][_sc])
+        data["scenario"][string(scene_count)] = Dict()
+        data["scenario_prob"][string(scene_count)] = scenario["sc_years"][string(scene_count)]["probability"]
+        start_idx=(scene_count-1)*scenario["hours"]
+        for h in 1 : scenario["hours"]
+            network = start_idx + h
+            data["scenario"][string(scene_count)]["$h"] = network
+        end
+        scene_count=scene_count+1
+    end;end
+    return all_scenario_data,data,scenario, dim
+end=#
+
+#=
+function scale_cost_data_cordoba_convexafy!(data, scenario)
+    rescale_hourly = x -> (8760*scenario["planning_horizon"] / scenario["hours"]) * x # scale hourly costs to the planning horizon
+    rescale_total  = x -> (                                1 / scenario["hours"]) * x # scale total costs to the planning horizon
+    for (b, branch) in data["branchdc"]
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (c, conv) in data["convdc"]
+        _PM._apply_func!(conv, "cost", rescale_total)
+    end
+end=#
+#=
+function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
+    scenario = Dict{String, Any}("hours" => ls, "sc_years" => Dict{String, Any}())
+    data["scenario"] = Dict{String, Any}()
+    data["scenario_prob"] = Dict{String, Any}()
+    all_scenario_data=DataFrame()
+    #set problem dimension
+    scenario["hours"]= ls
+    dim = scenario["hours"] * length(scenario_years) * length(scenario_names)
+    scene_count=1;for (_yr, data_by_yr) in scenario_data; for (_sc, data_by_scenario) in data_by_yr;
+        scenario["sc_years"][string(scene_count)] = Dict{String, Any}()
+        scenario["sc_years"][string(scene_count)]["year"] = parse(Int64,_yr)#year of data
+        scenario["sc_years"][string(scene_count)]["probability"] = 1/(length(scenario_years) * length(scenario_names))
+        all_scenario_data=vcat(all_scenario_data,scenario_data[_yr][_sc])
+        data["scenario"][string(scene_count)] = Dict()
+        data["scenario_prob"][string(scene_count)] = scenario["sc_years"][string(scene_count)]["probability"]
+        start_idx=(scene_count-1)*scenario["hours"]
+        for h in 1 : scenario["hours"]
+            network = start_idx + h
+            data["scenario"][string(scene_count)]["$h"] = network
+        end
+        scene_count=scene_count+1
+    end;end
+    return all_scenario_data,data,scenario, dim
+end=#
+
+
+#=
+function combine_profile_data_sets_entso_scenario(zs,data, n,_sc,_yr, scenario)
+    data, zs_data = get_profile_data_sets_entso_scenario(zs,data, n,_sc[1],_yr, scenario)
+    unique!(zs_data,:time_stamp)
+    data, zs_dataB = get_profile_data_sets_entso_scenario(zs,data, n,_sc[2],_yr, scenario)
+    unique!(zs_dataB,:time_stamp)
+    data, zs_dataC = get_profile_data_sets_entso_scenario(zs,data, n,_sc[3],_yr, scenario)
+    unique!(zs_dataC,:time_stamp)
+    filter!(row -> row.time_stamp in zs_data.time_stamp, zs_dataB)
+    filter!(row -> row.time_stamp in zs_data.time_stamp, zs_dataC)
+    filter!(row -> row.time_stamp in zs_dataB.time_stamp, zs_data)
+    filter!(row -> row.time_stamp in zs_dataB.time_stamp, zs_dataC)
+    filter!(row -> row.time_stamp in zs_dataC.time_stamp, zs_data)
+    filter!(row -> row.time_stamp in zs_dataC.time_stamp, zs_dataB)
+    zs_data["EUR_daUK"]=zs_data["EUR_daUK"].*(5/25).+zs_dataB["EUR_daUK"].*(10/25).+zs_dataC["EUR_daUK"].*(10/25)
+    zs_data["EUR_daDK"]=zs_data["EUR_daDK"].*(5/25).+zs_dataB["EUR_daDK"].*(10/25).+zs_dataC["EUR_daDK"].*(10/25)
+    zs_data["EUR_daDE"]=zs_data["EUR_daDE"].*(5/25).+zs_dataB["EUR_daDE"].*(10/25).+zs_dataC["EUR_daDE"].*(10/25)
+    return data,zs_data
+end=#
+
+#=function scale_bat_data_cordoba!(data, scenario)
+    rescale_hourly = x -> (scenario["hours"] / (8760*scenario["planning_horizon"])) * x # yearly limit on energy absoption
+    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "max_energy_absorption", rescale_hourly)
+    end
+end=#
 
 #=for (k0,ss) in scenario_data; for (k1,s) in ss
     s.time_stamp=format_datetime(s.time_stamp);end;end

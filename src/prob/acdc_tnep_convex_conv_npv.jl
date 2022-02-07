@@ -52,11 +52,10 @@ function post_acdc_tnep_convex_conv_npv(pm::_PM.AbstractPowerModel)
             #######################################################################################
         end
         sort!(vbp, by = x -> x[1])
-        constraint_branchdc_ne_t0t1(vbp,pm)
+        constraint_t0t1(vbp,pm)
         sort!(vcp, by = x -> x[1])
-        constraint_convdc_t0t1(vcp,pm)
-    #OBJECTIVE see objective.jl
-        objective_min_cost_acdc_convex_conv_npv(pm)
+        constraint_t0t1(vcp,pm)
+
     #CONSTRAINTS: defined within PowerModels(ACDC) can directly be used, other constraints need to be defined in the according sections of the code: flexible_demand.jl
         for n in _PM.nw_ids(pm)
             _PM.constraint_model_voltage(pm; nw = n)
@@ -152,103 +151,12 @@ function post_acdc_tnep_convex_conv_npv(pm::_PM.AbstractPowerModel)
                     _PMACDC.constraint_conv_firing_angle_ne(pm, i; nw = n)
                 end
             end
-    #=
-            for i in _PM.ids(pm, :load, nw = n)
-                if _PM.ref(pm, n, :load, i, "flex") == 0
-                    constraint_fixed_demand(pm, i; nw = n)
-                else
-                    constraint_flex_bounds_ne(pm, i; nw = n)
-                end
-                constraint_total_flexible_demand(pm, i; nw = n)
-            end
-
-            for i in _PM.ids(pm, :storage, nw=n)
-                constraint_storage_excl_slack(pm, i, nw = n)
-                _PM.constraint_storage_thermal_limit(pm, i, nw = n)
-                _PM.constraint_storage_losses(pm, i, nw = n)
-            end
-            for i in _PM.ids(pm, :ne_storage, nw=n)
-                constraint_storage_excl_slack_ne(pm, i, nw = n)
-                constraint_storage_thermal_limit_ne(pm, i, nw = n)
-                constraint_storage_losses_ne(pm, i, nw = n)
-                constraint_storage_bounds_ne(pm, i, nw = n)
-            end=#
-        #=end
-
-        for (s, scenario) in pm.ref[:scenario]
-
-            network_ids = sort(collect(n for (sc, n) in scenario))
-            n_1 = network_ids[1]
-            n_last = network_ids[end]
-
-            # NW = 1
-            for i in _PM.ids(pm, :storage, nw = n_1)
-                constraint_storage_state(pm, i, nw = n_1)
-                constraint_maximum_absorption(pm, i, nw = n_1)
-            end
-
-            for i in _PM.ids(pm, :ne_storage, nw = n_1)
-                constraint_storage_state_ne(pm, i, nw = n_1)
-                constraint_maximum_absorption_ne(pm, i, nw = n_1)
-            end
-
-            for i in _PM.ids(pm, :load, nw = n_1)
-                if _PM.ref(pm, n_1, :load, i, "flex") == 1
-                    constraint_ence_state(pm, i, nw = n_1)
-                    constraint_shift_up_state(pm, i, nw = n_1)
-                    constraint_shift_down_state(pm, i, nw = n_1)
+            if (haskey(pm.setting,"agent") && pm.setting["agent"]=="fixed_cables_cons")
+                for n in _PM.nw_ids(pm)
+                    fix_variables(pm, n)
                 end
             end
-
-            # NW = last
-            for i in _PM.ids(pm, :storage, nw = n_last)
-                constraint_storage_state_final(pm, i, nw = n_last)
-            end
-
-            for i in _PM.ids(pm, :ne_storage, nw = n_last)
-                constraint_storage_state_final_ne(pm, i, nw = n_last)
-            end
-
-            for i in _PM.ids(pm, :load, nw = n_last)
-                if _PM.ref(pm, n_last, :load, i, "flex") == 1
-                    constraint_shift_state_final(pm, i, nw = n_last)
-                end
-            end
-
-            # NW = 2......last
-            for n_2 in network_ids[2:end]
-                for i in _PM.ids(pm, :storage, nw = n_2)
-                    constraint_storage_state(pm, i, n_1, n_2)
-                    constraint_maximum_absorption(pm, i, n_1, n_2)
-                end
-                for i in _PM.ids(pm, :ne_storage, nw = n_2)
-                    constraint_storage_state_ne(pm, i, n_1, n_2)
-                    constraint_maximum_absorption_ne(pm, i, n_1, n_2)
-                end
-                for i in _PM.ids(pm, :load, nw = n_2)
-                    if _PM.ref(pm, n_2, :load, i, "flex") == 1
-                        constraint_ence_state(pm, i, n_1, n_2)
-                        constraint_shift_up_state(pm, n_1, n_2, i)
-                        constraint_shift_down_state(pm, n_1, n_2, i)
-                        constraint_shift_duration(pm, n_2, network_ids, i)
-                    end
-                end
-                n_1 = n_2
-            end
-        end
-
-        network_ids = sort(collect(_PM.nw_ids(pm)))
-        n_1 = network_ids[1]
-
-        for n_2 in network_ids[2:end]
-            for i in _PM.ids(pm, :load, nw = n_2)
-                constraint_flex_investment(pm, n_1, n_2, i)
-            end
-            for i in _PM.ids(pm, :ne_storage, nw = n_2)
-                constraint_storage_investment(pm, n_1, n_2, i)
-            end
-            n_1 = n_2
-        end=#
-    #println(pm.model)
+            #OBJECTIVE see objective.jl
+            objective_min_cost_acdc_convex_conv_npv(pm)
     end
 end

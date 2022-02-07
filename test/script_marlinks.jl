@@ -106,10 +106,10 @@
     extradata,data_mip = _CBD.create_profile_sets_mesh(dim, data_mip, all_scenario_data, markets_wfs, infinite_grid, owpp_mva)
 
     #################### Scale cost data
-    #_CBD.scale_cost_data_per_year!(data_mip, scenario)
-    #_CBD.scale_cost_data_per_year!(extradata, scenario)
-    _CBD.scale_cost_data_per_year!(data_mip, scenario)
-    _CBD.scale_cost_data_per_scenario!(extradata, scenario)
+    #_CBD.scale_cost_data_2hourly!(data_mip, scenario)
+    #_CBD.scale_cost_data_2hourly!(extradata, scenario)
+    _CBD.scale_cost_data_2hourly!(data_mip, scenario)
+    _CBD.scale_cost_data_2yearlyhourly!(extradata, scenario)
 
     # Create data dictionary where time series data is included at the right place
     mn_data_mip = _PMACDC.multinetwork_data(data_mip, extradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))

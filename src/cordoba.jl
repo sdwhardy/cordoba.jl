@@ -7,6 +7,7 @@ import Memento
 import Dates
 import DataFrames
 import OrderedCollections
+#import Clp
 #import MultivariateStats
 #import Clustering
 #import Distances
@@ -28,14 +29,20 @@ include("prob/cordoba_acdc_tnep.jl")
 include("prob/cordoba_acdc_tnep_stoch.jl")
 include("prob/cordoba_acdc_tnep_convex_conv.jl")
 include("prob/acdc_tnep_convex_conv_npv.jl")
+include("prob/acdc_tnep_convex_conv_strg_npv.jl")
+include("prob/acdc_tnep_convex_conv_strg_admm.jl")
+include("prob/acdc_tnep_convex_conv_strg_admm_convexcable.jl")
+
 include("prob/cordoba_acdc_tnep_convexafy.jl")
 include("prob/cordoba_acdc_opf.jl")
+
 #include("prob/common.jl")
 include("core/objective.jl")
 include("core/constraints.jl")
+include("core/admm_constraints.jl")
+include("core/admm_objective.jl")
 include("core/storage.jl")
 include("io/profile_data.jl")
-#include("post_process/printing.jl")
 #include("clustering/bins.jl")
 #include("clustering/common.jl")
 include("economics/main.jl")

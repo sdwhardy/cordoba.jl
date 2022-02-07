@@ -113,8 +113,8 @@ for k=5:1:300
     #################### Scale cost data
 
     # Scale cost data
-    _CBD.scale_cost_data_per_scenario!(data, scenario)
-    _CBD.scale_cost_data_per_scenario!(extradata, scenario)
+    _CBD.scale_cost_data_2yearlyhourly!(data, scenario)
+    _CBD.scale_cost_data_2yearlyhourly!(extradata, scenario)
 
 
     # Create data dictionary where time series data is included at the right place
