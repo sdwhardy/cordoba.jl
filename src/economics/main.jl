@@ -13,6 +13,7 @@ wind_module.save_wind4_module(wnd,"Norther")
 #NOTE EENS is set to zero for flexlan !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #Cost of HVAC cable of capacity mva and length km
+
 function AC_cbl(mva,km)
     cbl=cable();cbl.mva=mva;cbl.wnd="Norther"
     ac_cbl=optimal_ac_cable(cbl,get_220kV_cables(),km,get_Cost_Data())

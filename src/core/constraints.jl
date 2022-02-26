@@ -644,6 +644,27 @@ function variable_absorbed_energy(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bo
 end
 
 ############################ Binary DC branch constraints #####################################
+"variable: `0 <= branch_ne[l] <= 1` for `l` in `branch`es"
+function variable_ne_branch_indicator(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, relax::Bool=false, report::Bool=true)
+    if !relax
+        z_branch_ne = _PM.var(pm, nw)[:branch_ne] = JuMP.@variable(pm.model,
+            [l in _PM.ids(pm, nw, :ne_branch)], base_name="$(nw)_branch_ne",
+            binary = true,
+            start = _PM.comp_start_value(_PM.ref(pm, nw, :ne_branch, l), "branch_tnep_start", 1.0)
+        )
+    else
+        z_branch_ne = _PM.var(pm, nw)[:branch_ne] = JuMP.@variable(pm.model,
+            [l in _PM.ids(pm, nw, :ne_branch)], base_name="$(nw)_branch_ne",
+            lower_bound = 0.0,
+            upper_bound = 1.0,
+            start = _PM.comp_start_value(_PM.ref(pm, nw, :ne_branch, l), "branch_tnep_start", 1.0)
+        )
+    end
+
+    report && _IM.sol_component_value(pm, nw, :ne_branch, :built, _PM.ids(pm, nw, :ne_branch), z_branch_ne)
+    return (nw,z_branch_ne)
+end
+
 
 # same as that in FlexPlan but variable with nw number is returned for time based constraints
 function variable_branch_ne(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, relax::Bool=false, report::Bool=true)

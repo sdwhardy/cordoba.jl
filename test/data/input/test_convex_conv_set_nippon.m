@@ -53,9 +53,11 @@ mpc.branch = [
 %candidate branch data
 %column_names%	f_bus	t_bus	br_r	br_x	br_b	rate_a	rate_b	rate_c	tap	shift	br_status	angmin	angmax	mva	construction_cost
 mpc.ne_branch = [
-1   2   0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60	100.0	100000;
+4   1   0.0040   0.0400   0.00   0  0  0  0  0  1 -60  60	100.0	100000;
+4   2   0.0040   0.0400   0.00   0  0  0  0  0  1 -60  60	100.0	100000;
+4   3   0.0040   0.0400   0.00   0  0  0  0  0  1 -60  60	100.0	100000;
 ];
-
+%%1   2   0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60	100.0	100000;
 %%-----  OPF Data  -----%%
 %% Cost of generators here - refer to Matpower 6.0 Users Manual for description of fields
 %% generator cost data

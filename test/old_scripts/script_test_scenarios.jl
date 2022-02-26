@@ -32,10 +32,10 @@ data = _PM.parse_file(file)#load data in PM format
 
 #################### Calculates cables for DC lines
 z_base_dc=(data["busdc_ne"]["1"]["basekVdc"])^2/data["baseMVA"]
-data=_CBD.additional_candidatesICS(data,candidate_ics,ics)#adds additional candidates
+data=_CBD.additional_candidatesICS_DC(data,candidate_ics,ics)#adds additional candidates
 for (i,bdc) in data["branchdc_ne"]
-data["branchdc_ne"][i]=_CBD.candidateIC_cost_impedance(bdc,z_base_dc);end
-data["branchdc_ne"]=_CBD.unique_candidateIC(data["branchdc_ne"])#keep only unique candidates
+data["branchdc_ne"][i]=_CBD.candidateIC_cost_impedance_DC(bdc,z_base_dc);end
+data["branchdc_ne"]=_CBD.unique_candidateIC_DC(data["branchdc_ne"])#keep only unique candidates
 
 #################### PowerModelsACDC settings ############################
 _PMACDC.process_additional_data!(data)#add extra DC model data

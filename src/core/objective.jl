@@ -9,7 +9,7 @@ function objective_min_cost_acdc_convex_conv_npv(pm::_PM.AbstractPowerModel)
         sum(pm.ref[:scenario_prob][s] *
             sum(
                 calc_gen_cost(pm, n)
-                +calc_convdc_convexafy_cost_npv(pm, n)
+                + calc_convdc_convexafy_cost_npv(pm, n)
                 + calc_ne_branch_cost(pm, n)#was commented out - not tested since uncommneted
                 + calc_branchdc_ne_cost(pm, n)
             for (sc, n) in scenario)
@@ -24,7 +24,7 @@ function objective_min_cost_acdc_convex_conv_strg_npv(pm::_PM.AbstractPowerModel
         sum(pm.ref[:scenario_prob][s] *
             sum(
                 calc_gen_cost(pm, n)
-                +calc_convdc_convexafy_cost_npv(pm, n)
+                + calc_convdc_convexafy_cost_npv(pm, n)
                 + calc_ne_branch_cost(pm, n)
                 + calc_branchdc_ne_cost(pm, n)
                 + calc_storage_cost_cordoba_npv(pm, n)
@@ -34,12 +34,39 @@ function objective_min_cost_acdc_convex_conv_strg_npv(pm::_PM.AbstractPowerModel
     )
 end
 
+#Constraint on size of yearly investment possible
+function max_investment_per_year(pm::_PM.AbstractPowerModel)
+    s1=pm.setting["scenarios_length"]
+    y1=pm.setting["years_length"]
+    h1=pm.setting["hours_length"]
+    #println(pm.ref[:scenario])
+    for (s, scenario) in pm.ref[:scenario]
+        s_num=parse(Int64,s)
+        jan=(s_num-1)*y1*h1+1
+        while (jan<=(s_num)*y1*h1)
+            cost=0.0
+            dec=jan+h1-1
+            for (sc, n) in scenario
+                if (jan<=n && n<=dec)
+                    cost=cost+calc_convdc_convexafy_cost_npv(pm, n)
+                    cost=cost+calc_ne_branch_cost(pm, n)
+                    cost=cost+calc_branchdc_ne_cost(pm, n)
+                    cost=cost+calc_storage_cost_cordoba_npv(pm, n)
+                    cost=cost+calc_wf_cost_npv(pm, n)
+                end
+            end
+            JuMP.@constraint(pm.model,cost<=pm.setting["max_invest_per_year"])
+            jan=jan+h1
+        end;
+    end
+end
+
 #convex converter considering NPV
 function calc_convdc_convexafy_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
 
-    function calc_single_convdc_cost_npv(i, b_cost)
+    function calc_single_convdc_cost_npv(i, b_cost, nw)
         cost = 0.0
-        cost += b_cost * _PM.var(pm,n,:p_pacmax,i)
+        cost += b_cost * _PM.var(pm,nw,:p_pacmax,i)
         return cost
     end
     sl=pm.setting["scenarios_length"]
@@ -50,11 +77,15 @@ function calc_convdc_convexafy_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
     convdc0 = _PM.ref(pm, n, :convdc)
 
     if (_yr<yl)
+        #println("if "*string(n)*" "*string(hl)*" "*string(yl)*" "*string(_yr))
         convdc1 = _PM.ref(pm, n+hl, :convdc)
-        cost = sum(calc_single_convdc_cost_npv(i,b["cost"]) for (i,b) in convdc0)
-        cost = cost+sum(calc_single_convdc_cost_npv(i,b["cost"]*-1) for (i,b) in convdc1)
+        cost = sum(calc_single_convdc_cost_npv(i,b["cost"],n) for (i,b) in convdc0)
+        #println(cost)
+        cost = cost-sum(calc_single_convdc_cost_npv(i,b["cost"],n) for (i,b) in convdc1)
+        #println(cost)
     else
-        cost = sum(calc_single_convdc_cost_npv(i,b["cost"]) for (i,b) in convdc0)
+        #println("else "*string(n)*" "*string(hl)*" "*string(yl)*" "*string(_yr))
+        cost = sum(calc_single_convdc_cost_npv(i,b["cost"],n) for (i,b) in convdc0)
     end
     return cost
 end

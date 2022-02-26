@@ -27,10 +27,10 @@ mpc.bus = [
 %% generator data
 %	bus	Pg	Qg	Qmax	Qmin	Vg	mBase	status	Pmax	Pmin	Pc1	Pc2	Qc1min	Qc1max	Qc2min	Qc2max	ramp_agc	ramp_10	ramp_30	ramp_q	apf
 mpc.gen = [
-1	0		0	0	0	1	100	1	835	0	0	0	0	0	0	0	0	0	0	0	1;
-2	0		0	0	0	1	100	1	835	0	0	0	0	0	0	0	0	0	0	0	1;
-3	0		0	0	0	1	100	1	835	0	0	0	0	0	0	0	0	0	0	0	1;
-4	0		0	0	0	1	100	1	835	0	0	0	0	0	0	0	0	0	0	0	0;
+1	0		0	0	0	1	100	1	10000	0	0	0	0	0	0	0	0	0	0	0	1;
+2	0		0	0	0	1	100	1	10000	0	0	0	0	0	0	0	0	0	0	0	1;
+3	0		0	0	0	1	100	1	10000	0	0	0	0	0	0	0	0	0	0	0	1;
+4	0		0	0	0	1	100	1	10000	0	0	0	0	0	0	0	0	0	0	0	0;
 ];
 
 %%Additional generator fields, type=0(wind generator), type=1(onshore market ie load and genrator created)
@@ -53,9 +53,7 @@ mpc.branch = [
 %candidate branch data
 %column_names%	f_bus	t_bus	br_r	br_x	br_b	rate_a	rate_b	rate_c	tap	shift	br_status	angmin	angmax	mva	construction_cost
 mpc.ne_branch = [
-4   1   0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60	100.0	100000;
-4   2   0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60	100.0	100000;
-4   3   0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60	100.0	100000;
+1   2   0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60	100.0	100000;
 ];
 
 %%-----  OPF Data  -----%%

@@ -43,10 +43,10 @@ for k=5:1:300
     data = _PM.parse_file(file)#load data in PM format
     candidate_ics=[1,4/5,3/5,1/2]#Candidate Cable sizes
     z_base_dc=(data["busdc"]["1"]["basekVdc"])^2/data["baseMVA"]
-    data=_CBD.additional_candidatesICS(data,candidate_ics,ics)
+    data=_CBD.additional_candidatesICS_DC(data,candidate_ics,ics)
     for (i,bdc) in data["branchdc_ne"]
-    data["branchdc_ne"][i]=_CBD.candidateIC_cost_impedance(bdc,z_base_dc);end
-    data["branchdc_ne"]=_CBD.unique_candidateIC(data["branchdc_ne"])#keep only unique candidates
+    data["branchdc_ne"][i]=_CBD.candidateIC_cost_impedance_DC(bdc,z_base_dc);end
+    data["branchdc_ne"]=_CBD.unique_candidateIC_DC(data["branchdc_ne"])#keep only unique candidates
 
     #delete!(data["branchdc_ne"],"4");delete!(data["branchdc_ne"],"3");delete!(data["branchdc_ne"],"2")
     #delete!(data["branchdc_ne"],"5");delete!(data["branchdc_ne"],"6")
@@ -56,7 +56,7 @@ for k=5:1:300
     #for (i,bdc) in data["branchdc_ne"]#onshore to onshore connections
     #data["branchdc_ne"][i]=_CBD.candidateIC_cost(bdc);end
 
-    #data["branchdc_ne"]=_CBD.unique_candidateIC(data["branchdc_ne"])#keep only unique candidates
+    #data["branchdc_ne"]=_CBD.unique_candidateIC_DC(data["branchdc_ne"])#keep only unique candidates
 
 
     _PMACDC.process_additional_data!(data)#add extra DC model data
@@ -113,8 +113,8 @@ for k=5:1:300
     #################### Scale cost data
 
     # Scale cost data
-    _CBD.scale_cost_data_2yearlyhourly!(data, scenario)
-    _CBD.scale_cost_data_2yearlyhourly!(extradata, scenario)
+    _CBD.scale_cost_data_2yearly!(data, scenario)
+    _CBD.scale_cost_data_2yearly!(extradata, scenario)
 
 
     # Create data dictionary where time series data is included at the right place

@@ -30,14 +30,14 @@ function cordoba_go!(d1,d2,ic_mva,owpp_mva,ic_length,owpp_km,candidates::Vector{
     casename = "ic_ukdedk_base"
     file = "./test/data/input/$casename.m"
     data = _PM.parse_file(file)#load data in PM format
-    data=_CBD.additional_candidatesICS(data,candidate_ics,ics)
+    data=_CBD.additional_candidatesICS_DC(data,candidate_ics,ics)
 
     delete!(data["branchdc_ne"],"6");delete!(data["branchdc_ne"],"7");delete!(data["branchdc_ne"],"8")
 
     for (i,bdc) in data["branchdc_ne"]#onshore to onshore connections
     data["branchdc_ne"][i]=_CBD.candidateIC_cost(bdc);end
 
-    data["branchdc_ne"]=_CBD.unique_candidateIC(data["branchdc_ne"])#keep only unique candidates
+    data["branchdc_ne"]=_CBD.unique_candidateIC_DC(data["branchdc_ne"])#keep only unique candidates
 
 
     _PMACDC.process_additional_data!(data)#add extra DC model data

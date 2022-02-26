@@ -56,7 +56,7 @@ end
 
 #translates cost (single) to yearly NPV value
 function npv_cost_data(data,base_yr,current_yr,_dr::Float64=0.04)
-    npv = x -> (1 / (1+_dr)^(current_yr-base_yr)) * x # npv
+    npv = x -> (1 / (1+_dr)^(current_yr-base_yr)) * x# npv
     for (g, gen) in get(data, "gen", Dict{String,Any}())
         _PM._apply_func!(gen, "cost", npv)
     end
@@ -86,6 +86,66 @@ function npv_cost_data(data,base_yr,current_yr,_dr::Float64=0.04)
     end
     for (s, strg) in get(data, "storage", Dict{String,Any}())
         _PM._apply_func!(strg, "cost", npv)
+    end
+    return data
+end
+
+#translates costs (array) to yearly NPV value
+function npvs_costs_datas_wREZ(data, scenario, _yrs)
+    _scs=data["scenario"]
+    base_yr=parse(Int64,_yrs[1])
+    _hrs=deepcopy(scenario["hours"])
+    #_yrs=[k for k in keys(scenario["sc_names"][_scs[1]])]
+    for (_sci,_sc) in _scs
+        _sc_temp=sort!(OrderedCollections.OrderedDict(deepcopy(_sc)),byvalue=true)
+        _sc_first=first(_sc_temp)[2]
+        _yr=1
+        for (_str,_num) in _sc_temp
+            if (_num<=_sc_first+_yr*_hrs-1)
+                data["nw"][string(_num)]=deepcopy(npv_cost_data_wREZ(deepcopy(data["nw"][string(_num)]),base_yr,parse(Int64,_yrs[_yr]),scenario["planning_horizon"]))
+                if (_num==_sc_first+_yr*_hrs-1)
+                    _yr=_yr+1
+                end
+            end
+        end
+    end
+    return data
+end
+
+#translates cost (single) to yearly NPV value
+function npv_cost_data_wREZ(data,base_yr,current_yr,_ph,_dr::Float64=0.04)
+    #println(((_ph-(current_yr-base_yr))/_ph))
+    npv_yearly = x -> (1 / (1+_dr)^(current_yr-base_yr)) * x *((_ph-(current_yr-base_yr))/_ph)# npv
+    npv_hourly = x -> (1 / (1+_dr)^(current_yr-base_yr)) * x# npv
+    for (g, gen) in get(data, "gen", Dict{String,Any}())
+        _PM._apply_func!(gen, "cost", npv_hourly)
+    end
+    for (g, gen) in get(data, "gen", Dict{String,Any}())
+        _PM._apply_func!(gen, "invest", npv_yearly)
+    end
+    for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
+        _PM._apply_func!(branch, "construction_cost", npv_yearly)
+    end
+    for (b, branch) in get(data, "branchdc_ne", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", npv_yearly)
+    end
+    for (c, conv) in get(data, "convdc_ne", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", npv_yearly)
+    end
+    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "eq_cost", npv_yearly)
+        _PM._apply_func!(strg, "inst_cost", npv_yearly)
+        _PM._apply_func!(strg, "cost_abs", npv_hourly)
+        _PM._apply_func!(strg, "cost_inj", npv_hourly)
+    end
+    for (b, branch) in get(data, "branchdc", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", npv_yearly)
+    end
+    for (c, conv) in get(data, "convdc", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", npv_yearly)
+    end
+    for (s, strg) in get(data, "storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "cost", npv_yearly)
     end
     return data
 end
@@ -147,7 +207,7 @@ function converter_parameters_rxb(data)
 end
 
 #Sets DC candidate dictionaries with desired candidate qualities
-function additional_candidatesICS(data,candidates,ic_data)
+function additional_candidatesICS_DC(data,candidates,ic_data)
     #DC, IC
     ics=[]
     data["branchdc_ne"]=sort!(OrderedCollections.OrderedDict(data["branchdc_ne"]), by=x->parse(Int64,x))
@@ -166,8 +226,31 @@ function additional_candidatesICS(data,candidates,ic_data)
     return data
 end
 
+#Sets AC candidate dictionaries with desired candidate qualities
+
+function additional_candidatesICS_AC(data,candidates,ic_data)
+    #DC, IC
+    ics=[]
+    data["ne_branch"]=sort!(OrderedCollections.OrderedDict(data["ne_branch"]), by=x->parse(Int64,x))
+    for (i,dcb) in data["ne_branch"]; push!(ics,deepcopy(dcb));end
+
+    data["ne_branch"]=Dict{String,Any}()
+    for (i,ic) in enumerate(ics)
+        for j=1:1:length(candidates);
+            ic["source_id"][2]=j+length(candidates)*(i-1);
+            ic["index"]=j+length(candidates)*(i-1);
+            ic["rate_a"]=candidates[j]*first(ic_data[i]);
+            ic["length"]=last(ic_data[i])[1];
+            push!(data["ne_branch"],string(j+length(candidates)*(i-1))=>deepcopy(ic));
+        end
+    end
+    return data
+end
+
+
+
 #for each DC candidate capacity an appropriate cable is selected and characteristics stored
-function candidateIC_cost_impedance(bdc,z_base)
+function candidateIC_cost_impedance_DC(bdc,z_base)
     cb=DC_cbl(bdc["rateA"], bdc["length"])
     #bdc["cost"]=cb.costs.cpx_i+cb.costs.cpx_p
     bdc["cost"]=cb.costs.ttl
@@ -177,8 +260,18 @@ function candidateIC_cost_impedance(bdc,z_base)
     return bdc
 end
 
+#for each AC candidate capacity an appropriate cable is selected and characteristics stored
+function candidateIC_cost_impedance_AC(bac,z_base,s_base)
+    cb=AC_cbl(bac["rate_a"], bac["length"])
+    bac["construction_cost"]=cb.costs.ttl
+    bac["br_r"]=((cb.elec.ohm/cb.num)*cb.length)/z_base
+    bac["br_x"]=((cb.elec.xl/cb.num)*cb.length)/z_base
+    bac["rate_c"]=bac["rate_b"]=bac["rate_a"]=(cb.num*cb.elec.mva)/s_base
+    return bac
+end
+
 #ensures that the only candidates considered are unique cable sizes
-function unique_candidateIC(cand_ics)
+function unique_candidateIC_DC(cand_ics)
     copy_cand_ics=deepcopy(cand_ics)
     for (i,dcb) in cand_ics
         for (j,tdcb) in copy_cand_ics
@@ -191,6 +284,30 @@ function unique_candidateIC(cand_ics)
     return copy_cand_ics
 end
 
+function unique_candidateIC_AC(cand_ics)
+    copy_cand_ics=deepcopy(cand_ics)
+    for (i,dcb) in cand_ics
+        for (j,tdcb) in copy_cand_ics
+            if ((i!=j && dcb["f_bus"]==tdcb["f_bus"] && dcb["t_bus"]==tdcb["t_bus"] &&  isapprox(dcb["rate_a"],tdcb["rate_a"]; atol = 1)) || isapprox(tdcb["rate_a"],0; atol = 1))
+                delete!(copy_cand_ics,j)
+                break
+            end
+        end
+    end
+    return copy_cand_ics
+end
+
+function cable_reorder_rename(cbls)
+    cbls2=sort(OrderedCollections.OrderedDict(deepcopy(cbls)), by = x -> parse(Int64,x))
+    ks_orig=keys(cbls2)
+    for (k,k_orig) in enumerate(ks_orig)
+        if (string(k_orig)!=string(k))
+            cbls[string(k)]=cbls[k_orig];
+            delete!(cbls,string(k_orig))
+        end
+    end
+    return cbls
+end
 
 #divides time series into 24 hour groups
 function daily_tss(ts)
@@ -252,7 +369,7 @@ function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario
 end
 
 #scales data to hourly cost spread over horizon years
-function scale_cost_data_2yearlyhourly!(data, scenario)
+function scale_cost_data_2yearly!(data, scenario)
     rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"]*scenario["years"])) * x # scale hourly costs to the planning horizon
     rescale_total  = x -> (                                1 / (scenario["hours"]*scenario["years"])) * x # scale total costs to the planning horizon
 

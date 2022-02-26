@@ -120,7 +120,7 @@ scenario_years=["2020","2030","2040"]
 #scenario_years=["2030"]
 
 ##################### load time series data ##############################
-k=100
+k=2
 scenario_data = _CBD.get_scenario_year_tss(scenario_names,scenario_years)#Retrieve the scenario time series
 ##################### Cluster time series data ###########################
 
@@ -133,6 +133,7 @@ for (sc,yrs_ts) in scenario_data
         filter!(row -> ismissing(row.EUR_daDE)==false, scenario_data[sc][yr])
         filter!(row -> ismissing(row.EUR_daUK)==false, scenario_data[sc][yr])
         filter!(row -> ismissing(row.EUR_daDK)==false, scenario_data[sc][yr])
+        ts[!,"Wnd_MWhDE"]=ts[!,"Wnd_MWhDE"]./maximum(ts[!,"Wnd_MWhDE"])
         daily_ts=_CBD.daily_tss(DateTime.(ts[!,"time_stamp"]))
         daily_dew=_CBD.daily_tss(Float64.(ts[!,"Wnd_MWhDE"]))
         daily_bew=_CBD.daily_tss(Float64.(ts[!,"Wnd_MWhBE"]))

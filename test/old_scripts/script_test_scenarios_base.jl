@@ -24,7 +24,7 @@ infinite_grid=sum(first.(ics))+owpp_mva#ensures enough generation and consumptio
 casename = "test"
 file = "./test/data/input/$casename.m"
 data = _PM.parse_file(file)#load data in PM format
-data=_CBD.additional_candidatesICS(data,candidate_ics,ics)#adds additional candidates
+data=_CBD.additional_candidatesICS_DC(data,candidate_ics,ics)#adds additional candidates
 
 ####################### These functions are not needed if data is directly entered into .m file but this is a recipe for disaster
 #essentially it is just duplicating connections in branchdc_ne and adding real cable values for power flow
@@ -32,7 +32,7 @@ data=_CBD.additional_candidatesICS(data,candidate_ics,ics)#adds additional candi
 #################### Calculates cables for DC lines
 for (i,bdc) in data["branchdc_ne"]
 data["branchdc_ne"][i]=_CBD.candidateIC_cost(bdc);end
-data["branchdc_ne"]=_CBD.unique_candidateIC(data["branchdc_ne"])#keep only unique candidates
+data["branchdc_ne"]=_CBD.unique_candidateIC_DC(data["branchdc_ne"])#keep only unique candidates
 
 
 iran=["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24"]

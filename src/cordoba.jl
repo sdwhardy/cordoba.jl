@@ -30,6 +30,7 @@ include("prob/cordoba_acdc_tnep_stoch.jl")
 include("prob/cordoba_acdc_tnep_convex_conv.jl")
 include("prob/acdc_tnep_convex_conv_npv.jl")
 include("prob/acdc_tnep_convex_conv_strg_npv.jl")
+include("prob/cordoba_acdc_wf_strg.jl")
 include("prob/acdc_tnep_convex_conv_strg_admm.jl")
 include("prob/acdc_tnep_convex_conv_strg_admm_convexcable.jl")
 

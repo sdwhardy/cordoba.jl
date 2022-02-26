@@ -79,10 +79,10 @@
     #candidate_ics=[1,4/5,1/2,1/4]#Candidate Cable sizes
     #candidate_ics=[1/2]#Candidate Cable sizes
     candidate_ics=[1]#Candidate Cable sizes
-    data_mip=_CBD.additional_candidatesICS(data_mip,candidate_ics,ics)#adds additional candidates
+    data_mip=_CBD.additional_candidatesICS_DC(data_mip,candidate_ics,ics)#adds additional candidates
     for (i,bdc) in data_mip["branchdc_ne"]
-    data_mip["branchdc_ne"][i]=_CBD.candidateIC_cost_impedance(bdc,z_base_dc);end
-    data_mip["branchdc_ne"]=_CBD.unique_candidateIC(data_mip["branchdc_ne"])#keep only unique candidates
+    data_mip["branchdc_ne"][i]=_CBD.candidateIC_cost_impedance_DC(bdc,z_base_dc);end
+    data_mip["branchdc_ne"]=_CBD.unique_candidateIC_DC(data_mip["branchdc_ne"])#keep only unique candidates
     ######### delete rename cables - set up the problem
     #data_mip["branchdc_ne"]["13"]["rateA"]=0;data_mip["branchdc_ne"]["14"]["rateA"]=0;;data_mip["branchdc_ne"]["15"]["rateA"]=0;data_mip["branchdc_ne"]["16"]["rateA"]=0
     #delete!(data_mip["branchdc_ne"],"4");delete!(data_mip["branchdc_ne"],"5");delete!(data_mip["branchdc_ne"],"6")
@@ -103,7 +103,7 @@
     #_CBD.scale_cost_data_2hourly!(data_mip, scenario)
     #_CBD.scale_cost_data_2hourly!(extradata, scenario)
     _CBD.scale_cost_data_2hourly!(data_mip, scenario)
-    _CBD.scale_cost_data_2yearlyhourly!(extradata, scenario)
+    _CBD.scale_cost_data_2yearly!(extradata, scenario)
 
     # Create data dictionary where time series data is included at the right place
     mn_data_mip = _PMACDC.multinetwork_data(data_mip, extradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))

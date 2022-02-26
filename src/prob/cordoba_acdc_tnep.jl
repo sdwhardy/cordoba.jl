@@ -121,10 +121,17 @@ function post_cordoba_mp_acdctnepopf(pm::_PM.AbstractPowerModel)
     end
 end
 
-function collect_4_constraint_candidate_corridor_limit(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
+function collect_4_constraint_candidate_corridor_limit_dc(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     branch = _PM.ref(pm, nw, :branchdc_ne, i)
     ft_bus = [branch["fbusdc"],branch["tbusdc"]]
     z = _PM.var(pm, nw, :branchdc_ne)[i]
+    return (sort!(ft_bus), z)
+end
+
+function collect_4_constraint_candidate_corridor_limit_ac(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
+    branch = _PM.ref(pm, nw, :ne_branch, i)
+    ft_bus = [branch["f_bus"],branch["t_bus"]]
+    z = _PM.var(pm, nw, :branch_ne)[i]
     return (sort!(ft_bus), z)
 end
 
