@@ -1,3 +1,67 @@
+function filter_DClines(data,edges,nodes)
+    #size and length
+    ics_dc=Tuple{Int64,Int64}[]
+    dcc=filter(x->!ismissing(x),edges["DC_mva"])
+    for (k, s) in enumerate(dcc)
+        from_xy=utm_gps2xy((nodes["lat"][edges["DC_from"][k]],nodes["long"][edges["DC_from"][k]]))
+        to_xy=utm_gps2xy((nodes["lat"][edges["DC_to"][k]],nodes["long"][edges["DC_to"][k]]))
+        push!(ics_dc,(s,round(Int64,Geodesy.euclidean_distance(from_xy, to_xy, 31, true, Geodesy.wgs84)/1000*1.25)))
+    end
+
+    #filter dc connections
+    dccbles2keep=Dict[]
+    for (r,s) in enumerate(dcc)
+        for (k,b) in data["branchdc_ne"]
+            if (edges["DC_from"][r]==b["fbusdc"] && edges["DC_to"][r]==b["tbusdc"])
+                push!(dccbles2keep,deepcopy(b))
+                break;
+            end
+        end
+    end
+    data["branchdc_ne"]=Dict{String,Any}()
+    for (k,c) in enumerate(dccbles2keep)
+        c["source_id"][2]=k
+        push!(data["branchdc_ne"],string(k)=>c)
+    end
+    return data, ics_dc
+end
+
+function filter_AClines(data,edges,nodes)
+    #size and length
+    ics_ac=Tuple{Int64,Int64}[]
+    acc=filter(x->!ismissing(x),edges["AC_mva"])
+    for (k, s) in enumerate(acc)
+        from_xy=utm_gps2xy((nodes["lat"][edges["AC_from"][k]],nodes["long"][edges["AC_from"][k]]))
+        to_xy=utm_gps2xy((nodes["lat"][edges["AC_to"][k]],nodes["long"][edges["AC_to"][k]]))
+        push!(ics_ac,(s,round(Int64,Geodesy.euclidean_distance(from_xy, to_xy, 31, true, Geodesy.wgs84)/1000*1.25)))
+    end
+
+    #filter ac connections
+    accbles2keep=Dict[]
+    acc=filter!(x->!ismissing(x),edges["AC_mva"])
+    for (r,s) in enumerate(acc)
+        for (k,b) in data["ne_branch"]
+            if (edges["AC_from"][r]==b["f_bus"] && edges["AC_to"][r]==b["t_bus"])
+                push!(accbles2keep,deepcopy(b))
+                break;
+            end
+        end
+    end
+    data["ne_branch"]=Dict{String,Any}()
+    for (k,c) in enumerate(accbles2keep)
+        c["source_id"][2]=k
+        push!(data["ne_branch"],string(k)=>c)
+    end
+    return data, ics_ac
+end
+
+#utm coordinates from gps
+function utm_gps2xy(lla,north_south::Bool=true,zone_utm::Int64=31)
+    utm_desired = Geodesy.UTMfromLLA(zone_utm, north_south, Geodesy.wgs84)#sets UTM zone
+    utm = utm_desired(Geodesy.LLA(first(lla),last(lla)))#coverts to cartesian
+    return utm
+end
+
 #ensures binary candidates (array) costs sum to proper NPV value over the number of years
 function npvs_costs_datas_4mip(data, scenario, _yrs)
     _scs=data["scenario"]

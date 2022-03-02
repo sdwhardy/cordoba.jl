@@ -21,11 +21,6 @@ for node=1:1:length(first(first(froms_tos)))
 end
 
 
-function utm_gps2xy(lla,north_south::Bool=true,zone_utm::Int64=31)
-    utm_desired = UTMfromLLA(zone_utm, north_south, wgs84)#sets UTM zone
-    utm = utm_desired(LLA(first(lla),last(lla)))#coverts to cartesian
-    return utm
-end
 
 plotly()
 p=plot()

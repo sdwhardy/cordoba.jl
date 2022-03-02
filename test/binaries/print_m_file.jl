@@ -14,19 +14,100 @@ function ppf_mainAC2mfile(r_df,ac_df)
 	close(matfile)#close the .mat file
 end
 
-function ppf_mainACDC2mfile(r_df,ac_df)
+function ppf_mainACDCStorage2mfile(r_df,ac_df, dc_df, cdir)
 	base_mva=100
-	matfile = open("./test/binaries/test_case.m","w")#open the .mat file
+	matfile = open(cdir*"test_case.m","w")#open the .mat file
 	ppf_header(matfile,base_mva)#print top function data
 	ppf_Buss(matfile,r_df)#prints the bus data
 	ppf_Gens(matfile,r_df)#prints all generator (OWPP) data
 	ppf_acbranches(matfile,ac_df)
 	ppf_costs(matfile,r_df)
 	ppf_BussDC(matfile,r_df)#prints the bus data
-	#ppf_dc_blanks(matfile)#prints the bus data
-	#ppf_dcBuss(matfile,r_df)#prints the bus data
-	#ppf_dcbranches(matfile,ac_df)
+	ppf_BussDC_ne_blank(matfile)#prints the bus data
+	ppf_dcbranches_blank(matfile)
+	ppf_dcbranches_ne(matfile,dc_df)
+	ppf_convs(matfile,r_df)
+	ppf_dc_blank_conv_ne(matfile)
+	ppf_storage(matfile,r_df)
 	close(matfile)#close the .mat file
+end
+
+function ppf_storage(mf,r_df)
+	println(mf, " % hours
+	 mpc.time_elapsed = 1.0
+
+	 %% storage data
+	 % storage_bus   ps   qs energy energy_rating charge_rating discharge_rating charge_efficiency discharge_efficiency thermal_rating    qmin   qmax    r    x p_loss q_loss status
+	 mpc.storage = [")
+	 	for r in r_df[:storage]
+ 	   		println(mf,r)
+    	end
+	println(mf,"];")
+
+
+
+	println(mf, "%% cost 36.6
+	 %% storage additional data
+	 %column_names% max_energy_absorption stationary_energy_inflow stationary_energy_outflow self_discharge_rate cost
+	 mpc.storage_extra = [")
+		 for r in r_df[:storage_extra]
+			 println(mf,r)
+		 end
+	 println(mf,"];")
+
+	 println(mf, "%% storage data
+	 %column_names%   storage_bus ps 	qs 	energy  energy_rating charge_rating  discharge_rating  charge_efficiency  discharge_efficiency  thermal_rating  qmin  	qmax  	r  		x  p_loss  	q_loss  status eq_cost inst_cost co2_cost 	max_energy_absorption 	stationary_energy_inflow 	stationary_energy_outflow 	self_discharge_rate	 	cost_abs 	cost_inj on_off
+	 mpc.ne_storage = [
+	 1	 0.0 0.0 0.0 6400.0	1280.0 1600.0 0.9 0.9 16000	-3200.0	4480.0 0.1 0.0 0.0	0.0	 0 	100000 	100000	100000 	32000000 0 	0 1e-4 0 0 1;
+	 											 											];")
+end
+
+function ppf_BussDC_ne_blank(mf)
+	println(mf,"%% All Candidate equipment has equivalent existing infrastructure field as well ie  mpc.branchdc_ne <->  mpc.branchdc similar to AC
+	%% Candidate DC buses here - refer to MATACDC 1.0 User’s Manual for description of fields
+	%% candidate dc bus data
+	%column_names%   busdc_i grid    Pdc     Vdc     basekVdc    Vdcmax  Vdcmin  Cdc
+	mpc.busdc_ne = [
+	5              4       0       1       300         1.1     0.9     0;
+	];")
+end
+
+function ppf_convs(mf,r_df)
+	println(mf,"
+	%% existing converters
+	%column_names%   busdc_i busac_i type_dc type_ac P_g   Q_g  islcc  	Vtar 		rtf  xtf  transformer tm   bf  filter    rc      xc  reactor   basekVac Vmmax   Vmmin   Imax     status   LossA  LossB  LossCrec LossCinv   droop   Pdcset     Vdcset  dVdcset Pacmax Pacmin Qacmax   Qacmin cost
+	mpc.convdc = [")
+
+	for r in r_df[:conv_dc]
+		println(mf,r)
+	end
+	println(mf,"];")
+end
+
+function ppf_dcbranches_blank(mf)
+	println(mf,"%% existing dc branches
+	%column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB rateC cost status
+	mpc.branchdc = [
+	1	2	0.0	0.00	 0.00  0	 		0	 0 68.75	 0;
+	];")
+end
+
+function ppf_dcbranches_ne(mf,dc_df)
+	println(mf,"%% Candidate Branches here - refer to MATACDC 1.0 Users Manual for description of fields
+	 %% candidate branches
+	 %column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB   rateC status cost
+	 mpc.branchdc_ne = [")
+
+	clms=filter!(x->x!="Row",names(dc_df))
+	cables=[]
+	for c in clms
+		cables=vcat(cables,dc_df[Symbol(c)])
+	end
+	cables=filter!(x->!ismissing(x),cables)
+	for r in cables
+		println(mf,r)
+	end
+	println(mf,"];")
 end
 
 
@@ -53,8 +134,12 @@ function ppf_dc_blanks(mf)
 	 %column_names%   busdc_i busac_i type_dc type_ac P_g   Q_g  islcc  Vtar rtf    xtf  transformer tm   bf        filter    rc      xc    reactor   basekVac Vmmax   Vmmin   Imax    status   LossA LossB  LossCrec LossCinv  droop       Pdcset    Vdcset  dVdcset Pacmax Pacmin Qacmax   Qacmin
 	 mpc.convdc = [
 	                     1       1       2       3    400000    0   	0   1.0  0.001  0.1       0 	 1   0.08 	  0      0.001   0.09      0  	      220    1.1     0.9    100000      1       0     0        0       0      0.0050    -52.7       1.0079     0     4000  -4000   4000    -4000;
-	];
+	];")
+	ppf_dc_blank_conv_ne(mf)
+end
 
+function ppf_dc_blank_conv_ne(mf)
+	println(mf,"
 	%trans, filter, reactor, vmin vmax same as conv
 	%% candidate converters
 	%column_names%   busdc_i busac_i type_dc type_ac P_g   Q_g  islcc  Vtar    rtf   xtf  transformer tm   bf 	filter    rc     xc  reactor   basekVac Vmmax   Vmmin   Imax    status   LossA LossB  LossCrec LossCinv  droop     Pdcset    Vdcset  dVdcset Pacmax Pacmin Qacmax Qacmin cost
@@ -78,6 +163,7 @@ function ppf_acbranches(mf,ac_df)
 	%% branch data
 	%	fbus	tbus	r	       x	    b	  rateA	rateB	rateC	ratio	angle	status	angmin	angmax
 	mpc.branch = [
+	1   2   0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60;
 	];
 
 	%candidate branch data
@@ -102,8 +188,17 @@ function ppf_Gens(mf,r_df)
 	mpc.gen = [")
 
 	load_gen=filter!(x->!ismissing(x),vcat(r_df[:load],r_df[:gen]))
-	load_gen_cost=filter!(x->!ismissing(x),vcat(r_df[:load_cost],r_df[:gen_cost]))
+	#load_gen_cost=filter!(x->!ismissing(x),vcat(r_df[:load_cost],r_df[:gen_cost]))
 	for r in load_gen
+		println(mf,r)
+	end
+	println(mf,"];")
+
+	println(mf,"%%Additional generator fields, type=0(wind generator), type=1(onshore market ie load and generator created)
+	%column_names% 		type invest
+	mpc.gen_type = [")
+
+	for r in r_df[:gen_type]
 		println(mf,r)
 	end
 	println(mf,"];")

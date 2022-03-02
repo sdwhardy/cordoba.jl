@@ -11,6 +11,7 @@ import OrderedCollections
 #import MultivariateStats
 #import Clustering
 #import Distances
+import Geodesy
 import PowerModels
 import PowerModelsACDC
 import FlexPlan
