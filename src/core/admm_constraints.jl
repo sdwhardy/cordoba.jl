@@ -39,6 +39,18 @@ function admm_4_AjAwAgAuAo_intialize(mn_data_nw, fixed_variables, wfz, genz)
             push!(fixed_variables[key]["branchdc_ne"][key_br],"rateA" => br["rateA"])
         end
 
+        #initialize all branchdc_ne values in dictionary to zero
+        push!(fixed_variables[key],"ne_branch" => Dict{String, Any}())
+        for (key_br,br) in nw["ne_branch"]
+            push!(fixed_variables[key]["ne_branch"],key_br => Dict{String, Any}())
+            push!(fixed_variables[key]["ne_branch"][key_br],"built" => 0.00)
+            push!(fixed_variables[key]["ne_branch"][key_br],"p_ne_to" => 0.00)
+            push!(fixed_variables[key]["ne_branch"][key_br],"p_ne_fr" => 0.00)
+            push!(fixed_variables[key]["ne_branch"][key_br],"f_bus" => br["f_bus"])
+            push!(fixed_variables[key]["ne_branch"][key_br],"t_bus" => br["t_bus"])
+            push!(fixed_variables[key]["ne_branch"][key_br],"rate_a" => br["rate_a"])
+        end
+
         push!(fixed_variables[key],"branchdc" => Dict{String, Any}())
         for (key_br,br) in nw["branchdc"]
             push!(fixed_variables[key]["branchdc"],key_br => Dict{String, Any}())
@@ -47,6 +59,16 @@ function admm_4_AjAwAgAuAo_intialize(mn_data_nw, fixed_variables, wfz, genz)
             push!(fixed_variables[key]["branchdc"][key_br],"pf" => 0.00)
             push!(fixed_variables[key]["branchdc"][key_br],"fbusdc" => br["fbusdc"])
             push!(fixed_variables[key]["branchdc"][key_br],"tbusdc" => br["tbusdc"])
+        end
+
+        push!(fixed_variables[key],"branch" => Dict{String, Any}())
+        for (key_br,br) in nw["branch"]
+            push!(fixed_variables[key]["branch"],key_br => Dict{String, Any}())
+            push!(fixed_variables[key]["branch"][key_br],"p_rateAC" => 0.00)
+            push!(fixed_variables[key]["branch"][key_br],"pt" => 0.00)
+            push!(fixed_variables[key]["branch"][key_br],"pf" => 0.00)
+            push!(fixed_variables[key]["branch"][key_br],"f_bus" => br["f_bus"])
+            push!(fixed_variables[key]["branch"][key_br],"t_bus" => br["t_bus"])
         end
         #initialize all branchdc_ne values in dictionary to zero
         push!(fixed_variables[key],"storage" => Dict{String, Any}())
@@ -145,7 +167,7 @@ function constraint_power_balance_acne_dcne_strg_admm(pm::_PM.AbstractDCPModel, 
         nodal_balance+=sum(p[a] for a in bus_arcs)
         end
     if !(isempty(bus_arcs_ne))
-        nodal_balance_l2+=sum(p[a]^2 for a in bus_arcs_ne)
+        nodal_balance_l2+=sum(p_ne[a]^2 for a in bus_arcs_ne)
         nodal_balance+=sum(p_ne[a] for a in bus_arcs_ne)
         end
     if !(isempty(bus_convs_ac))
@@ -195,7 +217,7 @@ end
 
  #n="1";nw=s["fixed_variables"][n]
  function dual_variable_update(fixed_variables)
-     beta=1
+     beta=2.5
      residuals=[]
      for (n,nw) in fixed_variables
          for (i_b,b) in nw["bus"]
@@ -222,16 +244,17 @@ end
      for (n,nw) in rez
          if (agent=="Ao")#Only convex cables are used
              fixed_variables=update_branchdc(n,nw,fixed_variables)
+             fixed_variables=update_branch(n,nw,fixed_variables)
              fixed_variables=update_dcconv(n,nw,fixed_variables)
              fixed_variables=update_imbalance(n,nw,fixed_variables)
-         elseif (agent=="Aob" || agent=="Aobx")#binary cables/binary + convex
+        #= elseif (agent=="Aob" || agent=="Aobx")#binary cables/binary + convex
              fixed_variables=update_branch_ne(n,nw,fixed_variables)
              fixed_variables=update_dcconv(n,nw,fixed_variables)
              fixed_variables=update_imbalance(n,nw,fixed_variables)
          elseif (agent=="Aox")#convex cables finding binary cables
              fixed_variables=update_branchdc_ne(n,nw,fixed_variables)
              fixed_variables=update_dcconv(n,nw,fixed_variables)
-             fixed_variables=update_imbalance(n,nw,fixed_variables)
+             fixed_variables=update_imbalance(n,nw,fixed_variables)=#
 
          elseif (agent=="Au" || agent=="Ag" || agent=="Aw")#consumpttion, conventional, wind
              fixed_variables=update_genz(n,nw,fixed_variables,wfz)
@@ -259,8 +282,27 @@ end
 function update_branchdc(key,nw,fixed_variables)
     for (key_br,br) in nw["branchdc"]
         fixed_variables[key]["branchdc"][key_br]["p_rateA"] = nw["branchdc"][key_br]["p_rateA"]
-        fixed_variables[key]["branchdc"][key_br]["pt"] = nw["branchdc"][key_br]["pt"]
-        fixed_variables[key]["branchdc"][key_br]["pf"] = nw["branchdc"][key_br]["pf"]
+        #if (abs(nw["branchdc"][key_br]["pt"])<=abs(nw["branchdc"][key_br]["p_rateA"]))
+            fixed_variables[key]["branchdc"][key_br]["pt"] = nw["branchdc"][key_br]["pt"]
+            fixed_variables[key]["branchdc"][key_br]["pf"] = -1*nw["branchdc"][key_br]["pt"]
+        #else
+        #    fixed_variables[key]["branchdc"][key_br]["pt"] = abs(nw["branchdc"][key_br]["p_rateA"])
+        #    fixed_variables[key]["branchdc"][key_br]["pf"] = -1*abs(nw["branchdc"][key_br]["p_rateA"])
+        #end
+    end
+    return fixed_variables
+end
+
+function update_branch(key,nw,fixed_variables)
+    for (key_br,br) in nw["branch"]
+        fixed_variables[key]["branch"][key_br]["p_rateAC"] = nw["branch"][key_br]["p_rateAC"]
+        #if (abs(nw["branch"][key_br]["pt"])<=abs(nw["branch"][key_br]["p_rateAC"]))
+            fixed_variables[key]["branch"][key_br]["pt"] = nw["branch"][key_br]["pt"]
+            fixed_variables[key]["branch"][key_br]["pf"] = -1*nw["branch"][key_br]["pt"]
+        #else
+        #    fixed_variables[key]["branch"][key_br]["pt"] = -1*abs(nw["branch"][key_br]["p_rateAC"])
+        #    fixed_variables[key]["branch"][key_br]["pf"] = abs(nw["branch"][key_br]["p_rateAC"])
+        #end
     end
     return fixed_variables
 end
@@ -379,7 +421,7 @@ end
          fixed_variables[key]["convdc"][key_c]["vac"] = nw["convdc"][key_c]["vaconv"]
          fixed_variables[key]["convdc"][key_c]["pconv_ac"] = nw["convdc"][key_c]["pconv"]
          fixed_variables[key]["convdc"][key_c]["pconv_tf_to"] = nw["convdc"][key_c]["ptf_to"]
-         fixed_variables[key]["convdc"][key_c]["pconv_tf_fr"] = nw["convdc"][key_c]["pgrid"]
+         fixed_variables[key]["convdc"][key_c]["pconv_tf_fr"] = -1*nw["convdc"][key_c]["ptf_to"]#nw["convdc"][key_c]["pgrid"]
      end
      return fixed_variables
  end
@@ -410,74 +452,80 @@ end
 #fix_ne_branches_back2zero(pm, n)
 #fix_branchesdc_back2zero(pm, n)
 #fix_branchesdc(pm, n)#set branch vars
-function fix_variables(pm, n)
-    if (pm.setting["agent"]=="Ao" || pm.setting["agent"]=="Aox")
-        fix_storage(pm, n)#set storage vars
-        fix_genz(pm, n)#set gen vars
-        fix_wind(pm, n)#set wind vars
-        fix_loadz(pm, n)#set loads
-        fix_ne_branches_back2zero(pm, n)
-        #undo_relax=JuMP.relax_integrality(pm.model)
-    elseif (pm.setting["agent"]=="Aob")
-        fix_storage(pm, n)#set storage vars
-        fix_genz(pm, n)#set gen vars
-        fix_wind(pm, n)#set wind vars
-        fix_loadz(pm, n)#set loads
-        fix_branchesdc_back2zero(pm, n)#set branch vars
-    elseif (pm.setting["agent"]=="Aobx")
-        #fix_storage(pm, n)#set storage vars
-        #fix_genz(pm, n)#set gen vars
-        #fix_wind(pm, n)#set wind vars
-        #fix_loadz(pm, n)#set loads
-        fix_ne_branches_BINonly(pm, n)#set branch vars
-        fix_branchesdc_back2zero(pm, n)#set branch vars
-    elseif (pm.setting["agent"]=="fixed_cables_cons")
-        #fix_storage(pm, n)#set storage vars
-        #fix_genz(pm, n)#set gen vars
-        #fix_wind(pm, n)#set wind vars
-        #fix_loadz(pm, n)#set loads
-        fix_ne_branches_BINonly(pm, n)#set branch vars
-        fix_branchesdc_back2zero(pm, n)#set branch vars
-        fix_convdc(pm,n)#set convdc vars
-    elseif (pm.setting["agent"]=="Aw")
-        fix_storage(pm, n)#set storage vars
-        fix_genz(pm, n)#set gen vars
-        fix_loadz(pm, n)#set loads
-        fix_ne_branches_BINonly(pm, n)#set branch vars
-        fix_ne_branches_PGonly(pm, n)#set branch vars
-        fix_branchesdc(pm, n)#set branch vars
-        fix_convdc(pm,n)#set convdc vars
-    elseif (pm.setting["agent"]=="Aj")
-        fix_wind(pm, n)#set wind vars
-        fix_genz(pm, n)#set gen vars
-        fix_loadz(pm, n)#set loads
-        fix_ne_branches_BINonly(pm, n)#set branch vars
-        fix_ne_branches_PGonly(pm, n)#set branch vars
-        fix_branchesdc(pm, n)#set branch vars
-        fix_convdc(pm,n)#set convdc vars
-    elseif (pm.setting["agent"]=="Ag")
-        fix_storage(pm, n)#set storage vars
-        fix_wind(pm, n)#set wind vars
-        fix_loadz(pm, n)#set loads
-        fix_ne_branches_BINonly(pm, n)#set branch vars
-        fix_ne_branches_PGonly(pm, n)#set branch vars
-        fix_branchesdc(pm, n)#set branch vars
-        fix_convdc(pm,n)#set convdc vars
-    elseif (pm.setting["agent"]=="Au")
-        fix_storage(pm, n)#set storage vars
-        fix_wind(pm, n)#set wind vars
-        fix_genz(pm, n)#set gen vars
-        fix_ne_branches_BINonly(pm, n)#set branch vars
-        fix_ne_branches_PGonly(pm, n)#set branch vars
-        fix_branchesdc(pm, n)#set branch vars
-        fix_convdc(pm,n)#set convdc vars
-    #=elseif (pm.setting["agent"]=="Aox")
-        fix_storage(pm, n)#set storage vars
-        fix_genz(pm, n)#set gen vars
-        fix_wind(pm, n)#set wind vars
-        fix_loadz(pm, n)#set loads
-        fix_ne_branches_back2zero(pm, n)
-        #fix_binaries(pm, n)#set binary branch vars=#
+function fix_variables(pm)
+    for n in _PM.nw_ids(pm)
+        if (pm.setting["agent"]=="Ao" || pm.setting["agent"]=="Aox")
+            fix_storage(pm, n)#set storage vars
+            fix_genz(pm, n)#set gen vars
+            fix_wind(pm, n)#set wind vars
+            fix_loadz(pm, n)#set loads
+            #fix_ne_branches_back2zero(pm, n)
+            #undo_relax=JuMP.relax_integrality(pm.model)
+    #=    elseif (pm.setting["agent"]=="Aob")
+            fix_storage(pm, n)#set storage vars
+            fix_genz(pm, n)#set gen vars
+            fix_wind(pm, n)#set wind vars
+            fix_loadz(pm, n)#set loads
+            fix_branchesdc_back2zero(pm, n)#set branch vars
+        elseif (pm.setting["agent"]=="Aobx")
+            #fix_storage(pm, n)#set storage vars
+            #fix_genz(pm, n)#set gen vars
+            #fix_wind(pm, n)#set wind vars
+            #fix_loadz(pm, n)#set loads
+            fix_ne_branches_BINonly(pm, n)#set branch vars
+            fix_branchesdc_back2zero(pm, n)#set branch vars
+        elseif (pm.setting["agent"]=="fixed_cables_cons")
+            #fix_storage(pm, n)#set storage vars
+            #fix_genz(pm, n)#set gen vars
+            #fix_wind(pm, n)#set wind vars
+            #fix_loadz(pm, n)#set loads
+            fix_ne_branches_BINonly(pm, n)#set branch vars
+            fix_branchesdc_back2zero(pm, n)#set branch vars
+            fix_convdc(pm,n)#set convdc vars=#
+        elseif (pm.setting["agent"]=="Aw")
+            fix_storage(pm, n)#set storage vars
+            fix_genz(pm, n)#set gen vars
+            fix_loadz(pm, n)#set loads
+            #fix_ne_branches_BINonly(pm, n)#set branch vars
+            #fix_ne_branches_PGonly(pm, n)#set branch vars
+            fix_branchesdc(pm, n)#set branch vars
+            fix_branchesac(pm, n)
+            fix_convdc(pm,n)#set convdc vars
+        elseif (pm.setting["agent"]=="Aj")
+            fix_wind(pm, n)#set wind vars
+            fix_genz(pm, n)#set gen vars
+            fix_loadz(pm, n)#set loads
+            #fix_ne_branches_BINonly(pm, n)#set branch vars
+            #fix_ne_branches_PGonly(pm, n)#set branch vars
+            fix_branchesdc(pm, n)#set branch vars
+            fix_branchesac(pm, n)
+            fix_convdc(pm,n)#set convdc vars
+        elseif (pm.setting["agent"]=="Ag")
+            fix_storage(pm, n)#set storage vars
+            fix_wind(pm, n)#set wind vars
+            fix_loadz(pm, n)#set loads
+            #fix_ne_branches_BINonly(pm, n)#set branch vars
+            #fix_ne_branches_PGonly(pm, n)#set branch vars
+            fix_branchesdc(pm, n)#set branch vars
+            fix_branchesac(pm, n)
+            fix_convdc(pm,n)#set convdc vars
+        elseif (pm.setting["agent"]=="Au")
+            fix_storage(pm, n)#set storage vars
+            fix_wind(pm, n)#set wind vars
+            fix_genz(pm, n)#set gen vars
+            #fix_ne_branches_BINonly(pm, n)#set branch vars
+            #fix_ne_branches_PGonly(pm, n)#set branch vars
+            fix_branchesdc(pm, n)#set branch vars
+            fix_branchesac(pm, n)
+            fix_convdc(pm,n)#set convdc vars
+        #=elseif (pm.setting["agent"]=="Aox")
+            fix_storage(pm, n)#set storage vars
+            fix_genz(pm, n)#set gen vars
+            fix_wind(pm, n)#set wind vars
+            fix_loadz(pm, n)#set loads
+            fix_ne_branches_back2zero(pm, n)
+            #fix_binaries(pm, n)#set binary branch vars=#
+        end
     end
 end
 
@@ -606,7 +654,7 @@ end
 
 function fix_branchesdc_back2zero(pm, n)
     #set branches
-    if haskey(_PM.ref(pm, n), :branchdc)
+    #=if haskey(_PM.ref(pm, n), :branchdc)
         branchdc = _PM.ref(pm, n, :branchdc)
 
         if !isempty(branchdc)
@@ -615,7 +663,7 @@ function fix_branchesdc_back2zero(pm, n)
                 JuMP.fix(brnch,0.0,force=true)
             end
         end
-    end
+    end=#
     if haskey(_PM.var(pm, n), :p_dcgrid)
         p_dcgrid = _PM.var(pm, n, :p_dcgrid)
         if !isempty(p_dcgrid)
@@ -646,6 +694,21 @@ function fix_branchesdc(pm, n)#set branch vars
     end
 end
 
+function fix_branchesac(pm, n)#set branch vars
+    #set convdc
+    if haskey(_PM.var(pm, n), :p)
+        _p = _PM.var(pm, n, :p)
+        if !isempty(_p)
+            brchs=[]
+            for (l,i,j) in _PM.ref(pm, n, :arcs_from)
+                JuMP.fix(_p[(l,i,j)],pm.setting["fixed_variables"][string(n)]["branch"][string(l)]["pf"],force=true)
+            end
+            for (l,i,j) in _PM.ref(pm, n, :arcs_to)
+                JuMP.fix(_p[(l,i,j)],pm.setting["fixed_variables"][string(n)]["branch"][string(l)]["pt"],force=true)
+            end
+        end
+    end
+end
 #=
 ["vaf","pconv_pr_fr","pconv_dc","p_pacmax","vac","pconv_ac","pconv_tf_to","pconv_tf_fr"]
 =#

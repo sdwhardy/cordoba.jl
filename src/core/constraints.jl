@@ -125,9 +125,17 @@ function constraint_t0t1(vss, pm)
     for (i,vs) in enumerate(vss)
         for (j,v) in enumerate(last(vs))
             if (mod(i,hl)!=1)
+                #println()
+                #print(last(vss[i])[j])
+                #print("==")
+                #print(last(vss[i-1])[j])
                 JuMP.@constraint(pm.model, last(vss[i])[j] == last(vss[i-1])[j])
             end
             if (i+hl*yl<=length(vss))
+                #println()
+                #print(last(vss[i])[j])
+                #print("==")
+                #print(last(vss[i+hl*yl])[j])
                 JuMP.@constraint(pm.model, last(vss[i])[j]  == last(vss[i+hl*yl])[j])
             end
             if (i==y*hl+(s-1)*yl*hl+1)
@@ -173,7 +181,7 @@ function constraint_t0t1_wfz(vss, pm)
     end
 end
 
-#=function constraint_dcbranch_t0t1(vss, pm)
+function constraint_dcbranch_t0t1(vss, pm)
     #println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!vdb start: "
     sl=pm.setting["scenarios_length"]
     yl=pm.setting["years_length"]
@@ -202,7 +210,7 @@ end
     end
 
     #println("vdb end!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-end=#
+end
 
 
 #=function constraint_convdc_t0t1(vss, pm)
@@ -687,15 +695,14 @@ function variable_branch_ne(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, relax::B
 end
 
 ############################### constraints for dc branch convexafy ###############################
-#Upper limit for convexafied dc branch (Is not in use)
+#Upper limit for convexafied dc branch
 function variable_dcbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     p_rateA = _PM.var(pm, nw)[:p_rateA] = JuMP.@variable(pm.model,
     [i in _PM.ids(pm, nw, :branchdc)], base_name="$(nw)_p_rateA",
     start = 0)
-
     if bounded
         for (s, branchdc) in _PM.ref(pm, nw, :branchdc)
-            ########################################
+            #######################################
             JuMP.set_lower_bound(p_rateA[s],  0)
             JuMP.set_upper_bound(p_rateA[s],  pm.setting["ic_lim"])
             #######################################
@@ -706,7 +713,7 @@ function variable_dcbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
     return (nw,p_rateA)
 end
 
-#DC branch flow for continuous transmission line - convex approximation (not in use)
+#DC branch flow for continuous transmission line - convex approximation
 function variable_active_dcbranch_flow(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     p = _PM.var(pm, nw)[:p_dcgrid] = JuMP.@variable(pm.model,
     [(l,i,j) in _PM.ref(pm, nw, :arcs_dcgrid)], base_name="$(nw)_pdcgrid",
@@ -721,6 +728,61 @@ function variable_active_dcbranch_flow(pm::_PM.AbstractPowerModel; nw::Int=pm.cn
         end
     end
     report && _IM.sol_component_value_edge(pm, nw, :branchdc, :pf, :pt, _PM.ref(pm, nw, :arcs_dcgrid_from), _PM.ref(pm, nw, :arcs_dcgrid_to), p)
+end
+
+############################### constraints for ac branch convexafy ###############################
+#Upper limit for convexafied dc branch
+function variable_acbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
+    p_rateAC = _PM.var(pm, nw)[:p_rateAC] = JuMP.@variable(pm.model,
+    [i in _PM.ids(pm, nw, :branch)], base_name="$(nw)_p_rateAC",
+    start = 0)
+    if bounded
+        for (s, branch) in _PM.ref(pm, nw, :branch)
+            ########################################
+            JuMP.set_lower_bound(p_rateAC[s],  0)
+            JuMP.set_upper_bound(p_rateAC[s],  pm.setting["rad_lim"])
+            #######################################
+        end
+    end
+
+    report && _IM.sol_component_value(pm, nw, :branch, :p_rateAC, _PM.ids(pm, nw, :branch), p_rateAC)
+    return (nw,p_rateAC)
+end
+#Upper limit for convexafied ac branch
+function variable_branch_power(pm::_PM.AbstractPowerModel; kwargs...)
+    variable_branch_power_real(pm; kwargs...)
+    _PM.variable_branch_power_imaginary(pm; kwargs...)
+end
+
+
+"variable: `p[l,i,j]` for `(l,i,j)` in `arcs`"
+function variable_branch_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
+    p = _PM.var(pm, nw)[:p] = JuMP.@variable(pm.model,
+        [(l,i,j) in _PM.ref(pm, nw, :arcs)], base_name="$(nw)_p",
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :branch, l), "p_start")
+    )
+
+    if bounded
+        for arc in _PM.ref(pm, nw, :arcs)
+            l,i,j = arc
+            p_rateAC = _PM.var(pm, nw, :p_rateAC, l)
+            JuMP.@constraint(pm.model, p[arc]-p_rateAC  <= 0)
+            JuMP.@constraint(pm.model, p[arc]+p_rateAC  >= 0)
+        end
+    end
+
+    for (l,branch) in _PM.ref(pm, nw, :branch)
+        if haskey(branch, "pf_start")
+            f_idx = (l, branch["f_bus"], branch["t_bus"])
+            JuMP.set_start_value(p[f_idx], branch["pf_start"])
+        end
+        if haskey(branch, "pt_start")
+            t_idx = (l, branch["t_bus"], branch["f_bus"])
+            JuMP.set_start_value(p[t_idx], branch["pt_start"])
+        end
+    end
+
+    report && _IM.sol_component_value_edge(pm, nw, :branch, :pf, :pt, _PM.ref(pm, nw, :arcs_from), _PM.ref(pm, nw, :arcs_to), p)
 end
 
 ################################################### Power Balance equation ########################
@@ -749,7 +811,7 @@ end
     constraint_power_balance_acne_dcne_strg(pm, nw, i, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
 end=#
 function constraint_power_balance_acne_dcne_strg(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
-    bus = PowerModels.ref(pm, nw, :bus, i)
+    #bus = PowerModels.ref(pm, nw, :bus, i)
     bus_arcs = PowerModels.ref(pm, nw, :bus_arcs, i)
     bus_arcs_ne = PowerModels.ref(pm, nw, :ne_bus_arcs, i)
     bus_arcs_dc = PowerModels.ref(pm, nw, :bus_arcs_dc, i)
@@ -788,7 +850,7 @@ function constraint_power_balance_acne_dcne_strg(pm::_PM.AbstractDCPModel, n::In
 
     #cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) -sum(ps_ne[s] for s in bus_storage_ne) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
     cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
-
+    #println(cstr)
     if _IM.report_duals(pm)
         _PM.sol(pm, n, :bus, i)[:lam_kcl_r] = cstr
         _PM.sol(pm, n, :bus, i)[:lam_kcl_i] = NaN
@@ -890,46 +952,65 @@ function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractPowerModel, 
         if (i==1);bus_arcs=PowerModels.ref(pm, nw, :bus_arcs, v)
         else;bus_arcs=vcat(bus_arcs,PowerModels.ref(pm, nw, :bus_arcs, v))
         end;end
+    #println("bus_arcs")
+    #println(bus_arcs)
 
     bus_arcs_ne=[];for (i,v) in enumerate(is);
         if (i==1);bus_arcs_ne=PowerModels.ref(pm, nw, :ne_bus_arcs, v)
         else;bus_arcs_ne=vcat(bus_arcs_ne,PowerModels.ref(pm, nw, :ne_bus_arcs, v))
         end;end
+#    println("bus_arcs_ne")
+#    println(bus_arcs_ne)
 
     bus_arcs_dc=[];for (i,v) in enumerate(is);
         if (i==1);bus_arcs_dc=PowerModels.ref(pm, nw, :bus_arcs_dc, v)
         else;bus_arcs_dc=vcat(bus_arcs_dc,PowerModels.ref(pm, nw, :bus_arcs_dc, v))
         end;end
+#    println("bus_arcs_dc")
+#    println(bus_arcs_dc)
 
     bus_gens=[];for (i,v) in enumerate(is);
         if (i==1);bus_gens=PowerModels.ref(pm, nw, :bus_gens, v)
         else;bus_gens=vcat(bus_gens,PowerModels.ref(pm, nw, :bus_gens, v))
         end;end
+#    println("bus_gens")
+#    println(bus_gens)
 
     bus_convs_ac=[];for (i,v) in enumerate(is);
         if (i==1);bus_convs_ac=PowerModels.ref(pm, nw, :bus_convs_ac, v)
         else;bus_convs_ac=vcat(bus_convs_ac,PowerModels.ref(pm, nw, :bus_convs_ac, v))
         end;end
+#    println("bus_convs_ac")
+#    println(bus_convs_ac)
 
     bus_convs_ac_ne=[];for (i,v) in enumerate(is);
         if (i==1);bus_convs_ac_ne=PowerModels.ref(pm, nw, :bus_convs_ac_ne, v)
         else;bus_convs_ac_ne=vcat(bus_convs_ac_ne,PowerModels.ref(pm, nw, :bus_convs_ac_ne, v))
         end;end
+#    println("bus_convs_ac_ne")
+#    println(bus_convs_ac_ne)
 
     bus_loads=[];for (i,v) in enumerate(is);
         if (i==1);bus_loads=PowerModels.ref(pm, nw, :bus_loads, v)
         else;bus_loads=vcat(bus_loads,PowerModels.ref(pm, nw, :bus_loads, v))
         end;end
+#    println("bus_loads")
+#    println(bus_loads)
 
     bus_shunts=[];for (i,v) in enumerate(is);
         if (i==1);bus_shunts=PowerModels.ref(pm, nw, :bus_shunts, v)
         else;bus_shunts=vcat(bus_shunts,PowerModels.ref(pm, nw, :bus_shunts, v))
         end;end
+#    println("bus_shunts")
+#    println(bus_shunts)
 
     bus_storage=[];for (i,v) in enumerate(is);
         if (i==1);bus_storage=PowerModels.ref(pm, nw, :bus_storage, v)
         else;bus_storage=vcat(bus_storage,PowerModels.ref(pm, nw, :bus_storage, v))
         end;end
+#    println("bus_storage")
+#    println(bus_storage)
+
 
     bus_storage_ne=[];#=for (i,v) in enumerate(is);
         if (i==1);bus_storage_ne=PowerModels.ref(pm, nw, :bus_storage_ne, v)
@@ -964,10 +1045,233 @@ function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractDCPModel, n:
 
     #cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) -sum(ps_ne[s] for s in bus_storage_ne) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
     cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
-    if _IM.report_duals(pm)
+#    println(cstr)
+    #=if _IM.report_duals(pm)
         for i in is
             _PM.sol(pm, n, :bus, i)[:lam_kcl_r] = cstr
             _PM.sol(pm, n, :bus, i)[:lam_kcl_i] = NaN
         end
+    end=#
+end
+
+function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, is::Set{Int64}; nw::Int=pm.cnw)
+
+    #bus = PowerModels.ref(pm, nw, :bus, i)
+    bus_arcs_dcgrid=[];for (i,v) in enumerate(is);
+        if (i==1);bus_arcs_dcgrid=PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v)
+        else;bus_arcs=vcat(bus_arcs_dcgrid,PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v))
+        end;end
+    println("bus_arcs_dcgrid")
+    for (l,i,j) in bus_arcs_dcgrid; println(l)print(" ")print(i)print(" ")print(j)
     end
+
+    bus_arcs_dcgrid_ne=[];for (i,v) in enumerate(is);
+
+        if (i==1);bus_arcs_dcgrid_ne=PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, v)
+        else;bus_arcs_dcgrid_ne=vcat(bus_arcs_dcgrid_ne,PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, v))
+        end;end
+    #println("bus_arcs_dcgrid_ne")
+    bus_arcs_dcgrid_ne=[a for a in bus_arcs_dcgrid_ne if !(issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
+    #end;end
+    #println(bus_arcs_dcgrid_ne)
+
+    bus_convs_dc=[];for (i,v) in enumerate(is);
+        if (i==1);bus_convs_dc=PowerModels.ref(pm, nw, :bus_convs_dc, v)
+        else;bus_convs_dc=vcat(bus_convs_dc,PowerModels.ref(pm, nw, :bus_convs_dc, v))
+        end;end
+#    println("bus_convs_dc")
+#    println(bus_convs_dc)
+
+    bus_convs_dc_ne=[];for (i,v) in enumerate(is);
+        if (i==1);bus_convs_dc_ne=PowerModels.ref(pm, nw, :bus_convs_dc_ne, v)
+        else;bus_convs_dc_ne=vcat(bus_convs_dc_ne,PowerModels.ref(pm, nw, :bus_convs_dc_ne, v))
+        end;end
+#    println("bus_convs_dc_ne")
+#    println(bus_convs_dc_ne)
+
+    pd=[];for (i,v) in enumerate(is);
+        if (i==1);pd=PowerModels.ref(pm, nw, :busdc, v)["Pdc"]
+        else;pd=vcat(pd,PowerModels.ref(pm, nw, :busdc, v)["Pdc"])
+        end;end
+#    println("pd")
+#    println(pd)
+
+    if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
+        #cost=constraint_power_balance_acne_dcne_strg_hm_admm(pm, nw, is, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
+        return cost
+    else
+        constraint_power_balance_dc_dcne_hm(pm, nw, is, bus_arcs_dcgrid, bus_arcs_dcgrid_ne, bus_convs_dc, bus_convs_dc_ne, pd)
+    end
+end
+
+#Power balance constraint including candidate storage
+function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, n::Int, is::Set{Int64}, bus_arcs_dcgrid, bus_arcs_dcgrid_ne, bus_convs_dc, bus_convs_dc_ne, pd)
+    p_dcgrid = _PM.var(pm, n, :p_dcgrid)
+    p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
+    pconv_dc = _PM.var(pm, n, :pconv_dc)
+    pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
+
+    cstr=JuMP.@constraint(pm.model, sum(p_dcgrid[a] for a in bus_arcs_dcgrid) + sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc[c] for c in bus_convs_dc) + sum(pconv_dc_ne[c] for c in bus_convs_dc_ne)  == -1*sum(pd))
+#    println(cstr)
+end
+
+function constraint_power_balance_dcne_dcne_hm(pm::_PM.AbstractPowerModel, is::Set{Int64}; nw::Int=pm.cnw)
+
+        bus_i=[];for (i,v) in enumerate(is);
+            if (i==1);bus_i=PowerModels.ref(pm, nw, :busdc_ne, v)["busdc_i"]
+            else;bus_i=vcat(bus_i,PowerModels.ref(pm, nw, :busdc_ne, v)["busdc_i"])
+            end;end
+#        println("bus_i")
+#        println(bus_i)
+
+        bus_arcs_dcgrid_ne=[];for (i,v) in enumerate(bus_i);
+            if (i==1);bus_arcs_dcgrid_ne=PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, v)
+            else;bus_arcs_dcgrid_ne=vcat(bus_arcs_dcgrid_ne,PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, v))
+            end;end
+    #    println("bus_arcs_dcgrid_ne")
+    #    println(bus_arcs_dcgrid_ne)
+
+        bus_ne_convs_dc_ne=[];for (i,v) in enumerate(bus_i);
+            if (i==1);bus_ne_convs_dc_ne=PowerModels.ref(pm, nw, :bus_ne_convs_dc_ne, v)
+            else;bus_ne_convs_dc_ne=vcat(bus_ne_convs_dc_ne,PowerModels.ref(pm, nw, :bus_ne_convs_dc_ne, v))
+            end;end
+#        println("bus_ne_convs_dc_ne")
+#        println(bus_ne_convs_dc_ne)
+
+        pd_ne=[];for (i,v) in enumerate(is);
+            if (i==1);pd_ne=PowerModels.ref(pm, nw, :busdc_ne, v)["Pdc"]
+            else;pd_ne=vcat(pd_ne,PowerModels.ref(pm, nw, :busdc_ne, v)["Pdc"])
+            end;end
+#        println("pd_ne")
+#        println(pd_ne)
+
+        if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
+            #cost=constraint_power_balance_acne_dcne_strg_hm_admm(pm, nw, is, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
+            return cost
+        else
+            if (length(pd_ne)>0)
+                constraint_power_balance_dcne_dcne_hm(pm, nw, is, bus_arcs_dcgrid_ne, bus_ne_convs_dc_ne, pd_ne);end
+        end
+end
+
+
+function constraint_power_balance_dcne_dcne_hm(pm::_PM.AbstractPowerModel, n::Int, is::Set{Int64}, bus_arcs_dcgrid_ne, bus_ne_convs_dc_ne, pd_ne)
+    p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
+    pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
+    xb = _PM.var(pm, n, :branchdc_ne)
+    xc = _PM.var(pm, n, :conv_ne)
+    cstr = JuMP.@constraint(pm.model, sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc_ne[c] for c in bus_ne_convs_dc_ne)  == -1*sum(pd_ne))
+#    println(cstr)
+end
+
+
+##################### node in zone
+
+function constraint_power_balance_dc_dcne_hm_node(pm::_PM.AbstractPowerModel, i, is::Set{Int64}; nw::Int=pm.cnw)
+
+    #bus = PowerModels.ref(pm, nw, :bus, i)
+    bus_arcs_dcgrid = PowerModels.ref(pm, nw, :bus_arcs_dcgrid, i)
+    bus_arcs_dcgrid_ne = PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, i)
+
+    #println("bus_arcs_dcgrid_ne")
+    bus_arcs_dcgrid_ne_inner=sum([pm.setting["balancing_reserve"]/(1-pm.setting["balancing_reserve"])*PowerModels.ref(pm, nw, :branchdc_ne, a[1])["rateA"]*PowerModels.var(pm, nw, :branchdc_ne, a[1]) for a in bus_arcs_dcgrid_ne if (issubset([a[2]],is) && issubset([a[3]],is))]) #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
+    bus_arcs_dcgrid_ne=[a for a in bus_arcs_dcgrid_ne if !(issubset([a[2]],is) && issubset([a[3]],is))]
+    #end;end
+    #println("bus_arcs_dcgrid_ne")
+    #println(bus_arcs_dcgrid_ne)
+    #println("bus_arcs_dcgrid_ne_inner")
+    #println(bus_arcs_dcgrid_ne_inner)
+
+    bus_convs_dc = PowerModels.ref(pm, nw, :bus_convs_dc, i)
+    bus_convs_dc_ne = PowerModels.ref(pm, nw, :bus_convs_dc_ne, i)
+    bus_convs_dc_ne = PowerModels.ref(pm, nw, :bus_convs_dc_ne, i)
+    pd=PowerModels.ref(pm, nw, :busdc, i)["Pdc"]
+
+    if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
+        #cost=constraint_power_balance_acne_dcne_strg_hm_admm(pm, nw, is, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
+        return cost
+    else
+        constraint_power_balance_dc_dcne_hm_node(pm, nw, is, bus_arcs_dcgrid, bus_arcs_dcgrid_ne, bus_convs_dc, bus_convs_dc_ne, pd, bus_arcs_dcgrid_ne_inner)
+    end
+end
+
+#Power balance constraint including candidate storage
+function constraint_power_balance_dc_dcne_hm_node(pm::_PM.AbstractPowerModel, n::Int, is::Set{Int64}, bus_arcs_dcgrid, bus_arcs_dcgrid_ne, bus_convs_dc, bus_convs_dc_ne, pd, bus_arcs_dcgrid_ne_inner)
+    p_dcgrid = _PM.var(pm, n, :p_dcgrid)
+    p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
+    pconv_dc = _PM.var(pm, n, :pconv_dc)
+    pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
+
+    cstr1=JuMP.@constraint(pm.model, sum(p_dcgrid[a] for a in bus_arcs_dcgrid) + sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc[c] for c in bus_convs_dc) + sum(pconv_dc_ne[c] for c in bus_convs_dc_ne) - bus_arcs_dcgrid_ne_inner  <= 0)
+
+    cstr2=JuMP.@constraint(pm.model, sum(p_dcgrid[a] for a in bus_arcs_dcgrid) + sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc[c] for c in bus_convs_dc) + sum(pconv_dc_ne[c] for c in bus_convs_dc_ne) + bus_arcs_dcgrid_ne_inner  >= 0)
+    println(cstr1)
+    println(cstr2)
+end
+
+
+function constraint_power_balance_acne_dcne_strg_hm_node(pm::_PM.AbstractPowerModel, i, is::Set{Int64}; nw::Int=pm.cnw)
+
+    #bus = PowerModels.ref(pm, nw, :bus, i)
+
+    bus_arcs = PowerModels.ref(pm, nw, :bus_arcs, i)
+    ne_bus_arcs = PowerModels.ref(pm, nw, :ne_bus_arcs, i)
+    println(ne_bus_arcs)
+    ne_bus_arcs_inner=[pm.setting["balancing_reserve"]/(1-pm.setting["balancing_reserve"])*PowerModels.ref(pm, nw, :ne_branch, a[1])["rate_a"]*PowerModels.var(pm, nw, :branch_ne, a[1]) for a in ne_bus_arcs if (issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
+    if (length(ne_bus_arcs_inner)>0)
+        ne_bus_arcs_inner=sum(ne_bus_arcs_inner)
+    else
+        ne_bus_arcs_inner=0
+    end
+    #ne_bus_arcs_inner=sum([1 for a in ne_bus_arcs if (issubset([a[2]],is) && issubset([a[3]],is))]) #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
+
+    ne_bus_arcs=[a for a in ne_bus_arcs if !(issubset([a[2]],is) && issubset([a[3]],is))]
+    println(ne_bus_arcs)
+    println(ne_bus_arcs_inner)
+    bus_arcs_dc = PowerModels.ref(pm, nw, :bus_arcs_dc, i)
+    bus_gens = PowerModels.ref(pm, nw, :bus_gens, i)
+    bus_convs_ac = PowerModels.ref(pm, nw, :bus_convs_ac, i)
+    bus_convs_ac_ne = PowerModels.ref(pm, nw, :bus_convs_ac_ne, i)
+    bus_loads = PowerModels.ref(pm, nw, :bus_loads, i)
+    bus_shunts = PowerModels.ref(pm, nw, :bus_shunts, i)
+    bus_storage = PowerModels.ref(pm, nw, :bus_storage, i)
+    bus_storage_ne=[];
+    pd = Dict(k => PowerModels.ref(pm, nw, :load, k, "pd") for k in bus_loads)
+    qd = Dict(k => PowerModels.ref(pm, nw, :load, k, "qd") for k in bus_loads)
+
+    gs = Dict(k => PowerModels.ref(pm, nw, :shunt, k, "gs") for k in bus_shunts)
+    bs = Dict(k => PowerModels.ref(pm, nw, :shunt, k, "bs") for k in bus_shunts)
+    if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
+        cost=constraint_power_balance_acne_dcne_strg_hm_admm(pm, nw, is, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
+        return cost
+    else
+        constraint_power_balance_acne_dcne_strg_hm_node(pm, nw, is, bus_arcs, ne_bus_arcs, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs, ne_bus_arcs_inner)
+    end
+
+end
+
+#Power balance constraint including candidate storage
+function constraint_power_balance_acne_dcne_strg_hm_node(pm::_PM.AbstractDCPModel, n::Int, is::Set{Int64}, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs, ne_bus_arcs_inner)
+    p = _PM.var(pm, n, :p)
+    pg = _PM.var(pm, n, :pg)
+    pconv_grid_ac_ne = _PM.var(pm, n, :pconv_tf_fr_ne)
+    pconv_grid_ac = _PM.var(pm, n, :pconv_tf_fr)
+    pconv_ac = _PM.var(pm, n, :pconv_ac)
+    pconv_ac_ne = _PM.var(pm, n, :pconv_ac_ne)
+    p_ne = _PM.var(pm, n, :p_ne)
+    ps   = _PM.var(pm, n, :ps)
+    #ps_ne   = _PM.var(pm, n, :ps_ne)
+    v = 1
+
+    #cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) -sum(ps_ne[s] for s in bus_storage_ne) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
+    cstr1=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  - sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) + sum(pd[d] for d in bus_loads) + sum(gs[s] for s in bus_shunts)*v^2 - ne_bus_arcs_inner <= 0)
+    cstr2=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  - sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) + sum(pd[d] for d in bus_loads) + sum(gs[s] for s in bus_shunts)*v^2 + ne_bus_arcs_inner >= 0)
+    println(cstr1)
+    println(cstr2)
+    #=if _IM.report_duals(pm)
+        for i in is
+            _PM.sol(pm, n, :bus, i)[:lam_kcl_r] = cstr
+            _PM.sol(pm, n, :bus, i)[:lam_kcl_i] = NaN
+        end
+    end=#
 end

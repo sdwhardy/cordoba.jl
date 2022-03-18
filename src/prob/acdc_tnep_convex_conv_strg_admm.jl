@@ -106,7 +106,7 @@ function post_acdc_tnep_convex_conv_strg_admm(pm::_PM.AbstractPowerModel)
                 _PM.constraint_ne_thermal_limit_from(pm, i; nw = n)
                 _PM.constraint_ne_thermal_limit_to(pm, i; nw = n)
                 if n > 1
-                    _PMACDC.constraint_candidate_acbranches_mp(pm, n, i)
+                    #_PMACDC.constraint_candidate_acbranches_mp(pm, n, i)
                 end
             end
 
@@ -126,7 +126,7 @@ function post_acdc_tnep_convex_conv_strg_admm(pm::_PM.AbstractPowerModel)
                 _PMACDC.constraint_ohms_dc_branch_ne(pm, i; nw = n)
                 _PMACDC.constraint_branch_limit_on_off(pm, i; nw = n)
                 if n > 1
-                    _PMACDC.constraint_candidate_dcbranches_mp(pm, n, i)
+                    #_PMACDC.constraint_candidate_dcbranches_mp(pm, n, i)
                 end
                 push!(candidates_in_corridor,collect_4_constraint_candidate_corridor_limit(pm, i; nw = n))
             end
@@ -181,7 +181,6 @@ function post_acdc_tnep_convex_conv_strg_admm(pm::_PM.AbstractPowerModel)
         #undo_relax=JuMP.relax_integrality(pm.model)
         if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
             for n in _PM.nw_ids(pm)
-
                 fix_variables(pm, n)
             end
         end

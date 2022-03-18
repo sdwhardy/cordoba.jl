@@ -7,7 +7,16 @@
     #import FlexPlan; const _FP = FlexPlan
     #import InfrastructureModels; const _IM = InfrastructureModels
     include("../aux/post_process/functions.jl")
-
+    ########################################################################
+    #Files for SEST calculation
+    #using FileIO
+    #=df2020BE=FileIO.load(pwd()*"\\test\\data\\input\\admm_UKBEDEDK\\time_series_k2.jld2")
+    cost=0
+    for (k,ts) in df2020BE
+        cost=cost+sum((ts["2020"]["Wnd_MWhDE"]).*4000)/length(ts["2020"]["Wnd_MWhDE"])*8760
+        #println(sum((ts["2020"]["Wnd_MWhBE"]).*4000)/length(ts["2020"]["Wnd_MWhBE"])*8760)
+    end
+    println(cost/12)=#
     ################### ENTSO-E scenario selection and rep years/timeline ###############################
     #scenario_names=["EU17","EU18","EU19","EU20","ST17","ST18","ST19","ST20","DG17","DG18","DG19","DG20"]
     scenario_names=["EU17"]

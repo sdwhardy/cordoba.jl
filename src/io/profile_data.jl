@@ -1,69 +1,140 @@
-function filter_DClines(data,edges,nodes)
-    #size and length
-    ics_dc=Tuple{Int64,Int64}[]
-    dcc=filter(x->!ismissing(x),edges["DC_mva"])
-    for (k, s) in enumerate(dcc)
-        from_xy=utm_gps2xy((nodes["lat"][edges["DC_from"][k]],nodes["long"][edges["DC_from"][k]]))
-        to_xy=utm_gps2xy((nodes["lat"][edges["DC_to"][k]],nodes["long"][edges["DC_to"][k]]))
-        push!(ics_dc,(s,round(Int64,Geodesy.euclidean_distance(from_xy, to_xy, 31, true, Geodesy.wgs84)/1000*1.25)))
-    end
+#ACDC problem with storage main setup logic
+function main_ACDC_wstrg(rt_ex,argz, s)
+    ################# Load topology files ###################################
+    data, ics_ac, ics_dc, nodes = topology_df(rt_ex, s["relax_problem"], s["AC"])
+    ############### defines size and market of genz and wfs ###################
+    infinite_grid, genz, wfz, markets = genz_n_wfs(argz["owpp_mva"],nodes,data["baseMVA"])
+    push!(argz,"genz"=>genz)
+    push!(argz,"wfz"=>wfz)
+    #################### Calculates cable options for AC lines
+    data=AC_cable_options(data,argz["candidate_ics_ac"],ics_ac,data["baseMVA"])
+    print_topology_data_AC(data,markets)#print to verify
+    #################### Calculates cable options for DC lines
+    data=DC_cable_options(data,argz["candidate_ics_dc"],ics_dc,data["baseMVA"])
+    additional_params_PMACDC(data)
+    print_topology_data_DC(data,markets)#print to verify
+    ##################### load time series data ##############################
+    scenario_data, ls = load_time_series(rt_ex,argz)
+    #display(scenario_data["EU19"]["2020"])
+    push!(argz,"ls"=>ls)
+    ##################### multi period setup #################################
+    mn_data = multi_period_setup(ls, scenario_data, data, markets, infinite_grid, argz)
+    s=update_settings(s, argz, data)
+    if (haskey(s,"home_market") && length(s["home_market"])>0)
+        mn_data=zonal_adjust(mn_data, s);end
+    return mn_data, data, argz, s
+end
 
-    #filter dc connections
-    dccbles2keep=Dict[]
-    for (r,s) in enumerate(dcc)
-        for (k,b) in data["branchdc_ne"]
-            if (edges["DC_from"][r]==b["fbusdc"] && edges["DC_to"][r]==b["tbusdc"])
-                push!(dccbles2keep,deepcopy(b))
-                break;
+
+function zonal_adjust(mn_data, s)
+    for (k_nw,nw) in mn_data["nw"]
+        for (k_c,c_dc) in nw["branchdc_ne"]
+            if (issubset([c_dc["fbusdc"]],s["home_market"]) && issubset([c_dc["tbusdc"]],s["home_market"]))
+                c_dc["rateA"]=c_dc["rateB"]=c_dc["rateC"]=c_dc["rateA"]*(1-s["balancing_reserve"])
             end
         end
     end
-    data["branchdc_ne"]=Dict{String,Any}()
-    for (k,c) in enumerate(dccbles2keep)
-        c["source_id"][2]=k
-        push!(data["branchdc_ne"],string(k)=>c)
-    end
-    return data, ics_dc
-end
-
-function filter_AClines(data,edges,nodes)
-    #size and length
-    ics_ac=Tuple{Int64,Int64}[]
-    acc=filter(x->!ismissing(x),edges["AC_mva"])
-    for (k, s) in enumerate(acc)
-        from_xy=utm_gps2xy((nodes["lat"][edges["AC_from"][k]],nodes["long"][edges["AC_from"][k]]))
-        to_xy=utm_gps2xy((nodes["lat"][edges["AC_to"][k]],nodes["long"][edges["AC_to"][k]]))
-        push!(ics_ac,(s,round(Int64,Geodesy.euclidean_distance(from_xy, to_xy, 31, true, Geodesy.wgs84)/1000*1.25)))
-    end
-
-    #filter ac connections
-    accbles2keep=Dict[]
-    acc=filter!(x->!ismissing(x),edges["AC_mva"])
-    for (r,s) in enumerate(acc)
-        for (k,b) in data["ne_branch"]
-            if (edges["AC_from"][r]==b["f_bus"] && edges["AC_to"][r]==b["t_bus"])
-                push!(accbles2keep,deepcopy(b))
-                break;
+    for (k_nw,nw) in mn_data["nw"]
+        for (k_c,c_dc) in nw["ne_branch"]
+            if (issubset([c_dc["f_bus"]],s["home_market"]) && issubset([c_dc["t_bus"]],s["home_market"]))
+                c_dc["rate_a"]=c_dc["rate_b"]=c_dc["rate_c"]=c_dc["rate_a"]*(1-s["balancing_reserve"])
             end
         end
     end
-    data["ne_branch"]=Dict{String,Any}()
-    for (k,c) in enumerate(accbles2keep)
-        c["source_id"][2]=k
-        push!(data["ne_branch"],string(k)=>c)
-    end
-    return data, ics_ac
+    return mn_data
 end
 
-#utm coordinates from gps
-function utm_gps2xy(lla,north_south::Bool=true,zone_utm::Int64=31)
-    utm_desired = Geodesy.UTMfromLLA(zone_utm, north_south, Geodesy.wgs84)#sets UTM zone
-    utm = utm_desired(Geodesy.LLA(first(lla),last(lla)))#coverts to cartesian
-    return utm
+
+function update_settings(s, argz, data)
+    s["genz"]=argz["genz"]
+    s["wfz"]=argz["wfz"]
+    s["ic_lim"]=argz["conv_lim"]/data["baseMVA"]
+    s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]])
+    s["scenarios_length"] = length(argz["scenario_names"])
+    s["years_length"] = length(argz["scenario_years"])
+    s["hours_length"] = argz["ls"]
+    return s
+end
+
+function max_invest_per_year(argz)
+    max_invest=Float64[]
+    for _yr in argz["scenario_years"]
+        push!(max_invest,argz["yearly_investment"]/((1+argz["dr"])^(parse(Int64,_yr)-parse(Int64,argz["scenario_years"][1]))));end
+    return max_invest
+end
+
+#multi period problem setup
+function multi_period_setup(ls,scenario_data,data, markets, infinite_grid, argz)
+    #################### Multi-period input parameters #######################
+    all_scenario_data,data,scenario, dim = multi_period_stoch_year_setup(ls,argz["scenario_years"],argz["scenario_names"],scenario_data,data)
+    scenario["planning_horizon"] = argz["scenario_planning_horizon"] # in years, to scale generation cost
+    extradata,data =create_profile_sets_mesh(dim, data, all_scenario_data, markets, infinite_grid, [data["baseMVA"] for wf in argz["owpp_mva"]])
+    #########################################################################
+    #################### Scale cost data
+    #[println(b*" "*string(br["construction_cost"])) for (b,br) in data["ne_branch"]];println()
+    scale_cost_data_2hourly!(data, scenario)#infrastructure investments
+    #[println(b*" "*string(br["construction_cost"])) for (b,br) in data["ne_branch"]];println()
+    scale_cost_data_2yearly!(extradata, scenario)#energy cost benefits
+    #[println(b*" "*string(br["construction_cost"])) for (b,br) in data["ne_branch"]];println()
+
+    # Create data dictionary where time series data is included at the right place
+    mn_data = _PMACDC.multinetwork_data(data, extradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
+    #[println(k*" "*b*" "*string(br["construction_cost"])) for (k,nw) in mn_data["nw"] for (b,br) in nw["ne_branch"]];println()
+    # scale all to NPV
+    #mn_data_mip= _CBD.npvs_costs_datas(mn_data_mip, scenario, scenario_years)#sum of years must equal total
+    mn_data = npvs_costs_datas_wREZ(mn_data, scenario, argz["scenario_years"], argz["dr"])#sum of years must equal total
+    #[println(k*" "*b*" "*string(br["construction_cost"])) for (k,nw) in mn_data["nw"] for (b,br) in nw["ne_branch"]];println()
+    mn_data = npvs_costs_datas_4mip(mn_data, scenario, argz["scenario_years"], argz["dr"])#future investment at y scaled to year y=0
+    return mn_data
+end
+
+#load Time series data
+function load_time_series(rt_ex, argz)
+
+
+    scenario_data=FileIO.load(rt_ex*"time_series_k"*string(argz["k"])*".jld2")
+    #keep only specified scenarios
+    d_keys=keys(scenario_data);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data,k);else;y_keys=keys(scenario_data[k]);for y in y_keys;if !(issubset([string(y)],argz["scenario_years"]));delete!(scenario_data[k],y);end; end;end;end
+    #for k0 in d_keys; for k1 in keys(scenario_data[k0]); scenario_data[k0][k1]=scenario_data[k0][k1][1:2,:];end;end
+    #display(scenario_data["EU19"]["2020"])
+    #=scenario_data["EU19"]["2020"]=scenario_data["EU19"]["2020"][1:2,:]
+    scenario_data["EU19"]["2030"]=scenario_data["EU19"]["2030"][1:2,:]
+    scenario_data["EU19"]["2040"]=scenario_data["EU19"]["2040"][1:2,:]=#
+    ##################### Find minimum length scenario and Make all scenarios the same length
+    ls=[];for (_sc, data_by_scenario) in scenario_data; for (_yr, data_by_yr) in data_by_scenario;
+    push!(ls,length(scenario_data[_sc][_yr].time_stamp))
+    end;end;ls=minimum(ls)
+
+    for (_yr, data_by_yr) in scenario_data; for (_sc, data_by_scenario) in data_by_yr;
+    scenario_data[_yr][_sc]=scenario_data[_yr][_sc][1:ls,:]
+    end;end
+    return scenario_data, ls
+end
+
+#adds DC grid to PMACDC
+function additional_params_PMACDC(data)
+    _PMACDC.process_additional_data!(data)#add extra DC model data
+    converter_parameters_rxb(data)#sets converter parameters for loss calc
+end
+
+#seperates wfs from genz and defines markets/wfs zones
+function genz_n_wfs(owpp_mva,nodes,pu)
+    infinite_grid=sum(owpp_mva)*3
+    markets_wfs=[String[],String[]]#UK,DE,DK must be in same order as .m file gens
+    for (k,cunt) in enumerate(nodes["country"])
+        if (nodes["type"][k]>0)
+        push!(markets_wfs[1],cunt);else
+        push!(markets_wfs[2],cunt);end
+    end
+    genz=[];wfz=[]
+    for i=1:1:length(markets_wfs[1]); push!(genz,(i,infinite_grid/pu));end
+    for i=1:1:length(markets_wfs[1]); push!(genz,(i+length(markets_wfs[1])+length(markets_wfs[2]),infinite_grid/pu));end
+    for i=1:1:length(markets_wfs[2]); push!(wfz,(i+length(markets_wfs[1]),owpp_mva[i]/pu));end
+    return infinite_grid, genz, wfz, markets_wfs
 end
 
 #ensures binary candidates (array) costs sum to proper NPV value over the number of years
-function npvs_costs_datas_4mip(data, scenario, _yrs)
+function npvs_costs_datas_4mip(data, scenario, _yrs, _dr)
     _scs=data["scenario"]
     _hrs=deepcopy(scenario["hours"])
     for (_sci,_sc) in _scs
@@ -155,7 +226,7 @@ function npv_cost_data(data,base_yr,current_yr,_dr::Float64=0.04)
 end
 
 #translates costs (array) to yearly NPV value
-function npvs_costs_datas_wREZ(data, scenario, _yrs)
+function npvs_costs_datas_wREZ(data, scenario, _yrs, _dr)
     _scs=data["scenario"]
     base_yr=parse(Int64,_yrs[1])
     _hrs=deepcopy(scenario["hours"])
@@ -166,7 +237,7 @@ function npvs_costs_datas_wREZ(data, scenario, _yrs)
         _yr=1
         for (_str,_num) in _sc_temp
             if (_num<=_sc_first+_yr*_hrs-1)
-                data["nw"][string(_num)]=deepcopy(npv_cost_data_wREZ(deepcopy(data["nw"][string(_num)]),base_yr,parse(Int64,_yrs[_yr]),scenario["planning_horizon"]))
+                data["nw"][string(_num)]=deepcopy(npv_cost_data_wREZ(deepcopy(data["nw"][string(_num)]),base_yr,parse(Int64,_yrs[_yr]),scenario["planning_horizon"], _dr))
                 if (_num==_sc_first+_yr*_hrs-1)
                     _yr=_yr+1
                 end
@@ -203,6 +274,9 @@ function npv_cost_data_wREZ(data,base_yr,current_yr,_ph,_dr::Float64=0.04)
         _PM._apply_func!(strg, "cost_inj", npv_hourly)
     end
     for (b, branch) in get(data, "branchdc", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", npv_yearly)
+    end
+    for (b, branch) in get(data, "branch", Dict{String,Any}())
         _PM._apply_func!(branch, "cost", npv_yearly)
     end
     for (c, conv) in get(data, "convdc", Dict{String,Any}())
@@ -324,6 +398,106 @@ function candidateIC_cost_impedance_DC(bdc,z_base)
     return bdc
 end
 
+function convex2mip_DC(result_mip, data)
+    dc_cables=Dict{String,Any}()
+    for (j,dc_br) in result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branchdc"]
+        dc_min=[];dc_max=[]
+        for (k,dc_br_ne) in data["branchdc_ne"]
+            if (dc_br_ne["fbusdc"]==data["branchdc"][j]["fbusdc"] && dc_br_ne["tbusdc"]==data["branchdc"][j]["tbusdc"])
+                dif=dc_br["p_rateA"]-dc_br_ne["rateA"]
+
+                if (dif>0)
+                    push!(dc_min,(k,dif))
+                else
+                    push!(dc_max,(k,dif))
+                end
+            end
+        end
+        if (length(last.(dc_min))>0)
+            push!(dc_cables, first.(dc_min)[argmin(last.(dc_min))] => data["branchdc_ne"][first.(dc_min)[argmin(last.(dc_min))]])
+        end
+        if (length(last.(dc_max))>0)
+            push!(dc_cables, first.(dc_max)[argmax(last.(dc_max))] => data["branchdc_ne"][first.(dc_max)[argmax(last.(dc_max))]])
+        end
+    end
+    dc_cables=unique_candidateIC_DC(dc_cables)
+    #=dc_cables2=Dict{String,Any}()
+    for (i,(k, dc_c)) in enumerate(sort(OrderedCollections.OrderedDict(dc_cables), by=x->parse(Int64,x)))
+        dc_c["source_id"][2]=i
+        dc_c["status"]=1
+        push!(dc_cables2,string(i)=>dc_c)
+    end=#
+    return dc_cables
+end
+
+function convex2mip_AC(result_mip, data)
+    ac_cables=Dict{String,Any}()
+    for (j,ac_br) in result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branch"]
+        ac_min=[];ac_max=[]
+        for (k,ac_br_ne) in data["ne_branch"]
+            if (ac_br_ne["f_bus"]==data["branch"][j]["f_bus"] && ac_br_ne["t_bus"]==data["branch"][j]["t_bus"])
+                dif=ac_br["p_rateAC"]-ac_br_ne["rate_a"]
+
+                if (dif>0)
+                    push!(ac_min,(k,dif))
+                else
+                    push!(ac_max,(k,dif))
+                end
+            end
+        end
+        if (length(last.(ac_min))>0)
+            push!(ac_cables, first.(ac_min)[argmin(last.(ac_min))] => data["ne_branch"][first.(ac_min)[argmin(last.(ac_min))]])
+        end
+        if (length(last.(ac_max))>0)
+            push!(ac_cables, first.(ac_max)[argmax(last.(ac_max))] => data["ne_branch"][first.(ac_max)[argmax(last.(ac_max))]])
+        end
+    end
+    ac_cables=unique_candidateIC_AC(ac_cables)
+    #=ac_cables2=Dict{String,Any}()
+    for (i,(k, ac_c)) in enumerate(sort(OrderedCollections.OrderedDict(ac_cables), by=x->parse(Int64,x)))
+        ac_c["source_id"][2]=i
+        ac_c["br_status"]=1
+        push!(ac_cables2,string(i)=>ac_c)
+    end=#
+    return ac_cables
+end
+
+function convex2mip(result_mip, data, mn_data, s)
+    s["agent"]=""
+    s["relax_problem"]=false
+    if (s["AC"]=="1")
+        data["ne_branch"]=convex2mip_AC(result_mip, data);end
+    data["branchdc_ne"]=convex2mip_DC(result_mip, data)
+
+    for (k,nw) in mn_data["nw"]
+        br_nes=deepcopy(data["ne_branch"])
+        br_dc_nes=deepcopy(data["branchdc_ne"])
+        br_nes2=Dict{String,Any}();br_dc_nes2=Dict{String,Any}()
+        for (i,(k,br_ne)) in enumerate(br_nes)
+            br_ne["construction_cost"]=nw["ne_branch"][k]["construction_cost"]
+            br_ne["source_id"][2]=i
+            br_ne["br_status"]= s["AC"]=="0" ? 0 : 1
+            push!(br_nes2,string(i)=>br_ne)
+        end
+        for (i,(k,br_dc_ne)) in enumerate(br_dc_nes)
+            br_dc_ne["cost"]=nw["branchdc_ne"][k]["cost"]
+            br_dc_ne["source_id"][2]=i
+            br_dc_ne["br_status"]=1
+            push!(br_dc_nes2,string(i)=>br_dc_ne)
+        end
+        nw["ne_branch"]=deepcopy(br_nes2)
+        nw["branchdc_ne"]=deepcopy(br_dc_nes2)
+        for (i,br) in nw["branch"]
+            br["br_status"]=0
+        end
+        for (i,br) in nw["branchdc"]
+            br["status"]=0
+        end
+    end
+    data["ne_branch"]=mn_data["nw"]["1"]["ne_branch"]
+    data["branchdc_ne"]=mn_data["nw"]["1"]["branchdc_ne"]
+    return mn_data, data, s
+end
 #for each AC candidate capacity an appropriate cable is selected and characteristics stored
 function candidateIC_cost_impedance_AC(bac,z_base,s_base)
     cb=AC_cbl(bac["rate_a"], bac["length"])
@@ -461,6 +635,9 @@ function scale_cost_data_2yearly!(data, scenario)
     for (b, branch) in get(data, "branchdc", Dict{String,Any}())
         _PM._apply_func!(branch, "cost", rescale_total)
     end
+    for (b, branch) in get(data, "branch", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
     for (c, conv) in get(data, "convdc", Dict{String,Any}())
         _PM._apply_func!(conv, "cost", rescale_total)
     end
@@ -498,6 +675,9 @@ function scale_cost_data_2hourly!(data, scenario)
     for (b, branch) in get(data, "branchdc", Dict{String,Any}())
         _PM._apply_func!(branch, "cost", rescale_total)
     end
+    for (b, branch) in get(data, "branch", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
     for (c, conv) in get(data, "convdc", Dict{String,Any}())
         _PM._apply_func!(conv, "cost", rescale_total)
     end
@@ -515,7 +695,7 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
     extradata["dim"] = Dict{String,Any}()
     extradata["dim"] = number_of_hours
     extradata["gen"] = Dict{String,Any}()
-    data["gen"]=sort!(OrderedCollections.OrderedDict(data_orig["gen"]))
+    data["gen"]=sort!(OrderedCollections.OrderedDict(data_orig["gen"]), by=x->parse(Int64,x))
     for (g, gen) in data["gen"]
         extradata["gen"][g] = Dict{String,Any}()
         extradata["gen"][g]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
@@ -545,7 +725,7 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
     #add loads
     loads=Dict{String,Any}()
     num_of_gens=length(data["gen"])
-    for (g, gen) in extradata["gen"]
+    for (g, gen) in sort!(OrderedCollections.OrderedDict(extradata["gen"]), by=x->parse(Int64,x))
         if (data["gen"][g]["type"]>0)#market generator onshore
             load=deepcopy(data["gen"][g])
             load["index"]=num_of_gens+1

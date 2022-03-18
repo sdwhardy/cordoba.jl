@@ -128,7 +128,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                 _PM.constraint_ne_thermal_limit_from(pm, i; nw = n)
                 _PM.constraint_ne_thermal_limit_to(pm, i; nw = n)
                 if n > 1
-                    _PMACDC.constraint_candidate_acbranches_mp(pm, n, i)
+                    #_PMACDC.constraint_candidate_acbranches_mp(pm, n, i)
                 end
                 push!(ac_candidates_in_corridor,collect_4_constraint_candidate_corridor_limit_ac(pm, i; nw = n))
             end
@@ -149,7 +149,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                 _PMACDC.constraint_ohms_dc_branch_ne(pm, i; nw = n)
                 _PMACDC.constraint_branch_limit_on_off(pm, i; nw = n)
                 if n > 1
-                    _PMACDC.constraint_candidate_dcbranches_mp(pm, n, i)
+                    #_PMACDC.constraint_candidate_dcbranches_mp(pm, n, i)
                 end
                 push!(dc_candidates_in_corridor,collect_4_constraint_candidate_corridor_limit_dc(pm, i; nw = n))
             end
@@ -191,6 +191,33 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                 _FP.constraint_maximum_absorption(pm, i, nw = n_1)
             end
 
+            # NW = last
+            for i in _PM.ids(pm, :storage, nw = n_last)
+                _FP.constraint_storage_state_final(pm, i, nw = n_last)
+            end
+
+            for n_2 in network_ids[2:end]
+                for i in _PM.ids(pm, :storage, nw = n_2)
+                    _FP.constraint_storage_state(pm, i, n_1, n_2)
+                    _FP.constraint_maximum_absorption(pm, i, n_1, n_2)
+                end
+                n_1 = n_2
+            end
+        end
+
+
+        #=for (s, scenario) in pm.ref[:scenario]
+
+            network_ids = sort(collect(n for (sc, n) in scenario))
+            n_1 = network_ids[1]
+            n_last = network_ids[end]
+
+            # NW = 1
+            for i in _PM.ids(pm, :storage, nw = n_1)
+                _FP.constraint_storage_state(pm, i, nw = n_1)
+                _FP.constraint_maximum_absorption(pm, i, nw = n_1)
+            end
+
 
             # NW = last
             for i in _PM.ids(pm, :storage, nw = n_last)
@@ -209,7 +236,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                 end
                 n_1 = n_2
             end
-        end
+        end=#
         max_investment_per_year(pm)
         #println(JuMP.objective_function(pm.model))
         #println(pm.model)

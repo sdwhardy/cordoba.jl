@@ -1,0 +1,42 @@
+
+Gurobi 9.1.2 (win64) logging started Tue Mar  8 15:29:12 2022
+
+
+Gurobi 9.1.2 (win64) logging started Tue Mar  8 15:29:12 2022
+
+Gurobi Optimizer version 9.1.2 build v9.1.2rc0 (win64)
+Thread count: 4 physical cores, 8 logical processors, using up to 8 threads
+Optimize a model with 63307 rows, 32112 columns and 149636 nonzeros
+Model fingerprint: 0x1703032b
+Variable types: 26784 continuous, 5328 integer (5328 binary)
+Coefficient statistics:
+  Matrix range     [6e-02, 5e+03]
+  Objective range  [1e-02, 2e+01]
+  Bounds range     [1e-02, 1e+02]
+  RHS range        [1e+00, 1e+05]
+
+User MIP start did not produce a new incumbent solution
+User MIP start violates constraint R7333 by 4000.000000000
+
+Presolve removed 58753 rows and 30314 columns
+Presolve time: 0.11s
+Presolved: 4554 rows, 1798 columns, 12489 nonzeros
+Variable types: 1798 continuous, 0 integer (0 binary)
+
+Root relaxation: objective -1.979028e+04, 1735 iterations, 0.04 seconds
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+*    0     0               0    -19790.28155 -19790.282  0.00%     -    0s
+
+Explored 0 nodes (1735 simplex iterations) in 0.23 seconds
+Thread count was 8 (of 8 available processors)
+
+Solution count 1: -19790.3 
+No other solutions better than -19790.3
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective -1.979028155464e+04, best bound -1.979028155464e+04, gap 0.0000%
+
+User-callback calls 123, time in user-callback 0.00 sec
