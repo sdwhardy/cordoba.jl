@@ -1,4 +1,9 @@
 ############################## DO NOT CHANGE TEST SCRIPT ###################
+using Gurobi, JuMP, DataFrames
+import Cordoba_self; const _CBD = Cordoba_self#Cordoba package backend - under development
+import PowerModelsACDC; const _PMACDC = PowerModelsACDC
+import PowerModels; const _PM = PowerModels
+
 function main_test()
     ########################################################################
     rez=0.0;
@@ -23,6 +28,7 @@ function main_test()
     "balancing_reserve"=>0.3,#zonal market must be defined to have any effect
     "AC"=>"1",#0=false, 1=true
     "eps"=>0.1,#admm residual (100kW)
+    "beta"=>5.5,#admm 
     "relax_problem" => false,
     "conv_losses_mp" => false,
     "process_data_internally" => false,
