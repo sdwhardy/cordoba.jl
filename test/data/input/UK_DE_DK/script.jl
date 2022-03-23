@@ -1,6 +1,6 @@
 ################## loads external packages ##############################
 using Gurobi, JuMP, DataFrames
-import Cordoba; const _CBD = Cordoba#Cordoba package backend - under development
+import Cordoba_self; const _CBD = Cordoba_self#Cordoba package backend - under development
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 

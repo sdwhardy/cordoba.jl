@@ -1,4 +1,4 @@
-module Cordoba
+module Cordoba_self
 import JuMP
 import JSON
 import CSV
