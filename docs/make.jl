@@ -1,23 +1,15 @@
-using cordoba
 using Documenter
+using Cordoba
 
-DocMeta.setdocmeta!(cordoba, :DocTestSetup, :(using cordoba); recursive=true)
-
-makedocs(;
-    modules=[cordoba],
-    authors="Su-",
-    repo="https://github.com/sdwhardy/cordoba.jl/blob/{commit}{path}#{line}",
-    sitename="cordoba.jl",
-    format=Documenter.HTML(;
-        prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://sdwhardy.github.io/cordoba.jl",
-        assets=String[],
-    ),
-    pages=[
-        "Home" => "index.md",
-    ],
+makedocs(
+    sitename = "Cordoba",
+    format = Documenter.HTML(),
+    modules = [Cordoba]
 )
 
-deploydocs(;
-    repo="github.com/sdwhardy/cordoba.jl",
-)
+# Documenter can also automatically deploy documentation to gh-pages.
+# See "Hosting Documentation" and deploydocs() in the Documenter manual
+# for more information.
+#=deploydocs(
+    repo = "<repository url>"
+)=#
