@@ -20,12 +20,12 @@ function main_ACDC_wstrg(rt_ex,argz, s)
     ##################### multi period setup #################################
     mn_data = multi_period_setup(ls, scenario_data, data, markets, infinite_grid, argz)
     s=update_settings(s, argz, data)
-    if (haskey(s,"home_market") && length(s["home_market"])>0)
-        mn_data=zonal_adjust(mn_data, s);end
+#    if (haskey(s,"home_market") && length(s["home_market"])>0)
+#        mn_data=zonal_adjust(mn_data, s);end
     return mn_data, data, argz, s
 end
 
-
+#=
 function zonal_adjust(mn_data, s)
     for (k_nw,nw) in mn_data["nw"]
         for (k_c,c_dc) in nw["branchdc_ne"]
@@ -43,7 +43,7 @@ function zonal_adjust(mn_data, s)
     end
     return mn_data
 end
-
+=#
 
 function update_settings(s, argz, data)
     s["genz"]=argz["genz"]
@@ -90,16 +90,12 @@ end
 
 #load Time series data
 function load_time_series(rt_ex, argz)
-
-
     scenario_data=FileIO.load(rt_ex*"time_series_k"*string(argz["k"])*".jld2")
     #keep only specified scenarios
     d_keys=keys(scenario_data);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data,k);else;y_keys=keys(scenario_data[k]);for y in y_keys;if !(issubset([string(y)],argz["scenario_years"]));delete!(scenario_data[k],y);end; end;end;end
-    #for k0 in d_keys; for k1 in keys(scenario_data[k0]); scenario_data[k0][k1]=scenario_data[k0][k1][1:2,:];end;end
-    #display(scenario_data["EU19"]["2020"])
-    #=scenario_data["EU19"]["2020"]=scenario_data["EU19"]["2020"][1:2,:]
-    scenario_data["EU19"]["2030"]=scenario_data["EU19"]["2030"][1:2,:]
-    scenario_data["EU19"]["2040"]=scenario_data["EU19"]["2040"][1:2,:]=#
+    if (haskey(argz, "test") && argz["test"]==true)
+        for k0 in d_keys; for k1 in keys(scenario_data[k0]); scenario_data[k0][k1]=scenario_data[k0][k1][1:2,:];end;end
+    end
     ##################### Find minimum length scenario and Make all scenarios the same length
     ls=[];for (_sc, data_by_scenario) in scenario_data; for (_yr, data_by_yr) in data_by_scenario;
     push!(ls,length(scenario_data[_sc][_yr].time_stamp))
@@ -365,7 +361,6 @@ function additional_candidatesICS_DC(data,candidates,ic_data)
 end
 
 #Sets AC candidate dictionaries with desired candidate qualities
-
 function additional_candidatesICS_AC(data,candidates,ic_data)
     #DC, IC
     ics=[]

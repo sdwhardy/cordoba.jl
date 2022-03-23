@@ -228,8 +228,6 @@ end
      end
      return fixed_variables, maximum(residuals)
  end
-
-
 #options:
 ###Cables
 #update_branchdc_ne(n,nw,fixed_variables) #updates fixed variable dictionary's binary cables using convex cable data - sets convex data back to zero

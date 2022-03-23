@@ -22,11 +22,11 @@
     ################## optimization/solver setup options ###################
 
     s = Dict("output" => Dict("branch_flows" => false),
-    #"home_market"=>[5,6],#nodes within HM
-    #"balancing_reserve"=>0.3,#
+    "home_market"=>[5,6],#nodes within HM
+    "balancing_reserve"=>0.3,#
     #"eps"=>0.1,#admm residual
     "AC"=>"1",#0=false, 1=true
-    "relax_problem" => true,
+    "relax_problem" => false,
     "conv_losses_mp" => false,
     "process_data_internally" => false,
     "corridor_limit" => true,
@@ -42,6 +42,8 @@
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)
     result_mip = _CBD.cordoba_acdc_wf_strg_admm(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#-16164.432804419186 21-13-17
     _CBD.print_solution_data(result_mip, data, argz)
+
+
     result_mip["solution"]["nw"]["6"]["branchdc_ne"]["20"]
     _CBD.print_convex_solution_data(result_mip, data, argz)#-25273.236946867946
     mn_data, data, s = _CBD.convex2mip(result_mip, data, mn_data, s)

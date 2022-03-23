@@ -94,22 +94,30 @@ end
 
 
 function print_solution_data(result_mip, data_mip, argz)
+    println("Description: test-"*string(argz["test"])*" k-"*string(argz["k"])*" years-"*string(argz["scenario_years"])*" scenarios-"*string(argz["scenario_names"]))
+    if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
+        println("%%%%%%% CONVEX SOLUTION %%%%%%%")
+        print_branch(result_mip,argz,data_mip)
+        print_branchdc(result_mip,argz,data_mip)
+    else
+        println("%%%%%%% MIP SOLUTION %%%%%%%")
+        print_branch_ne(result_mip,argz,data_mip)
+        print_branchdc_ne(result_mip,argz,data_mip)
+    end
     print_owpps(result_mip,argz)
-    print_branch_ne(result_mip,argz,data_mip)
-    print_branchdc_ne(result_mip,argz,data_mip)
     print_converters(result_mip,argz)
     print_storage(result_mip,argz)
-    println("objective: "*string(result_mip["objective"]))
+    println("objective: "*string(result_mip["objective"])*" achieved in: "*string(result_mip["solve_time"]))
 end
 
-function print_convex_solution_data(result_mip, data_mip, argz)
+#=function print_convex_solution_data(result_mip, data_mip, argz)
     print_owpps(result_mip,argz)
     print_branch(result_mip,argz,data_mip)
     print_branchdc(result_mip,argz,data_mip)
     print_converters(result_mip,argz)
     print_storage(result_mip,argz)
     println("objective: "*string(result_mip["objective"]))
-end
+end=#
 
 function print_branch(result_mip,argz,data_mip)
     if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
