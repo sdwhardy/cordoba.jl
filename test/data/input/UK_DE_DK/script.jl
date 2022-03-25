@@ -7,7 +7,7 @@ import PowerModels; const _PM = PowerModels
 ##################### Input parameters #################################
 rt_ex=pwd()*"\\test\\data\\input\\UK_DE_DK\\"#folder path
 argz = Dict(
-"test"=>false,#if true smallest (2 hour) problem variation is built for testing
+"test"=>true,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
 "scenario_names"=>["EU17"],#Options: ["EU17","EU18","EU19","EU20","ST17","ST18","ST19","ST20","DG17","DG18","DG19","DG20"]
 "k"=>2,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k
@@ -59,7 +59,7 @@ _CBD.print_solution_data(result_mip, data, argz)#print MIP solution=#
 
 ################## Run ADMM Formulation ################
 s["relax_problem"]=true
-mn_data, data, argz, s = _CBD.main_ACDC_wstrg(rt_ex,argz, s)#Build data structure for given options
+mn_data, data, argz, s = _CBD.main_ACDC_wstrg(rt_ex,argz, s);#Build data structure for given options
 gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 0)
 result_mip = @time _CBD.admm_4_AjAwAgAuAo_main(mn_data, gurobi, s);#Solve problem
 _CBD.print_solution_data(result_mip, data, argz)#print Convex (ADMM) solution
