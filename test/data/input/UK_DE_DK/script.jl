@@ -11,11 +11,11 @@ argz = Dict(
 "scenario_planning_horizon"=>30,
 "scenario_names"=>["EU17"],#Options: ["EU17","EU18","EU19","EU20","ST17","ST18","ST19","ST20","DG17","DG18","DG19","DG20"]
 "k"=>2,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k
-"scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
+"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
 "owpp_mva"=>[4000],#mva of wf in MVA
 "conv_lim"=>4000,#Max Converter size in MVA
-"candidate_ics_ac"=>[6/5,1,4/5,3/5,2/5,1/5],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[6/5,1,4/5,3/5,2/5,1/5],#DC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_ac"=>[1/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)
 "dr"=>0.04,#discount rate
 "yearly_investment"=>1000000)
 
@@ -36,7 +36,7 @@ s = Dict("output" => Dict("branch_flows" => false),
 ########################################################################
 
 ################## Run MIP Formulation ###################
-#=mn_data, data, argz, s = _CBD.main_ACDC_wstrg(rt_ex,argz, s)#Build data structure for given options
+mn_data, data, argz, s = _CBD.main_ACDC_wstrg(rt_ex,argz, s)#Build data structure for given options
 gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
 #with Home market in Germany
 result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
