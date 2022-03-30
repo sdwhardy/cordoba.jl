@@ -7,10 +7,10 @@ import PowerModels; const _PM = PowerModels
 ##################### Input parameters #################################
 rt_ex=pwd()*"\\test\\data\\input\\UK_DE_DK\\"#folder path
 argz = Dict(
-"test"=>false,#if true smallest (2 hour) problem variation is built for testing
+"test"=>true,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
 "scenario_names"=>["EU17","EU18","EU19","EU20","ST17","ST18","ST19","ST20","DG17","DG18","DG19","DG20"],#Options: ["EU17","EU18","EU19","EU20","ST17","ST18","ST19","ST20","DG17","DG18","DG19","DG20"]
-"k"=>100,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
+"k"=>2,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
 "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
 "owpp_mva"=>[4000],#mva of wf in MVA
 "conv_lim"=>4000,#Max Converter size in MVA
@@ -34,7 +34,6 @@ s = Dict("output" => Dict("branch_flows" => false),
 "strg_lim_onshore"=>10,
 "max_invest_per_year"=>_CBD.max_invest_per_year(argz))
 ########################################################################
-
 ################## Run MIP Formulation ###################
 mn_data, data, argz, s = _CBD.main_ACDC_wstrg(rt_ex,argz, s);#Build data structure for given options
 gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver

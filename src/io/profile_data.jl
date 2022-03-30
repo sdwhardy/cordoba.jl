@@ -30,11 +30,16 @@ function multi_period_setup(ls,scenario_data,data, markets, infinite_grid, argz,
     #################### Scale cost data
     scale_cost_data_hourly!(extradata, scenario)
     extradata=costs_datas_wREZ(extradata, s, argz)
-    # Create data dictionary where time series data is included at the right place
-    mn_data = _PMACDC.multinetwork_data(data, extradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
-    return mn_data
-end
 
+    ######################################################
+    xtradata = Dict{String,Any}()
+    xtradata["dim"] = Dict{String,Any}()
+    xtradata["dim"] = dim
+    ######################################################
+    # Create data dictionary where time series data is included at the right place
+    mn_data = _PMACDC.multinetwork_data(data, xtradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
+    return mn_data, extradata
+end
 
 #Organizes nw numbers per scenario-year
 function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
@@ -402,6 +407,7 @@ function create_profile_sets_rest(number_of_hours, extradata, data_orig)
 
     data["gen"]=sort!(OrderedCollections.OrderedDict(data_orig["gen"]), by=x->parse(Int64,x))
     for (g, gen) in data["gen"]
+        if !(haskey(extradata["gen"], g));extradata["gen"][g] = Dict{String,Any}();end
         extradata["gen"][g]["invest"] = Array{Float64,2}(undef, 1, number_of_hours)
     end
     for d in 1:number_of_hours
@@ -519,127 +525,147 @@ function costs_datas_wREZ(extradata, s, argz)
     sl=s["scenarios_length"]
     yl=s["years_length"]
     hl=s["hours_length"]
-
-    for (c,cnv) in extradata["convdc"]
-        for (n,cst) in enumerate(cnv["cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["convdc"][c]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
-        end
-    end
-    for (g,gen) in extradata["gen"]
-        for (n,cst) in enumerate(gen["cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["gen"][g]["cost"][n]=npv_hourly(cst,parse(Int64,argz["scenario_years"][_yr]))
-        end
-    end
-    for (g,gen) in extradata["gen"]
-        for (n,cst) in enumerate(gen["invest"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["gen"][g]["invest"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
-        end
-    end
-    for (b,br) in extradata["ne_branch"]
-        for (n,cst) in enumerate(br["construction_cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["ne_branch"][b]["construction_cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
-        end
-        for (n,cst) in enumerate(br["construction_cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            if (n<=(_sc)*yl*hl+(yl-1)*hl)
-                extradata["ne_branch"][b]["construction_cost"][n]=mip(cst,extradata["ne_branch"][b]["construction_cost"][n+hl])
+    if (haskey(extradata,"convdc"))
+        for (c,cnv) in extradata["convdc"]
+            for (n,cst) in enumerate(cnv["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["convdc"][c]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
             end
         end
     end
-
-    for (b,br) in extradata["branchdc_ne"]
-        for (n,cst) in enumerate(br["cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["branchdc_ne"][b]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+    if (haskey(extradata,"gen"))
+        for (g,gen) in extradata["gen"]
+            if (haskey(gen,"cost"))
+                for (n,cst) in enumerate(gen["cost"])
+                    _sc=floor(Int64,(n-1)/(yl*hl))
+                    _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                    extradata["gen"][g]["cost"][n]=npv_hourly(cst,parse(Int64,argz["scenario_years"][_yr]))
+                end
+            end
         end
-        for (n,cst) in enumerate(br["cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            if (n<=(_sc)*yl*hl+(yl-1)*hl)
-                extradata["branchdc_ne"][b]["cost"][n]=mip(cst,extradata["branchdc_ne"][b]["cost"][n+hl])
+        for (g,gen) in extradata["gen"]
+            if (haskey(gen,"invest"))
+                for (n,cst) in enumerate(gen["invest"])
+                    _sc=floor(Int64,(n-1)/(yl*hl))
+                    _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                    extradata["gen"][g]["invest"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+                end
             end
         end
     end
-    for (c,cnv) in extradata["convdc_ne"]
-        for (n,cst) in enumerate(cnv["cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["convdc_ne"][c]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
-        end
-        for (n,cst) in enumerate(cnv["cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            if (n<=(_sc)*yl*hl+(yl-1)*hl)
-                extradata["convdc_ne"][c]["cost"][n]=mip(cst,extradata["convdc_ne"][c]["cost"][n+hl])
+    if (haskey(extradata,"ne_branch"))
+        for (b,br) in extradata["ne_branch"]
+            for (n,cst) in enumerate(br["construction_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_branch"][b]["construction_cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(br["construction_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["ne_branch"][b]["construction_cost"][n]=mip(cst,extradata["ne_branch"][b]["construction_cost"][n+hl])
+                end
             end
         end
     end
-    for (s,stg) in extradata["ne_storage"]
-        for (n,cst) in enumerate(stg["eq_cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["ne_storage"][s]["eq_cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
-        end
-        for (n,cst) in enumerate(stg["eq_cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            if (n<=(_sc)*yl*hl+(yl-1)*hl)
-                extradata["ne_storage"][s]["eq_cost"][n]=mip(cst,extradata["ne_storage"][s]["eq_cost"][n+hl])
+    if (haskey(extradata,"branchdc_ne"))
+        for (b,br) in extradata["branchdc_ne"]
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["branchdc_ne"][b]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["branchdc_ne"][b]["cost"][n]=mip(cst,extradata["branchdc_ne"][b]["cost"][n+hl])
+                end
             end
         end
     end
-    for (s,stg) in extradata["ne_storage"]
-        for (n,cst) in enumerate(stg["inst_cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["ne_storage"][s]["inst_cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
-        end
-        for (n,cst) in enumerate(stg["inst_cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            if (n<=(_sc)*yl*hl+(yl-1)*hl)
-                extradata["ne_storage"][s]["inst_cost"][n]=mip(cst,extradata["ne_storage"][s]["inst_cost"][n+hl])
+    if (haskey(extradata,"convdc_ne"))
+        for (c,cnv) in extradata["convdc_ne"]
+            for (n,cst) in enumerate(cnv["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["convdc_ne"][c]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(cnv["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["convdc_ne"][c]["cost"][n]=mip(cst,extradata["convdc_ne"][c]["cost"][n+hl])
+                end
             end
         end
     end
-    for (s,stg) in extradata["ne_storage"]
-        for (n,cst) in enumerate(stg["cost_abs"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["ne_storage"][s]["cost_abs"][n]=npv_hourly(cst,parse(Int64,argz["scenario_years"][_yr]))
+    if (haskey(extradata,"ne_storage"))
+        for (s,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["eq_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][s]["eq_cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(stg["eq_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["ne_storage"][s]["eq_cost"][n]=mip(cst,extradata["ne_storage"][s]["eq_cost"][n+hl])
+                end
+            end
+        end
+        for (s,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["inst_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][s]["inst_cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(stg["inst_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["ne_storage"][s]["inst_cost"][n]=mip(cst,extradata["ne_storage"][s]["inst_cost"][n+hl])
+                end
+            end
+        end
+        for (s,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["cost_abs"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][s]["cost_abs"][n]=npv_hourly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+        end
+        for (s,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["cost_inj"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][s]["cost_inj"][n]=npv_hourly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
         end
     end
-    for (s,stg) in extradata["ne_storage"]
-        for (n,cst) in enumerate(stg["cost_inj"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["ne_storage"][s]["cost_inj"][n]=npv_hourly(cst,parse(Int64,argz["scenario_years"][_yr]))
+    if (haskey(extradata,"branchdc"))
+        for (b,br) in extradata["branchdc"]
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["branchdc"][b]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
         end
     end
-    for (b,br) in extradata["branchdc"]
-        for (n,cst) in enumerate(br["cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["branchdc"][b]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+    if (haskey(extradata,"branch"))
+        for (b,br) in extradata["branch"]
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["branch"][b]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
         end
     end
-    for (b,br) in extradata["branch"]
-        for (n,cst) in enumerate(br["cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["branch"][b]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
-        end
-    end
-    for (s,stg) in extradata["storage"]
-        for (n,cst) in enumerate(stg["cost"])
-            _sc=floor(Int64,(n-1)/(yl*hl))
-            _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
-            extradata["storage"][s]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+    if (haskey(extradata,"storage"))
+        for (s,stg) in extradata["storage"]
+            for (n,cst) in enumerate(stg["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["storage"][s]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
         end
     end
     return extradata

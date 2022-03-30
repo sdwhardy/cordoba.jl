@@ -20,7 +20,8 @@ function main_ACDC_wstrg(rt_ex,argz, s)
     push!(argz,"ls"=>ls)
     ##################### multi period setup #################################
 	s=update_settings(s, argz, data)
-    mn_data = multi_period_setup(ls, scenario_data, data, markets, infinite_grid, argz, s)
+    mn_data, xd  = multi_period_setup(ls, scenario_data, data, markets, infinite_grid, argz, s)
+	s["xd"]=xd
     return  mn_data, data, argz, s
     #return  scenario_data, data, argz, s, ls, markets, infinite_grid
 end
