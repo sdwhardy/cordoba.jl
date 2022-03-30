@@ -7,9 +7,9 @@ import PowerModels; const _PM = PowerModels
 ##################### Input parameters #################################
 rt_ex=pwd()*"\\test\\data\\input\\UK_DE_DK\\"#folder path
 argz = Dict(
-"test"=>true,#if true smallest (2 hour) problem variation is built for testing
+"test"=>false,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
-"scenario_names"=>["EU17"],#Options: ["EU17","EU18","EU19","EU20","ST17","ST18","ST19","ST20","DG17","DG18","DG19","DG20"]
+"scenario_names"=>["EU17","EU18","EU19","EU20","ST17","ST18","ST19","ST20","DG17","DG18","DG19","DG20"],#Options: ["EU17","EU18","EU19","EU20","ST17","ST18","ST19","ST20","DG17","DG18","DG19","DG20"]
 "k"=>2,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k
 "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
 "owpp_mva"=>[4000],#mva of wf in MVA
@@ -21,11 +21,11 @@ argz = Dict(
 
 ################## optimization/solver setup options ###################
 s = Dict("output" => Dict("branch_flows" => false),
-"home_market"=>[2,4],#nodes within Zonal market
+"home_market"=>[],#nodes within Zonal market
 "balancing_reserve"=>0.3,#zonal market must be defined to have any effect
 "AC"=>"1",#0=false, 1=true
 "eps"=>0.0001,#admm residual (100kW)
-"relax_problem" => false,
+"relax_problem" => true,
 "conv_losses_mp" => false,
 "process_data_internally" => false,
 "corridor_limit" => true,
