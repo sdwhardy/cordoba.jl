@@ -601,9 +601,7 @@ end
 function calc_wf_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_wf_cost_npv(i, b_cost, nw)
-        cost = 0.0
-        #println(string(nw)*" "*string(i)*" "*string(b_cost))
-        cost += b_cost * _PM.var(pm,nw,:wf_pacmax,i)
+        cost = b_cost * _PM.var(pm,nw,:wf_pacmax,i)
         return cost
     end
 
@@ -635,9 +633,7 @@ end
 function calc_storage_cost_cordoba_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_storage_cost_npv(i, b_cost, nw)
-        cost = 0.0
-        #println(string(nw)*" "*string(i)*" "*string(b_cost))
-        cost += b_cost * _PM.var(pm,nw,:e_absmax,i)
+        cost = b_cost * _PM.var(pm,nw,:e_absmax,i)
         return cost
     end
 
@@ -669,9 +665,7 @@ end
 function calc_convdc_convexafy_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_convdc_cost_npv(i, b_cost, nw)
-        cost = 0.0
-        #println(string(nw)*" "*string(i)*" "*string(b_cost))
-        cost += b_cost * _PM.var(pm,nw,:p_pacmax,i)
+        cost = b_cost * _PM.var(pm,nw,:p_pacmax,i)
         return cost
     end
 
@@ -703,9 +697,7 @@ end
 function calc_branchdc_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branchdc_cost_npv(i, b_cost, nw)
-        cost = 0.0
-        #println(string(nw)*" "*string(i)*" "*string(b_cost))
-        cost += b_cost * _PM.var(pm,nw,:p_rateA,i)
+        cost = b_cost * _PM.var(pm,nw,:p_rateA,i)
         return cost
     end
 
@@ -737,9 +729,7 @@ end
 function calc_branch_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branch_cost_npv(i, b_cost, nw)
-        cost = 0.0
-        #println(string(nw)*" "*string(i)*" "*string(b_cost))
-        cost += b_cost * _PM.var(pm,nw,:p_rateAC,i)
+        cost = b_cost * _PM.var(pm,nw,:p_rateAC,i)
         return cost
     end
 
@@ -772,9 +762,7 @@ end
 function calc_branch_ne_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branch_ne_cost_npv(i, b_cost, nw)
-        cost = 0.0
-        #println(string(nw)*" "*string(i)*" "*string(b_cost))
-        cost += b_cost * _PM.var(pm,nw,:branch_ne,i)
+        cost = b_cost * _PM.var(pm,nw,:branch_ne,i)
         return cost
     end
 
@@ -806,9 +794,7 @@ end
 function calc_branchdc_ne_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branchdc_ne_cost_npv(i, b_cost, nw)
-        cost = 0.0
-        #println(string(nw)*" "*string(i)*" "*string(b_cost))
-        cost += b_cost * _PM.var(pm,nw,:branchdc_ne,i)
+        cost = b_cost * _PM.var(pm,nw,:branchdc_ne,i)
         return cost
     end
 

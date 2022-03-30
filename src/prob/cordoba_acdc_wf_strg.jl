@@ -80,8 +80,6 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
         constraint_t0t1_wfz(vgp,pm)
 
     #CONSTRAINTS: defined within PowerModels(ACDC) can directly be used, other constraints need to be defined in the according sections of the code: flexible_demand.jl
-        
-    println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         for n in _PM.nw_ids(pm)
             _PM.constraint_model_voltage(pm; nw = n)
             _PM.constraint_ne_model_voltage(pm; nw = n)
@@ -249,9 +247,5 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
         #=for v in JuMP.all_variables(pm.model)
             println(v)
         end=#
-        println(JuMP.objective_function(pm.model))
-        println(pm.model)
-        println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
 end
 

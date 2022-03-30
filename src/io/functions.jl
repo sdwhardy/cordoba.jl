@@ -19,11 +19,10 @@ function main_ACDC_wstrg(rt_ex,argz, s)
     scenario_data, ls = load_time_series(rt_ex,argz)
     push!(argz,"ls"=>ls)
     ##################### multi period setup #################################
-    mn_data = multi_period_setup(ls, scenario_data, data, markets, infinite_grid, argz)
-    s=update_settings(s, argz, data)
-#   if (haskey(s,"home_market") && length(s["home_market"])>0)
-#      mn_data=zonal_adjust(mn_data, s);end
+	s=update_settings(s, argz, data)
+    mn_data = multi_period_setup(ls, scenario_data, data, markets, infinite_grid, argz, s)
     return  mn_data, data, argz, s
+    #return  scenario_data, data, argz, s, ls, markets, infinite_grid
 end
 
 function update_settings(s, argz, data)
@@ -40,7 +39,7 @@ end
 
 ########################################## Cables ###############################################
 ###################### HVAC/HVDC
-#loads .m result and filters candidates 
+#loads .m result and filters candidates
 function filter_mfile_cables(rt_ex)
     nodes = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "node_generation")...)
 	edges = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "connections_acdc")...)
