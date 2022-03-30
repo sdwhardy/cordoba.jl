@@ -1,6 +1,6 @@
 #load Time series data
 function load_time_series(rt_ex, argz)
-    scenario_data=FileIO.load(rt_ex*"time_series_k"*string(argz["k"])*".jld2")
+    scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\time_series_k"*string(argz["k"])*".jld2")
     #keep only specified scenarios
     d_keys=keys(scenario_data);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data,k);else;y_keys=keys(scenario_data[k]);for y in y_keys;if !(issubset([string(y)],argz["scenario_years"]));delete!(scenario_data[k],y);end; end;end;end
     if (haskey(argz, "test") && argz["test"]==true)
