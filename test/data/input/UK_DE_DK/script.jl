@@ -25,7 +25,7 @@ s = Dict("output" => Dict("branch_flows" => false),
 "balancing_reserve"=>0.3,#zonal market must be defined to have any effect
 "AC"=>"1",#0=false, 1=true
 "eps"=>0.0001,#admm residual (100kW)
-"relax_problem" => true,
+"relax_problem" => false,
 "conv_losses_mp" => false,
 "process_data_internally" => false,
 "corridor_limit" => true,
