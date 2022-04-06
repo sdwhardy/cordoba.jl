@@ -36,6 +36,27 @@ function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bou
     if bounded
         for (i, gen) in _PM.ref(pm, nw, :gen)
             if issubset([i],first.(pm.setting["genz"]))
+                JuMP.set_lower_bound(pg[i], pm.setting["xd"]["gen"][string(i)]["pmin"][nw])
+                JuMP.set_upper_bound(pg[i], pm.setting["xd"]["gen"][string(i)]["pmax"][nw])
+            elseif issubset([i],first.(pm.setting["wfz"]))
+                wf_pacmax = _PM.var(pm, nw, :wf_pacmax, i)
+                JuMP.@constraint(pm.model, pg[i]-pm.setting["xd"]["gen"][string(i)]["pmax"][nw]*wf_pacmax  <= 0)
+                JuMP.@constraint(pm.model, pg[i]+pm.setting["xd"]["gen"][string(i)]["pmin"][nw]  >= 0)
+            end
+        end
+    end
+    report && _IM.sol_component_value(pm, nw, :gen, :pg, _PM.ids(pm, nw, :gen), pg)
+end
+
+#=function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
+    pg = _PM.var(pm, nw)[:pg] = JuMP.@variable(pm.model,
+        [i in _PM.ids(pm, nw, :gen)], base_name="$(nw)_pg",
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :gen, i), "pg_start")
+    )
+
+    if bounded
+        for (i, gen) in _PM.ref(pm, nw, :gen)
+            if issubset([i],first.(pm.setting["genz"]))
                 JuMP.set_lower_bound(pg[i], gen["pmin"])
                 JuMP.set_upper_bound(pg[i], gen["pmax"])
             elseif issubset([i],first.(pm.setting["wfz"]))
@@ -46,7 +67,7 @@ function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bou
         end
     end
     report && _IM.sol_component_value(pm, nw, :gen, :pg, _PM.ids(pm, nw, :gen), pg)
-end
+end=#
 
 #generator imaginary power + constraints
 function variable_gen_power_imaginary(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
@@ -400,4 +421,3 @@ function variable_branch_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, 
 
     report && _IM.sol_component_value_edge(pm, nw, :branch, :pf, :pt, _PM.ref(pm, nw, :arcs_from), _PM.ref(pm, nw, :arcs_to), p)
 end
-

@@ -1,6 +1,7 @@
 #load Time series data
 function load_time_series(rt_ex, argz)
-    scenario_data=FileIO.load(rt_ex*"time_series_k"*string(argz["k"])*".jld2")
+    #scenario_data=FileIO.load(rt_ex*"time_series_k"*string(argz["k"])*".jld2")
+    scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\time_series_k"*string(argz["k"])*".jld2")
     #keep only specified scenarios
     d_keys=keys(scenario_data);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data,k);else;y_keys=keys(scenario_data[k]);for y in y_keys;if !(issubset([string(y)],argz["scenario_years"]));delete!(scenario_data[k],y);end; end;end;end
     if (haskey(argz, "test") && argz["test"]==true)
@@ -19,30 +20,26 @@ end
 
 
 #multi period problem setup
-function multi_period_setup(ls,scenario_data,data, markets, infinite_grid, argz)
+function multi_period_setup(ls,scenario_data,data, markets, infinite_grid, argz, s)
     #################### Multi-period input parameters #######################
-    all_scenario_data,data,scenario, dim = multi_period_stoch_year_setup(ls,argz["scenario_years"],argz["scenario_names"],scenario_data,data)
-    scenario["planning_horizon"] = argz["scenario_planning_horizon"] # in years, to scale generation cost
+    all_scenario_data,data,scenario, dim = multi_period_stoch_year_setup(ls,argz["scenario_years"],argz["scenario_names"],scenario_data,data);
+    scenario["planning_horizon"] = argz["scenario_planning_horizon"]; # in years, to scale generation cost
     extradata,data =create_profile_sets_mesh(dim, data, all_scenario_data, markets, infinite_grid, [data["baseMVA"] for wf in argz["owpp_mva"]])
+    extradata = create_profile_sets_rest(dim, extradata, data)
     #########################################################################
     #################### Scale cost data
-    #[println(b*" "*string(br["construction_cost"])) for (b,br) in data["ne_branch"]];println()
-    scale_cost_data_2hourly!(data, scenario)#infrastructure investments
-    #[println(b*" "*string(br["construction_cost"])) for (b,br) in data["ne_branch"]];println()
-    scale_cost_data_2yearly!(extradata, scenario)#energy cost benefits
-    #[println(b*" "*string(br["construction_cost"])) for (b,br) in data["ne_branch"]];println()
+    scale_cost_data_hourly!(extradata, scenario)
+    extradata=costs_datas_wREZ(extradata, s, argz)
 
+    ######################################################
+    xtradata = Dict{String,Any}()
+    xtradata["dim"] = Dict{String,Any}()
+    xtradata["dim"] = dim
+    ######################################################
     # Create data dictionary where time series data is included at the right place
-    mn_data = _PMACDC.multinetwork_data(data, extradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
-    #[println(k*" "*b*" "*string(br["construction_cost"])) for (k,nw) in mn_data["nw"] for (b,br) in nw["ne_branch"]];println()
-    # scale all to NPV
-    #mn_data_mip= _CBD.npvs_costs_datas(mn_data_mip, scenario, scenario_years)#sum of years must equal total
-    mn_data = npvs_costs_datas_wREZ(mn_data, scenario, argz["scenario_years"], argz["dr"])#sum of years must equal total
-    #[println(k*" "*b*" "*string(br["construction_cost"])) for (k,nw) in mn_data["nw"] for (b,br) in nw["ne_branch"]];println()
-    mn_data = npvs_costs_datas_4mip(mn_data, scenario, argz["scenario_years"], argz["dr"])#future investment at y scaled to year y=0
-    return mn_data
+    mn_data = _PMACDC.multinetwork_data(data, xtradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
+    return mn_data, extradata
 end
-
 
 #Organizes nw numbers per scenario-year
 function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
@@ -153,6 +150,46 @@ end
 
 ######################## Scaling cost data ###########################
 #scale investment to hourly cost spread over the year
+function scale_cost_data_hourly!(data, scenario)
+    #rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
+    rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"]*scenario["years"])) * x # scale hourly costs to the planning horizon
+    rescale_total  = x -> (                                1 / (scenario["hours"])) * x # scale total costs to the planning horizon
+
+    for (g, gen) in data["gen"]
+        _PM._apply_func!(gen, "cost", rescale_hourly)
+    end
+    for (g, gen) in data["gen"]
+        _PM._apply_func!(gen, "invest", rescale_total)
+    end
+    for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
+        _PM._apply_func!(branch, "construction_cost", rescale_total)
+    end
+    for (b, branch) in get(data, "branchdc_ne", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (c, conv) in get(data, "convdc_ne", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", rescale_total)
+    end
+    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "eq_cost", rescale_total)
+        _PM._apply_func!(strg, "inst_cost", rescale_total)
+        _PM._apply_func!(strg, "cost_abs", rescale_hourly)
+        _PM._apply_func!(strg, "cost_inj", rescale_hourly)
+    end
+    for (b, branch) in get(data, "branchdc", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (b, branch) in get(data, "branch", Dict{String,Any}())
+        _PM._apply_func!(branch, "cost", rescale_total)
+    end
+    for (c, conv) in get(data, "convdc", Dict{String,Any}())
+        _PM._apply_func!(conv, "cost", rescale_total)
+    end
+    for (s, strg) in get(data, "storage", Dict{String,Any}())
+        _PM._apply_func!(strg, "cost", rescale_total)
+    end
+end
+
 function scale_cost_data_2hourly!(data, scenario)
     rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
     rescale_total  = x -> (                                1 / (scenario["hours"])) * x # scale total costs to the planning horizon
@@ -247,7 +284,8 @@ function npvs_costs_datas_wREZ(data, scenario, _yrs, _dr)
         _yr=1
         for (_str,_num) in _sc_temp
             if (_num<=_sc_first+_yr*_hrs-1)
-                data["nw"][string(_num)]=deepcopy(npv_cost_data_wREZ(deepcopy(data["nw"][string(_num)]),base_yr,parse(Int64,_yrs[_yr]),scenario["planning_horizon"], _dr))
+                #data["nw"][string(_num)]=deepcopy(npv_cost_data_wREZ(deepcopy(data["nw"][string(_num)]),base_yr,parse(Int64,_yrs[_yr]),scenario["planning_horizon"], _dr))
+                data["nw"][string(_num)]=deepcopy(npv_cost_data_wREZ(data["nw"][string(_num)],base_yr,parse(Int64,_yrs[_yr]),scenario["planning_horizon"], _dr))
                 if (_num==_sc_first+_yr*_hrs-1)
                     _yr=_yr+1
                 end
@@ -257,9 +295,60 @@ function npvs_costs_datas_wREZ(data, scenario, _yrs, _dr)
     return data
 end
 
-
+#=function calc_single_convdc_cost_npv(i, b_cost, nw)
+    cost = 0.0
+    cost += b_cost * _PM.var(pm,nw,:p_pacmax,i)
+    return cost
+end=#
 #translates cost (single) to yearly NPV value
 function npv_cost_data_wREZ(data,base_yr,current_yr,_ph,_dr::Float64=0.04)
+    #println(((_ph-(current_yr-base_yr))/_ph))
+    function npv_yearly(x)
+        cost = (1 / (1+_dr)^(current_yr-base_yr)) * x *((_ph-(current_yr-base_yr))/_ph)# npv
+        return deepcopy(cost)
+    end
+    function npv_hourly(x)
+        cost = (1 / (1+_dr)^(current_yr-base_yr)) * x# npv
+        return deepcopy(cost)
+    end
+
+    for (g, gen) in get(data, "gen", Dict{String,Any}())
+        gen["cost"]=npv_hourly(gen["cost"])
+    end
+    for (g, gen) in get(data, "gen", Dict{String,Any}())
+        gen["invest"]=npv_yearly(gen["invest"])
+    end
+    for (b, branch) in get(data, "ne_branch", Dict{String,Any}())
+        branch["construction_cost"]=npv_yearly(branch["construction_cost"])
+    end
+    for (b, branch) in get(data, "branchdc_ne", Dict{String,Any}())
+        branch["cost"]=npv_yearly(branch["cost"])
+    end
+    for (c, conv) in get(data, "convdc_ne", Dict{String,Any}())
+        conv["cost"]=npv_yearly(conv["cost"])
+    end
+    for (s, strg) in get(data, "ne_storage", Dict{String,Any}())
+        strg["eq_cost"]=npv_yearly(strg["eq_cost"])
+        strg["inst_cost"]=npv_yearly(strg["inst_cost"])
+        strg["cost_abs"]=npv_hourly(strg["cost_abs"])
+        strg["cost_inj"]=npv_hourly(strg["cost_inj"])
+    end
+    for (b, branch) in get(data, "branchdc", Dict{String,Any}())
+        branch["cost"]=npv_yearly(branch["cost"])
+    end
+    for (b, branch) in get(data, "branch", Dict{String,Any}())
+        branch["cost"]=npv_yearly(branch["cost"])
+    end
+    for (c, conv) in get(data, "convdc", Dict{String,Any}())
+        data["convdc"][c]["cost"]=deepcopy(npv_yearly(conv["cost"]))
+    end
+    for (s, strg) in get(data, "storage", Dict{String,Any}())
+        strg["cost"]=npv_yearly(strg["cost"])
+    end
+    return data
+end
+#=
+function npv_cost_data_wREZ_wdeepcopy(data,base_yr,current_yr,_ph,_dr::Float64=0.04)
     #println(((_ph-(current_yr-base_yr))/_ph))
     npv_yearly = x -> (1 / (1+_dr)^(current_yr-base_yr)) * x *((_ph-(current_yr-base_yr))/_ph)# npv
     npv_hourly = x -> (1 / (1+_dr)^(current_yr-base_yr)) * x# npv
@@ -297,8 +386,290 @@ function npv_cost_data_wREZ(data,base_yr,current_yr,_ph,_dr::Float64=0.04)
         _PM._apply_func!(strg, "cost", npv_yearly)
     end
     return data
+end=#
+
+function create_profile_sets_rest(number_of_hours, extradata, data_orig)
+    pu=data_orig["baseMVA"]
+    e2me=1000000/pu#into ME/PU
+    data=Dict{String,Any}()#;data["convdc"]=Dict{String,Any}()
+
+    extradata["convdc"] = Dict{String,Any}()
+    data["convdc"]=sort!(OrderedCollections.OrderedDict(data_orig["convdc"]), by=x->parse(Int64,x))
+    for (c, cnv) in data["convdc"]
+        extradata["convdc"][c] = Dict{String,Any}()
+        extradata["convdc"][c]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        for (c, cnv) in data["convdc"]
+                extradata["convdc"][c]["cost"][1, d] = cnv["cost"]
+        end
+    end
+
+    data["gen"]=sort!(OrderedCollections.OrderedDict(data_orig["gen"]), by=x->parse(Int64,x))
+    for (g, gen) in data["gen"]
+        if !(haskey(extradata["gen"], g));extradata["gen"][g] = Dict{String,Any}();end
+        extradata["gen"][g]["invest"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        for (g, gen) in data["gen"]
+                extradata["gen"][g]["invest"][1, d] = gen["invest"]
+        end
+    end
+
+    extradata["ne_branch"] = Dict{String,Any}()
+    data["ne_branch"]=sort!(OrderedCollections.OrderedDict(data_orig["ne_branch"]), by=x->parse(Int64,x))
+    for (b, br) in data["ne_branch"]
+        extradata["ne_branch"][b] = Dict{String,Any}()
+        extradata["ne_branch"][b]["construction_cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        for (b, br) in data["ne_branch"]
+                extradata["ne_branch"][b]["construction_cost"][1, d] = br["construction_cost"]
+        end
+    end
+
+    extradata["branchdc_ne"] = Dict{String,Any}()
+    data["branchdc_ne"]=sort!(OrderedCollections.OrderedDict(data_orig["branchdc_ne"]), by=x->parse(Int64,x))
+    for (b, br) in data["branchdc_ne"]
+        extradata["branchdc_ne"][b] = Dict{String,Any}()
+        extradata["branchdc_ne"][b]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        for (b, br) in data["branchdc_ne"]
+                extradata["branchdc_ne"][b]["cost"][1, d] = br["cost"]
+        end
+    end
+
+    extradata["convdc_ne"] = Dict{String,Any}()
+    data["convdc_ne"]=sort!(OrderedCollections.OrderedDict(data_orig["convdc_ne"]), by=x->parse(Int64,x))
+    for (c, cnv) in data["convdc_ne"]
+        extradata["convdc_ne"][c] = Dict{String,Any}()
+        extradata["convdc_ne"][c]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        for (c, cnv) in data["convdc_ne"]
+                extradata["convdc_ne"][c]["cost"][1, d] = cnv["cost"]
+        end
+    end
+
+    extradata["ne_storage"] = Dict{String,Any}()
+    data["ne_storage"]=sort!(OrderedCollections.OrderedDict(data_orig["ne_storage"]), by=x->parse(Int64,x))
+    for (s, stg) in data["ne_storage"]
+        extradata["ne_storage"][s] = Dict{String,Any}()
+        extradata["ne_storage"][s]["eq_cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["ne_storage"][s]["inst_cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["ne_storage"][s]["cost_abs"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["ne_storage"][s]["cost_inj"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        for (s, stg) in data["ne_storage"]
+                extradata["ne_storage"][s]["eq_cost"][1, d] = stg["eq_cost"]
+                extradata["ne_storage"][s]["inst_cost"][1, d] = stg["inst_cost"]
+                extradata["ne_storage"][s]["cost_abs"][1, d] = stg["cost_abs"]
+                extradata["ne_storage"][s]["cost_inj"][1, d] = stg["cost_inj"]
+        end
+    end
+
+    extradata["storage"] = Dict{String,Any}()
+    data["storage"]=sort!(OrderedCollections.OrderedDict(data_orig["storage"]), by=x->parse(Int64,x))
+    for (s, stg) in data["storage"]
+        extradata["storage"][s] = Dict{String,Any}()
+        extradata["storage"][s]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        for (s, stg) in data["storage"]
+                extradata["storage"][s]["cost"][1, d] = stg["cost"]
+        end
+    end
+
+    extradata["branchdc"] = Dict{String,Any}()
+    data["branchdc"]=sort!(OrderedCollections.OrderedDict(data_orig["branchdc"]), by=x->parse(Int64,x))
+    for (b, br) in data["branchdc"]
+        extradata["branchdc"][b] = Dict{String,Any}()
+        extradata["branchdc"][b]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        for (b, br) in data["branchdc"]
+                extradata["branchdc"][b]["cost"][1, d] = br["cost"]
+        end
+    end
+
+    extradata["branch"] = Dict{String,Any}()
+    data["branch"]=sort!(OrderedCollections.OrderedDict(data_orig["branch"]), by=x->parse(Int64,x))
+    for (b, br) in data["branch"]
+        extradata["branch"][b] = Dict{String,Any}()
+        extradata["branch"][b]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+    end
+    for d in 1:number_of_hours
+        for (b, br) in data["branch"]
+                extradata["branch"][b]["cost"][1, d] = br["cost"]
+        end
+    end
+    return extradata
 end
 
+function costs_datas_wREZ(extradata, s, argz)
+    function npv_yearly(x,current_yr)
+        cost = (1 / (1+argz["dr"])^(current_yr-base_year)) * x *((argz["scenario_planning_horizon"]-(current_yr-base_year))/argz["scenario_planning_horizon"])# npv
+        return deepcopy(cost)
+    end
+    function npv_hourly(x,current_yr)
+        cost = (1 / (1+argz["dr"])^(current_yr-base_year)) * x# npv
+        return deepcopy(cost)
+    end
+    function mip(cost0, cost1)
+        cost=cost0-cost1
+        return deepcopy(cost)
+    end
+    base_year=parse(Int64,argz["scenario_years"][1])
+    sl=s["scenarios_length"]
+    yl=s["years_length"]
+    hl=s["hours_length"]
+    if (haskey(extradata,"convdc"))
+        for (c,cnv) in extradata["convdc"]
+            for (n,cst) in enumerate(cnv["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["convdc"][c]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+        end
+    end
+    if (haskey(extradata,"gen"))
+        for (g,gen) in extradata["gen"]
+            if (haskey(gen,"cost"))
+                for (n,cst) in enumerate(gen["cost"])
+                    _sc=floor(Int64,(n-1)/(yl*hl))
+                    _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                    extradata["gen"][g]["cost"][n]=npv_hourly(cst,parse(Int64,argz["scenario_years"][_yr]))
+                end
+            end
+        end
+        for (g,gen) in extradata["gen"]
+            if (haskey(gen,"invest"))
+                for (n,cst) in enumerate(gen["invest"])
+                    _sc=floor(Int64,(n-1)/(yl*hl))
+                    _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                    extradata["gen"][g]["invest"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+                end
+            end
+        end
+    end
+    if (haskey(extradata,"ne_branch"))
+        for (b,br) in extradata["ne_branch"]
+            for (n,cst) in enumerate(br["construction_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_branch"][b]["construction_cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(br["construction_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["ne_branch"][b]["construction_cost"][n]=mip(cst,extradata["ne_branch"][b]["construction_cost"][n+hl])
+                end
+            end
+        end
+    end
+    if (haskey(extradata,"branchdc_ne"))
+        for (b,br) in extradata["branchdc_ne"]
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["branchdc_ne"][b]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["branchdc_ne"][b]["cost"][n]=mip(cst,extradata["branchdc_ne"][b]["cost"][n+hl])
+                end
+            end
+        end
+    end
+    if (haskey(extradata,"convdc_ne"))
+        for (c,cnv) in extradata["convdc_ne"]
+            for (n,cst) in enumerate(cnv["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["convdc_ne"][c]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(cnv["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["convdc_ne"][c]["cost"][n]=mip(cst,extradata["convdc_ne"][c]["cost"][n+hl])
+                end
+            end
+        end
+    end
+    if (haskey(extradata,"ne_storage"))
+        for (s,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["eq_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][s]["eq_cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(stg["eq_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["ne_storage"][s]["eq_cost"][n]=mip(cst,extradata["ne_storage"][s]["eq_cost"][n+hl])
+                end
+            end
+        end
+        for (s,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["inst_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][s]["inst_cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(stg["inst_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["ne_storage"][s]["inst_cost"][n]=mip(cst,extradata["ne_storage"][s]["inst_cost"][n+hl])
+                end
+            end
+        end
+        for (s,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["cost_abs"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][s]["cost_abs"][n]=npv_hourly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+        end
+        for (s,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["cost_inj"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][s]["cost_inj"][n]=npv_hourly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+        end
+    end
+    if (haskey(extradata,"branchdc"))
+        for (b,br) in extradata["branchdc"]
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["branchdc"][b]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+        end
+    end
+    if (haskey(extradata,"branch"))
+        for (b,br) in extradata["branch"]
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["branch"][b]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+        end
+    end
+    if (haskey(extradata,"storage"))
+        for (s,stg) in extradata["storage"]
+            for (n,cst) in enumerate(stg["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["storage"][s]["cost"][n]=npv_yearly(cst,parse(Int64,argz["scenario_years"][_yr]))
+            end
+        end
+    end
+    return extradata
+end
 
 #ensures binary candidates (array) costs sum to proper NPV value over the number of years
 function npvs_costs_datas_4mip(data, scenario, _yrs, _dr)
@@ -334,7 +705,7 @@ function npv_cost_data_4mip(data0,data1)
     return data0
 end
 
-#returns vector of NPV investment limits per year  
+#returns vector of NPV investment limits per year
 function max_invest_per_year(argz)
     max_invest=Float64[]
     for _yr in argz["scenario_years"]

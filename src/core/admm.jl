@@ -1,10 +1,10 @@
-#Main logic for ADMM 
+#Main logic for ADMM
 function admm_4_AjAwAgAuAo_main(mn_data, gurobi, s)
     results_set=[]
     eps=s["eps"]#set max value of residual for convergence
     residual=Inf#Initialize residual
-    agents=["Ag","Au","Ao","Aw","Aj"]#Initilize agents
-    #agents=["Aall","Ao"]#Initilize agents
+    #agents=["Ag","Au","Ao","Aw","Aj"]#Initilize agents
+    agents=["Aall","Ao"]#Initilize agents
     push!(s,"fixed_variables" => Dict{String,Any}())#reserve memory for varible updates
     push!(s,"agent" => "")#create agent dictionary entry
     s["fixed_variables"] = admm_4_AjAwAgAuAo_intialize(mn_data["nw"], s["fixed_variables"], s["wfz"], s["genz"])#set initial values for fixed variables
