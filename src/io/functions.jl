@@ -373,10 +373,10 @@ end
 function genz_n_wfs(owpp_mva,nodes,pu)
     infinite_grid=sum(owpp_mva)*3
     markets_wfs=[String[],String[]]#UK,DE,DK must be in same order as .m file gens
-    for (k,cunt) in enumerate(nodes[!,"country"])
+    for (k,cuntree) in enumerate(nodes[!,"country"])
         if (nodes[!,"type"][k]>0)
-        push!(markets_wfs[1],cunt);else
-        push!(markets_wfs[2],cunt);end
+        push!(markets_wfs[1],cuntree);else
+        push!(markets_wfs[2],cuntree);end
     end
     genz=[];wfz=[]
     for i=1:1:length(markets_wfs[1]); push!(genz,(i,infinite_grid/pu));end

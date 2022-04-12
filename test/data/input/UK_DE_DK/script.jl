@@ -1,9 +1,10 @@
 ################## loads external packages ##############################
-using Gurobi, JuMP, DataFrames
+using Gurobi, JuMP, DataFrames, FileIO, CSV
 import Cordoba_self; const _CBD = Cordoba_self#Cordoba package backend - under development
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
-
+market_data=CSV.read("C:\\Users\\shardy\\Box\\work_main\\projects\\SEST\\time_series_data_3\\time_series_data\\Based_on_2017_prices\\")
+scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\Generation_Demand_4UKBEDEDK.jld2")
 ##################### Input parameters #################################
 rt_ex=pwd()*"\\test\\data\\input\\UK_DE_DK\\"#folder path
 argz = Dict(
