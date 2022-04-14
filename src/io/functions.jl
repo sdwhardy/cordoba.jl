@@ -385,6 +385,46 @@ function genz_n_wfs(owpp_mva,nodes,pu)
     return infinite_grid, genz, wfz, markets_wfs
 end
 
+function gen_types(owpp_mva,nodes,data,scenario_data)
+    markets_wfs=[String[],String[]]#UK,DE,DK must be in same order as .m file gens
+    for (k,cuntree) in enumerate(nodes[!,"country"])
+        if (nodes[!,"type"][k]>0)
+        push!(markets_wfs[1],cuntree);else
+        push!(markets_wfs[2],cuntree);end
+    end
+
+	base_gens=deepcopy(data["gen"])
+	all_gens=Dict{String, Any}()
+	push!(all_gens,"onshore"=>Dict())
+	for (gen,country) in enumerate(markets_wfs[1])
+		push!(all_gens["onshore"],country=>Dict())
+		for (t,type) in enumerate(scenario_data["Generation"]["keys"])
+			generator_number=(gen-1)*length(scenario_data["Generation"]["keys"])+t
+			push!(all_gens["onshore"][country],type=>Dict())
+			push!(all_gens["onshore"][country][type],string(generator_number)=>copy(base_gens[string(gen)]))
+			all_gens["onshore"][country][type][string(generator_number)]["source_id"]=["gen",copy(generator_number)]
+			all_gens["onshore"][country][type][string(generator_number)]["index"]=copy(generator_number)
+			all_gens["onshore"][country][type][string(generator_number)]["gen_status"]=0
+		end
+	end
+
+	push!(all_gens,"offshore"=>Dict())
+	for (gen,country) in enumerate(markets_wfs[2])
+		if !(haskey(all_gens["offshore"],country))
+			push!(all_gens["offshore"],country=>Dict());end
+		generator_number=length(all_gens["onshore"])*length(scenario_data["Generation"]["keys"])+gen
+		push!(all_gens["offshore"][country],string(generator_number)=>copy(base_gens[string(length(markets_wfs[1])+gen)]))
+		all_gens["offshore"][country][string(generator_number)]["source_id"]=["gen",copy(generator_number)]
+		all_gens["offshore"][country][string(generator_number)]["index"]=copy(generator_number)
+		all_gens["offshore"][country][string(generator_number)]["gen_status"]=0
+	end
+    genz=[];wfz=[];infinite_grid=sum(owpp_mva)*3
+    for i=1:1:length(markets_wfs[1])*length(scenario_data["Generation"]["keys"]); push!(genz,(i,infinite_grid/data["baseMVA"]));end
+    for i=1:1:length(markets_wfs[1]); push!(genz,(i+length(markets_wfs[1])*length(scenario_data["Generation"]["keys"])+length(markets_wfs[2]),infinite_grid/data["baseMVA"]));end
+    for i=1:1:length(markets_wfs[2]); push!(wfz,(i+length(markets_wfs[1])*length(scenario_data["Generation"]["keys"]),owpp_mva[i]/data["baseMVA"]));end
+    return infinite_grid, genz, wfz, markets_wfs,all_gens
+end
+
 ################################################ Converters #####################################
 #adds DC grid to PMACDC
 function additional_params_PMACDC(data)
