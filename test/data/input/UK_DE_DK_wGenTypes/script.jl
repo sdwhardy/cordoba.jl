@@ -3,7 +3,7 @@ using Gurobi, JuMP, DataFrames, FileIO, CSV, Dates
 import Cordoba_self; const _CBD = Cordoba_self#Cordoba package backend - under development
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
-
+using OrderedCollections
 ##################### Input parameters #################################
 rt_ex=pwd()*"\\test\\data\\input\\UK_DE_DK_wGenTypes\\"#folder path
 argz = Dict(
@@ -39,42 +39,27 @@ s = Dict("output" => Dict("branch_flows" => false),
 ########################################################################
 ################## Run MIP Formulation ###################
 mn_data, data, argz, s = _CBD.main_ACDC_wgen_types(rt_ex,argz, s);#Build data structure for given options
-#seperates wfs from genz and defines markets/wfs zones
 
-#cost[1], pmax, source_id[2]
-#load Time series data
-function load_time_series_gentypes(rt_ex, argz, scenario_data,markets)
-    #keep only specified scenarios
-    d_keys=keys(scenario_data["Generation"]["Scenarios"]);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data["Generation"]["Scenarios"],k);end;end
-	d_keys=keys(scenario_data["Demand"]);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data["Demand"],k);end;end
-	#Keep only specified markets
-	countries=unique(vcat(markets[1],markets[2]))
-	for key in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
-		if !(issubset([string(key)],countries));
-			delete!(scenario_data["Generation"]["RES"]["Offshore Wind"],key);
-			delete!(scenario_data["Generation"]["RES"]["Onshore Wind"],key);
-			delete!(scenario_data["Generation"]["RES"]["Solar PV"],key);
-		end;end
-	#keep only specified weather years
-	for country in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
-		for year in keys(scenario_data["Generation"]["RES"]["Offshore Wind"][country])
-			if !(issubset([string(year)],argz["res_years"]));
-				delete!(scenario_data["Generation"]["RES"]["Offshore Wind"][country],year);
-				delete!(scenario_data["Generation"]["RES"]["Onshore Wind"][country],year);
-				delete!(scenario_data["Generation"]["RES"]["Solar PV"][country],year);
-			end;end;end
-	if (haskey(argz, "test") && argz["test"]==true)
-        for k0 in d_keys; for k1 in keys(scenario_data[k0]); scenario_data[k0][k1]=scenario_data[k0][k1][1:2,:];end;end
-    end
-    ##################### Find minimum length scenario and Make all scenarios the same length
-    ls=[];for (_sc, data_by_scenario) in scenario_data; for (_yr, data_by_yr) in data_by_scenario;
-    push!(ls,length(scenario_data[_sc][_yr].time_stamp))
-    end;end;ls=minimum(ls)
+#multi period problem setup
+function multi_period_setup_wgen_type(ls,scenario_data,data, markets, infinite_grid, argz, s)
+    #################### Multi-period input parameters #######################
+    data,scenario, dim = _CBD.multi_period_stoch_year_setup_wgen_type(ls,argz["res_years"],argz["scenario_years"],argz["scenario_names"],data);
+    scenario["planning_horizon"] = argz["scenario_planning_horizon"]; # in years, to scale generation cost
+    extradata,data =create_profile_sets_mesh_wgen_type(dim, data, scenario_data, markets, infinite_grid, [data["baseMVA"] for wf in argz["owpp_mva"]])
+    extradata = create_profile_sets_rest(dim, extradata, data)
+    #########################################################################
+    #################### Scale cost data
+    scale_cost_data_hourly!(extradata, scenario)
+    extradata=costs_datas_wREZ(extradata, s, argz)
 
-    for (_yr, data_by_yr) in scenario_data; for (_sc, data_by_scenario) in data_by_yr;
-    scenario_data[_yr][_sc]=scenario_data[_yr][_sc][1:ls,:]
-    end;end
-    return scenario_data, ls
+    ######################################################
+    xtradata = Dict{String,Any}()
+    xtradata["dim"] = Dict{String,Any}()
+    xtradata["dim"] = dim
+    ######################################################
+    # Create data dictionary where time series data is included at the right place
+    mn_data = _PMACDC.multinetwork_data(data, xtradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
+    return mn_data, extradata
 end
 
 
@@ -96,14 +81,12 @@ function main_ACDC_wgen_types(rt_ex,argz, s)
     _CBD.additional_params_PMACDC(data)
     _CBD.print_topology_data_DC(data,markets)#print to verify
     ##################### load time series data ##############################
-    scenario_data, ls = load_time_series_gentypes(rt_ex,argz, scenario_data,markets)
-    push!(argz,"ls"=>ls)
+    scenario_data = _CBD.load_time_series_gentypes(rt_ex,argz, scenario_data,markets)
     ##################### multi period setup #################################
-	s=update_settings(s, argz, data)
-    mn_data, xd  = multi_period_setup(ls, scenario_data, data, markets, infinite_grid, argz, s)
+	s=_CBD.update_settings(s, argz, data)
+    mn_data, xd  = multi_period_setup_wgen_type(ls, scenario_data, data, markets, infinite_grid, argz, s)
 	s["xd"]=xd
-    return  mn_data, data, argz, s=#
-    return argz
+    return  mn_data, data, argz, s
 end
 
 gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver

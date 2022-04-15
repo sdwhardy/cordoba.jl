@@ -19,6 +19,61 @@ function load_time_series(rt_ex, argz)
     return scenario_data, ls
 end
 
+#load Time series data
+function load_time_series_gentypes(rt_ex, argz, scenario_data,markets)
+	ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4UKBEDEDK.jld2")
+    #keep only specified scenarios
+    d_keys=keys(scenario_data["Generation"]["Scenarios"]);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data["Generation"]["Scenarios"],k);end;end
+	d_keys=keys(scenario_data["Demand"]);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data["Demand"],k);end;end
+	#Keep only specified markets
+	countries=unique(vcat(markets[1],markets[2]))
+	d_keys=keys(scenario_data["Generation"]["Scenarios"]);for k in d_keys;c_keys=keys(scenario_data["Generation"]["Scenarios"][k]);
+	for c in c_keys;if !(issubset([string(c)],countries));delete!(scenario_data["Generation"]["Scenarios"][k],c);end;end;end
+	for key in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
+		if !(issubset([string(key)],countries));
+			delete!(scenario_data["Generation"]["RES"]["Offshore Wind"],key);
+			delete!(scenario_data["Generation"]["RES"]["Onshore Wind"],key);
+			delete!(scenario_data["Generation"]["RES"]["Solar PV"],key);
+		end;end
+	#keep only specified weather years
+	for country in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
+		for year in keys(scenario_data["Generation"]["RES"]["Offshore Wind"][country])
+			if !(issubset([string(year)],argz["res_years"]));
+				delete!(scenario_data["Generation"]["RES"]["Offshore Wind"][country],year);
+				delete!(scenario_data["Generation"]["RES"]["Onshore Wind"][country],year);
+				delete!(scenario_data["Generation"]["RES"]["Solar PV"][country],year);
+			end;end;end
+	#keep only k specified days
+	tss2keep=[];ls=0
+	for country in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
+		for year in keys(scenario_data["Generation"]["RES"]["Offshore Wind"][country])
+			ts2keep=ks[year][argz["k"]]
+			if (haskey(argz, "test") && argz["test"]==true)
+				ts2keep=ts2keep[1:2]
+		    end
+			filter!(:time_stamp=>x->issubset([x],ts2keep),scenario_data["Generation"]["RES"]["Offshore Wind"][country][year]);
+			filter!(:time_stamp=>x->issubset([x],ts2keep),scenario_data["Generation"]["RES"]["Onshore Wind"][country][year]);
+			filter!(:time_stamp=>x->issubset([x],ts2keep),scenario_data["Generation"]["RES"]["Solar PV"][country][year]);
+			#place common timestamp in 2020
+			offset2020=Dates.Year(2020-parse(Int64,year))
+			scenario_data["Generation"]["RES"]["Offshore Wind"][country][year][!,:time_stamp]=scenario_data["Generation"]["RES"]["Offshore Wind"][country][year][!,:time_stamp].+offset2020
+			scenario_data["Generation"]["RES"]["Onshore Wind"][country][year][!,:time_stamp]=scenario_data["Generation"]["RES"]["Onshore Wind"][country][year][!,:time_stamp].+offset2020
+			scenario_data["Generation"]["RES"]["Solar PV"][country][year][!,:time_stamp]=scenario_data["Generation"]["RES"]["Solar PV"][country][year][!,:time_stamp].+offset2020;
+			ls=length(ts2keep)
+			ts2keep=ts2keep.+offset2020
+			tss2keep=vcat(tss2keep,ts2keep)
+			end;end
+	clmns2keep=[count*"_MWh" for count in countries];push!(clmns2keep,"time_stamp")
+	for scenario in keys(scenario_data["Demand"])
+		offset2020=Dates.Year(Dates.year(scenario_data["Demand"][scenario][!,:time_stamp][1])-2020)
+		scenario_data["Demand"][scenario][!,:time_stamp]=scenario_data["Demand"][scenario][!,:time_stamp].-offset2020;
+		filter!(:time_stamp=>x->issubset([x],tss2keep),scenario_data["Demand"][scenario]);
+		cs2delete=[name for name in names(scenario_data["Demand"][scenario]) if !(issubset([name],clmns2keep))]
+		DataFrames.select!(scenario_data["Demand"][scenario],DataFrames.Not(cs2delete))
+	end
+	push!(argz,"ls"=>ls)
+    return scenario_data
+end
 
 #multi period problem setup
 function multi_period_setup(ls,scenario_data,data, markets, infinite_grid, argz, s)
@@ -70,6 +125,32 @@ function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario
     return all_scenario_data,data,scenario, dim
 end
 
+#Organizes nw numbers per scenario-year
+function multi_period_stoch_year_setup_wgen_type(ls,res_years,scenario_years,scenario_names,data)
+	scenario_names=unique([sn[1:2] for sn in scenario_names])
+    scenario = Dict{String, Any}("hours" => ls,"years" => length(scenario_years), "sc_names" => Dict{String, Any}())
+    data["scenario"] = Dict{String, Any}()
+    data["scenario_prob"] = Dict{String, Any}()
+    #set problem dimension
+    dim = scenario["hours"] * length(scenario_years) * length(scenario_names)
+    for _nm in scenario_names; for _by in res_years; push!(scenario["sc_names"], string(_nm)*string(_by)=> Dict{String, Any}());for _yr in scenario_years; push!(scenario["sc_names"][string(_nm)*string(_by)], _yr=> []);end;end;end
+
+    for (s,(k_sc,_sc)) in enumerate(scenario["sc_names"]);
+		data["scenario"][string(s)] = Dict()
+        data["scenario_prob"][string(s)] = 1/length(scenario["sc_names"])
+        for (t,(k_yr,_yr)) in enumerate(sort(OrderedCollections.OrderedDict(_sc), by=x->parse(Int64,x)));
+            start_idx=(s-1)*scenario["hours"]*length(_sc)
+            start_idx=start_idx+(t-1)*scenario["hours"]
+            for h in 1 : scenario["hours"]
+                network = start_idx + h
+                h2=h+(t-1)*scenario["hours"]
+                data["scenario"][string(s)]["$h2"] = network
+                push!(scenario["sc_names"][string(k_sc)][k_yr],network)
+            end
+        end;
+    end
+    return data,scenario, dim
+end
 
 #loads generator cost and profile time series In multi-period simulation
 function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_grid, owpp_mva)
