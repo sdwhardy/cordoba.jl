@@ -42,8 +42,9 @@ function constraint_power_balance_acne_dcne_strg(pm::_PM.AbstractDCPModel, n::In
 
     #cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) -sum(ps_ne[s] for s in bus_storage_ne) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
     cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
-    #println(cstr)
+
     if _IM.report_duals(pm)
+        #println("dual: "*string(cstr))
         _PM.sol(pm, n, :bus, i)[:lam_kcl_r] = cstr
         _PM.sol(pm, n, :bus, i)[:lam_kcl_i] = NaN
     end
@@ -601,6 +602,7 @@ end
 function calc_wf_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_wf_cost_npv(i, b_cost, nw)
+        #println(string(nw)*" "*string(i)*" "*string(b_cost))
         cost = b_cost * _PM.var(pm,nw,:wf_pacmax,i)
         return cost
     end
@@ -617,6 +619,9 @@ function calc_wf_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
         for nt=n:hl:n+yl*hl-1
             push!(wfs,_PM.ref(pm, nt, :gen));push!(wfs_ns,nt);end
         for (k,gs) in enumerate(wfs)
+            #for (i,g) in gs;println(string(i)*" "*string(wfs_ns[k])*" "*string(n));end
+            #for (i,g) in gs;println(string(i)*" "*string(wfs_ns[k])*" "*string(n));end
+            #for (i,g) in gs;if issubset([string(i)],first.(pm.setting["wfz"]));println(string(i)*" is subset of wfz");end;end
             cost = cost + sum(calc_single_wf_cost_npv(i,pm.setting["xd"]["gen"][string(i)]["invest"][wfs_ns[k]],n) for (i,g) in gs if issubset([i],first.(pm.setting["wfz"])))
         end
     else
@@ -945,10 +950,10 @@ function constraint_t0t1_wfz(vss, pm)
     for (i,vs) in enumerate(vss)
         for (j,v) in enumerate(last(vs))
             if (mod(i,hl)!=1)
-                JuMP.@constraint(pm.model, last(vss[i])[Int8(j+length(pm.setting["genz"])/2)] == last(vss[i-1])[Int8(j+length(pm.setting["genz"])/2)])
+                JuMP.@constraint(pm.model, last(vss[i])[Int64(j+(-1+minimum(first.(pm.setting["wfz"]))))] == last(vss[i-1])[Int64(j+(-1+minimum(first.(pm.setting["wfz"]))))])
             end
             if (i+hl*yl<=length(vss))
-                JuMP.@constraint(pm.model, last(vss[i])[Int8(j+length(pm.setting["genz"])/2)] == last(vss[i+hl*yl])[Int8(j+length(pm.setting["genz"])/2)])
+                JuMP.@constraint(pm.model, last(vss[i])[Int64(j+(-1+minimum(first.(pm.setting["wfz"]))))] == last(vss[i+hl*yl])[Int64(j+(-1+minimum(first.(pm.setting["wfz"]))))])
             end
             if (i==y*hl+(s-1)*yl*hl+1)
                 y+=1
@@ -958,7 +963,7 @@ function constraint_t0t1_wfz(vss, pm)
                 y=1
             end
             if (i+hl<=s*yl*hl && i+hl<=sl*yl*hl && y<yl)
-                    JuMP.@constraint(pm.model, last(vss[i])[Int64(j+length(pm.setting["genz"])/2)]  <= last(vss[i+hl])[Int64(j+length(pm.setting["genz"])/2)])
+                    JuMP.@constraint(pm.model, last(vss[i])[Int64(j+(-1+minimum(first.(pm.setting["wfz"]))))]  <= last(vss[i+hl])[Int64(j+(-1+minimum(first.(pm.setting["wfz"]))))])
             end
         end
     end

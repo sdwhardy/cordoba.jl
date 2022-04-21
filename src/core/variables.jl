@@ -10,7 +10,8 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
             if issubset([s],first.(pm.setting["wfz"]))
                 ########################################
                 JuMP.set_lower_bound(wf_pacmax[s],  0)
-                JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s-length(pm.setting["genz"])/2)]))
+                #JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s-length(pm.setting["genz"])/2)]))
+                JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s+1-minimum(first.(pm.setting["wfz"])))]))
                 #######################################
             end
         end
