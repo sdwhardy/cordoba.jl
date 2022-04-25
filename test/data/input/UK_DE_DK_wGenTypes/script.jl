@@ -23,13 +23,13 @@ argz = Dict(
 "yearly_investment"=>100000)
 
 ################## optimization/solver setup options ###################
-s = Dict("output" => Dict("branch_flows" => false, "duals"=>true),
+s = Dict("output" => Dict("branch_flows" => false),
 "home_market"=>[],#nodes within Zonal market
 "balancing_reserve"=>0.3,#zonal market must be defined to have any effect
 "AC"=>"1",#0=false, 1=true
 "eps"=>0.0001,#admm residual (100kW)
 "beta"=>5.5,
-"relax_problem" => true,
+"relax_problem" => false,
 "conv_losses_mp" => false,
 "process_data_internally" => false,
 "corridor_limit" => true,
@@ -45,7 +45,7 @@ result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multi
 _CBD.print_solution_data(result_mip, data, argz)#print solution
 gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data, argz, map_gen_types,s)#print solution
 ###################################### plotting ################################
-using PlotlyJS
+#using PlotlyJS
 country="DE"#,"DE","DK"]
 scenario="1"
 con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]

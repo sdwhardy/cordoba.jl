@@ -297,7 +297,7 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
 		        	for (fuel, type) in country
 						for (g, gen) in type
 		            	#market generator onshore
-						S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][k_sc_sd*k_yr_sd][xy])[:Capacity]
+						S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][k_sc_sd*k_yr_sd][xy])[!,:Capacity]
 						if isempty(S_row)
 							extradata["gen"][string(g)]["pmax"][1, d] = 0
 							extradata["gen"][string(g)]["cost"][d] = [0,0]

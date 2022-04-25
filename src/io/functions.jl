@@ -799,7 +799,7 @@ function build_generator_tables(result_mip, data)
 		namelist = Symbol.(titles[1:end,1])
 		df  = DataFrames.DataFrame()
 		for (i, name) in enumerate(namelist)
-    	df[name] =  [titles[i,j] for j in 2:length(titles[i,:])];end
+    	df[!,name] =  [titles[i,j] for j in 2:length(titles[i,:])];end
 		push!(gen_per_scenario,s=>df)
 	end
 	return gen_per_scenario
@@ -839,14 +839,14 @@ end
 
 function plot_generation_profile(gen, con, country)
     clrs=generation_color_map()
-    col_names=names(gen[2:end])
+    col_names=names(gen[!,2:end])
     for col in col_names;
         if (isapprox(sum(gen[!,col]),0,atol=1))
             DataFrames.select!(gen, DataFrames.Not(Symbol(col)))
     end;end
 	#battery energy
 	con_sum=DataFrames.DataFrame();con_sum[!,:ts]=con[!,:ts]
-	if (haskey(gen,"Battery"))
+	if (hasproperty(gen,:Battery))
 		bat=gen[!,"Battery"]
 		bat_d=[imp>=0 ? imp : 0 for imp in bat]
 		if (sum(bat_d)>0);gen[!,"Battery Discharge"]=bat_d;end
@@ -857,26 +857,26 @@ function plot_generation_profile(gen, con, country)
 	end
 
 
-    col_names_con=names(con[1:end])
-    all_con=length(col_names_con)>1 ? abs.(sum(eachcol(con[2:end]))) : zeros(Int8,length(con[!,:ts]))
-    all_gen=abs.(sum(eachcol(gen[2:end])))
+    col_names_con=names(con[!,1:end])
+    all_con=length(col_names_con)>1 ? abs.(sum(eachcol(con[!,2:end]))) : zeros(Int8,length(con[!,:ts]))
+    all_gen=abs.(sum(eachcol(gen[!,2:end])))
     #imported energy
     import_export=all_con.-all_gen
     imp=[imp>=0 ? imp : 0 for imp in import_export]
     if (sum(imp)>0);gen[!,"Import"]=imp;end
     #Set range
-    all_gen=abs.(sum(eachcol(gen[2:end])))
+    all_gen=abs.(sum(eachcol(gen[!,2:end])))
     rng_gen=maximum(all_gen)
     #exported energy
     exp=[exp<=0 ? exp : 0 for exp in import_export]
     if (sum(exp)<0);con_sum[!,"Export"]=exp;end
 	if (sum(all_con)>0);con_sum[!,"Demand"]=-1*all_con;end
 
-	all_con=abs.(sum(eachcol(con_sum[2:end])))
+	all_con=abs.(sum(eachcol(con_sum[!,2:end])))
     rng_con=maximum(all_con)
 
-    col_names_gen=names(gen[2:end])
-    col_names_con=names(con_sum[2:end])
+    col_names_gen=names(gen[!,2:end])
+    col_names_con=names(con_sum[!,2:end])
     scatter_vec_gen=[
         PlotlyJS.scatter(
             x=gen[!,:ts], y=gen[!,Symbol(nm)],
