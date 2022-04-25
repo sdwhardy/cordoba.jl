@@ -312,6 +312,164 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
 							end
 							extradata["gen"][string(g)]["pmin"][1, d] = 0
 			                extradata["gen"][string(g)]["cost"][d] = [scenario_data["Generation"]["costs"][fuel]/e2me,0]
+							if !(haskey(demand_curve,xy));push!(demand_curve,xy=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
+							push!(demand_curve[xy],[S_row[1]/pu,scenario_data["Generation"]["costs"][fuel]/e2me])
+							push!(genz,(parse(Int64,g),S_row[1]/pu))
+						end
+				end;end;end
+				#Wind power Plants
+				for (j,(xy, country)) in enumerate(all_gens["offshore"])
+		        	for (i,(g, gen)) in enumerate(country)
+					#wind gen
+						CF=scenario_data["Generation"]["RES"]["Offshore Wind"][xy][k_sc[3:6]][!,Symbol(xy*"_MWh")][h]
+		                extradata["gen"][string(g)]["pmax"][1, d] = CF
+						extradata["gen"][string(g)]["pmin"][1, d] = 0
+		                extradata["gen"][string(g)]["cost"][d] = [0,0]
+						extradata["gen"][string(g)]["invest"][1, d] = gen["invest"]
+						push!(wfz,(parse(Int64,g),argz["owpp_mva"][j]/pu))
+				end;end
+			end
+        end
+    end
+	#set ["type"]
+    for (g, gen) in data["gen"]
+		if (isapprox(sum(extradata["gen"][g]["pmax"]),0,atol=10e-3) && isapprox(sum(extradata["gen"][g]["pmin"]),0,atol=10e-3))
+			gen["gen_status"]=0;
+		else
+		end
+    end
+	#=xy="DE"
+	if !(haskey(demand_curve,xy));push!(demand_curve,xy=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
+	push!(demand_curve[xy],[1,3])=#
+    #adjust demand curve
+	demand_curve_reduced=Dict()
+	for (cuntree, df) in demand_curve
+		cuntree_total=sum(df[!,:generation])
+		unique_costs=unique(df[!,:fuel_cost])
+		if !(haskey(demand_curve_reduced,cuntree));push!(demand_curve_reduced,cuntree=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
+		for fuel_cost in unique_costs
+			capacity=sum(filter(:fuel_cost=>x->x==fuel_cost,df)[!,:generation])
+			push!(demand_curve_reduced[cuntree],[capacity/cuntree_total,fuel_cost])
+		end
+	end
+
+	#add loads
+	#all_gens["onshore"]["UK"]["Gas"]["8"]=g
+	num_of_gens=length(data["gen"])
+	if !(haskey(map_gen_types,"loads"));push!(map_gen_types,"loads"=>Dict());end
+	loads=Dict{String,Any}()
+	for (cuntree,df) in demand_curve_reduced
+		if !(haskey(loads,cuntree));push!(loads,cuntree=>Dict());end
+		load=deepcopy(first(first(all_gens["onshore"][cuntree])[2])[2])
+		for row in eachrow(df)
+			#reset load parameters
+	    	load["type"]=1
+			load["gen_status"]=1
+	        load["index"]=num_of_gens+1
+	        load["source_id"][2]=num_of_gens+1
+	        load["pmin"]=deepcopy(row[:generation])*-1
+	        load["pmax"]=0
+			load["cost"]=[deepcopy(row[:fuel_cost]),0]
+	        push!(loads[cuntree],string(num_of_gens+1)=>deepcopy(load))
+	        num_of_gens=num_of_gens+1
+
+			#map load to country
+			if !(haskey(map_gen_types["loads"],cuntree));push!(map_gen_types["loads"],cuntree=>[]);end
+			push!(map_gen_types["loads"][cuntree],num_of_gens)
+	end;end
+	for (cuntree, dic) in loads
+    	for (l, load) in dic
+	        extradata["gen"][string(l)] = Dict{String,Any}()
+	        extradata["gen"][string(l)]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
+	        extradata["gen"][string(l)]["pmin"] = Array{Float64,2}(undef, 1, number_of_hours)
+	        extradata["gen"][string(l)]["cost"] = [Vector{Float64}() for i=1:number_of_hours]
+    end;end
+
+	#onshore loads
+	for (k_sc,sc) in scenario["sc_names"]
+		for (k_yr,yr) in sc
+			k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
+			k_sc_sd=k_yr=="2020" ? "NT" : k_sc[1:2]
+			for (h,d) in enumerate(yr)
+		        #loads
+				for (cuntree, dic) in loads
+			        for (l, load) in sort!(OrderedCollections.OrderedDict(dic), by=x->parse(Int64,x))
+						ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
+						S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd*k_yr_sd])[!,Symbol(cuntree*"_MWh")]
+		                extradata["gen"][string(l)]["pmax"][1, d] = 0
+		                extradata["gen"][string(l)]["pmin"][1, d] = load["pmin"]*S_row[1]/pu
+		                extradata["gen"][string(l)]["cost"][d] = load["cost"]
+		                push!(data["gen"],string(l)=>load)
+						push!(genz,(parse(Int64,l),S_row[1]/pu))
+			        end
+				end
+    end;end;end
+	unique!(x->first(x),genz)
+	unique!(x->first(x),wfz)
+	push!(s,"genz"=>genz)
+    push!(s,"wfz"=>wfz)
+	data_orig["gen"]=data["gen"]
+    return extradata, data_orig, map_gen_types
+end
+#=
+function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig, all_gens, scenario_data, markets, s, argz, map_gen_types)
+	genz=[];wfz=[]
+
+    pu=data_orig["baseMVA"]
+    e2me=1000000/pu#into ME/PU
+    extradata = Dict{String,Any}()
+    data=Dict{String,Any}();data["gen"]=Dict{String,Any}()
+    extradata["dim"] = Dict{String,Any}()
+    extradata["dim"] = number_of_hours
+    extradata["gen"] = Dict{String,Any}()
+	demand_curve = Dict{String,Any}()
+
+	for (c,country) in all_gens["onshore"];
+		for (fuel,type) in country;
+			for (num,g) in type;
+				push!(data["gen"],num=>g)
+				;end;end;end
+
+	for (c,country) in all_gens["offshore"];
+		for (num,g) in country;
+		push!(data["gen"],num=>g);end;end
+
+    data["gen"]=sort!(OrderedCollections.OrderedDict(data["gen"]), by=x->parse(Int64,x))
+	for (g, gen) in data["gen"]
+        extradata["gen"][string(g)] = Dict{String,Any}()
+        extradata["gen"][string(g)]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["gen"][string(g)]["pmin"] = Array{Float64,2}(undef, 1, number_of_hours)
+		extradata["gen"][string(g)]["cost"] = [Vector{Float64}() for i=1:number_of_hours]
+		if (gen["type"]==0)
+		extradata["gen"][string(g)]["invest"] = Array{Float64,2}(undef, 1, number_of_hours);end
+    end
+
+	for (k_sc,sc) in scenario["sc_names"]
+		for (k_yr,yr) in sc
+			k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
+			k_sc_sd=k_yr=="2020" ? "NT" : k_sc[1:2]
+			for (h,d) in enumerate(yr)
+		        #Day ahead BE
+		        #onshore generators
+				for (xy, country) in all_gens["onshore"]
+		        	for (fuel, type) in country
+						for (g, gen) in type
+		            	#market generator onshore
+						S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][k_sc_sd*k_yr_sd][xy])[:Capacity]
+						if isempty(S_row)
+							extradata["gen"][string(g)]["pmax"][1, d] = 0
+							extradata["gen"][string(g)]["cost"][d] = [0,0]
+							extradata["gen"][string(g)]["pmin"][1, d] = 0
+		#					extradata["gen"][string(g)]["gen_status"][1, d] = 0
+						else
+							if issubset([fuel],keys(scenario_data["Generation"]["RES"]))
+								CF=scenario_data["Generation"]["RES"][fuel][xy][k_sc[3:6]][!,Symbol(xy*"_MWh")][h]
+								extradata["gen"][string(g)]["pmax"][1, d] = CF*S_row[1]/pu
+							else
+								extradata["gen"][string(g)]["pmax"][1, d] = S_row[1]/pu
+							end
+							extradata["gen"][string(g)]["pmin"][1, d] = 0
+			                extradata["gen"][string(g)]["cost"][d] = [scenario_data["Generation"]["costs"][fuel]/e2me,0]
 							push!(demand_curve,string(g)=>(xy,scenario_data["Generation"]["costs"][fuel]/e2me))
 							push!(genz,(parse(Int64,g),S_row[1]/pu))
 						end
@@ -402,7 +560,7 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
 	data_orig["gen"]=data["gen"]
     return extradata, data_orig, map_gen_types
 end
-
+=#
 
 ######################## Scaling cost data ###########################
 #scale investment to hourly cost spread over the year

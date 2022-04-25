@@ -1,4 +1,5 @@
 module Cordoba_self
+import PlotlyJS
 import JuMP
 import JSON
 import CSV

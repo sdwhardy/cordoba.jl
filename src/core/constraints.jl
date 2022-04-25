@@ -44,7 +44,6 @@ function constraint_power_balance_acne_dcne_strg(pm::_PM.AbstractDCPModel, n::In
     cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
 
     if _IM.report_duals(pm)
-        #println("dual: "*string(cstr))
         _PM.sol(pm, n, :bus, i)[:lam_kcl_r] = cstr
         _PM.sol(pm, n, :bus, i)[:lam_kcl_i] = NaN
     end

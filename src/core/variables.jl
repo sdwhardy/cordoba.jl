@@ -152,12 +152,14 @@ function variable_storage_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bound
         for (s, strg) in _PM.ref(pm, nw, :storage)
             #println("p_rateA[s]: ")
             #println(p_rateA[s])
-            if issubset([s],first.(pm.setting["genz"]))
+            if issubset([s],first.(pm.setting["onshore_nodes"]))
+                #println("onshore battery: "*string(s))
                 ########################################
                 JuMP.set_lower_bound(e_absmax[s],  0)
                 JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_onshore"])
                 #######################################
-            elseif issubset([s],first.(pm.setting["wfz"]))
+            elseif issubset([s],first.(pm.setting["offshore_nodes"]))
+                #println("offshore battery: "*string(s))
                 ########################################
                 JuMP.set_lower_bound(e_absmax[s],  0)
                 JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_offshore"])
