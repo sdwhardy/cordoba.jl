@@ -409,6 +409,8 @@ function fix_dc_ne_lines2zero(pm)
                 for (i,br) in branchdc_ne
                     brnch=_PM.var(pm, n, :branchdc_ne, i)
                     JuMP.fix(brnch,0,force=true)
+                    JuMP.unset_binary(brnch)
+                    println(JuMP.is_binary(brnch))
                 end
             end
         end
@@ -438,6 +440,8 @@ function fix_ac_ne_lines2zero(pm)
                 for (i,br) in branch_ne
                     brnch=_PM.var(pm, n, :branch_ne, i)
                     JuMP.fix(brnch,0,force=true)
+                    JuMP.unset_binary(brnch)
+                    println(JuMP.is_binary(brnch))
                 end
             end
         end

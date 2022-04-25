@@ -23,13 +23,13 @@ argz = Dict(
 "yearly_investment"=>100000)
 
 ################## optimization/solver setup options ###################
-s = Dict("output" => Dict("branch_flows" => false),
+s = Dict("output" => Dict("branch_flows" => false, "duals"=>true),
 "home_market"=>[],#nodes within Zonal market
 "balancing_reserve"=>0.3,#zonal market must be defined to have any effect
 "AC"=>"1",#0=false, 1=true
 "eps"=>0.0001,#admm residual (100kW)
 "beta"=>5.5,
-"relax_problem" => false,
+"relax_problem" => true,
 "conv_losses_mp" => false,
 "process_data_internally" => false,
 "corridor_limit" => true,
