@@ -808,7 +808,7 @@ end
 ######################### plotting generation types ###################################
 
 function plot_marginal_price(gen,map_gen_types, country)
-    col_names=names(gen[2:end])
+    col_names=names(gen[!,2:end])
     for col in col_names;
         if (isapprox(sum(gen[!,col]),0,atol=1))
             DataFrames.select!(gen, DataFrames.Not(Symbol(col)))
