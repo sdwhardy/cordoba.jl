@@ -10,7 +10,8 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
             if issubset([s],first.(pm.setting["wfz"]))
                 ########################################
                 JuMP.set_lower_bound(wf_pacmax[s],  0)
-                JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s-length(pm.setting["genz"])/2)]))
+                #JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s-length(pm.setting["genz"])/2)]))
+                JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s+1-minimum(first.(pm.setting["wfz"])))]))
                 #######################################
             end
         end
@@ -36,6 +37,27 @@ function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bou
     if bounded
         for (i, gen) in _PM.ref(pm, nw, :gen)
             if issubset([i],first.(pm.setting["genz"]))
+                JuMP.set_lower_bound(pg[i], pm.setting["xd"]["gen"][string(i)]["pmin"][nw])
+                JuMP.set_upper_bound(pg[i], pm.setting["xd"]["gen"][string(i)]["pmax"][nw])
+            elseif issubset([i],first.(pm.setting["wfz"]))
+                wf_pacmax = _PM.var(pm, nw, :wf_pacmax, i)
+                JuMP.@constraint(pm.model, pg[i]-pm.setting["xd"]["gen"][string(i)]["pmax"][nw]*wf_pacmax  <= 0)
+                JuMP.@constraint(pm.model, pg[i]+pm.setting["xd"]["gen"][string(i)]["pmin"][nw]  >= 0)
+            end
+        end
+    end
+    report && _IM.sol_component_value(pm, nw, :gen, :pg, _PM.ids(pm, nw, :gen), pg)
+end
+
+#=function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
+    pg = _PM.var(pm, nw)[:pg] = JuMP.@variable(pm.model,
+        [i in _PM.ids(pm, nw, :gen)], base_name="$(nw)_pg",
+        start = _PM.comp_start_value(_PM.ref(pm, nw, :gen, i), "pg_start")
+    )
+
+    if bounded
+        for (i, gen) in _PM.ref(pm, nw, :gen)
+            if issubset([i],first.(pm.setting["genz"]))
                 JuMP.set_lower_bound(pg[i], gen["pmin"])
                 JuMP.set_upper_bound(pg[i], gen["pmax"])
             elseif issubset([i],first.(pm.setting["wfz"]))
@@ -46,7 +68,7 @@ function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bou
         end
     end
     report && _IM.sol_component_value(pm, nw, :gen, :pg, _PM.ids(pm, nw, :gen), pg)
-end
+end=#
 
 #generator imaginary power + constraints
 function variable_gen_power_imaginary(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
@@ -130,12 +152,14 @@ function variable_storage_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bound
         for (s, strg) in _PM.ref(pm, nw, :storage)
             #println("p_rateA[s]: ")
             #println(p_rateA[s])
-            if issubset([s],first.(pm.setting["genz"]))
+            if issubset([s],first.(pm.setting["onshore_nodes"]))
+                #println("onshore battery: "*string(s))
                 ########################################
                 JuMP.set_lower_bound(e_absmax[s],  0)
                 JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_onshore"])
                 #######################################
-            elseif issubset([s],first.(pm.setting["wfz"]))
+            elseif issubset([s],first.(pm.setting["offshore_nodes"]))
+                #println("offshore battery: "*string(s))
                 ########################################
                 JuMP.set_lower_bound(e_absmax[s],  0)
                 JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_offshore"])
@@ -400,4 +424,3 @@ function variable_branch_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, 
 
     report && _IM.sol_component_value_edge(pm, nw, :branch, :pf, :pt, _PM.ref(pm, nw, :arcs_from), _PM.ref(pm, nw, :arcs_to), p)
 end
-

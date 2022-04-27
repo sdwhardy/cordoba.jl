@@ -1,23 +1,23 @@
-############################# cordoba_acdc_wf_strg ###############
-export cordoba_acdc_wf_strg
+############################# cordoba_acdc_wgentypes ###############
+export cordoba_acdc_wgentypes
 
-function cordoba_acdc_wf_strg(data::Dict{String,Any}, model_type::Type, solver; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!,  _FP.add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
+function cordoba_acdc_wgentypes(data::Dict{String,Any}, model_type::Type, solver; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!,  _FP.add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
     s = setting
-    return _PM.run_model(data, model_type, solver, post_cordoba_acdc_wf_strg; ref_extensions = [_PMACDC.add_ref_dcgrid!,_PMACDC.add_candidate_dcgrid!,  _FP.add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
+    return _PM.run_model(data, model_type, solver, post_cordoba_acdc_wgentypes; ref_extensions = [_PMACDC.add_ref_dcgrid!,_PMACDC.add_candidate_dcgrid!,  _FP.add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
 end
 
 
-function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
+function post_cordoba_acdc_wgentypes(pm::_PM.AbstractPowerModel)
     # VARIABLES: defined within PowerModels(ACDC) can directly be used, other variables need to be defined in the according sections of the code: flexible_demand.jl
     vsp=[];vcp=[];vap=[];vbp=[];vgp=[];vdp=[];vacp=[]
         for n in _PM.nw_ids(pm)
 
-          
+
             _PM.variable_bus_voltage(pm; nw = n)#CREATES voltage angle variables and sets voltage magnitudes to 1.0 at all AC nodes
             push!(vgp,variable_wfs_peak(pm; nw = n))
             variable_gen_power(pm; nw = n)#CREATES pg variables of all generators and sets upper and lower limits
-            
-            
+
+
             ####################### cordoba converters ########################
             push!(vcp,variable_convdc_peak(pm; nw = n))
             variable_dc_converter(pm; nw = n)
@@ -89,7 +89,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                 _PM.constraint_theta_ref(pm, i, nw = n)
             end
 
-        
+
             if (!(haskey(pm.setting, "agent")) || (pm.setting["agent"] == ""))
                 for i in _PM.ids(pm, n, :bus)
                     if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
@@ -232,16 +232,16 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             objective_min_cost_acdc_convexcble_strg_npv_admm(pm)
         else
             if (haskey(pm.setting,"relax_problem") && pm.setting["relax_problem"]==true)
-                objective_min_cost_acdc_convex_convcble_strg_npv(pm)
+                objective_min_cost_acdc_convex_conv_strg_npv(pm)
                 fix_dc_ne_lines2zero(pm)
                 fix_ac_ne_lines2zero(pm)
-                undo_relax=JuMP.relax_integrality(pm.model)
             else
                 objective_min_cost_acdc_convex_conv_strg_npv(pm)
             end
         end
+        #println(JuMP.objective_function(pm.model))
         #OBJECTIVE see objective.jl
-
+        #println(pm.model)
         #OBJECTIVE see objective.jl
         #objective_min_cost_acdc_convex_conv_strg_npv(pm)
         #CONSTRAINTS: defined within PowerModels(ACDC) can directly be used, other constraints need to be defined in the according sections of the code: flexible_demand.jl
@@ -249,4 +249,3 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             println(v)
         end=#
 end
-

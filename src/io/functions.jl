@@ -5,7 +5,7 @@ function main_ACDC_wstrg(rt_ex,argz, s)
     topology_df(rt_ex, s["relax_problem"], s["AC"])#creates .m file
     data, ics_ac, ics_dc, nodes = filter_mfile_cables(rt_ex)#loads resulting topology and filters for candidate cables
     ############### defines size and market of genz and wfs ###################
-    infinite_grid, genz, wfz, markets = genz_n_wfs(argz["owpp_mva"],nodes,data["baseMVA"])
+    infinite_grid, genz, wfz, markets = genz_n_wfs(argz["owpp_mva"],nodes,data["baseMVA"],s)
     push!(argz,"genz"=>genz)
     push!(argz,"wfz"=>wfz)
     #################### Calculates cable options for AC lines
@@ -19,11 +19,59 @@ function main_ACDC_wstrg(rt_ex,argz, s)
     scenario_data, ls = load_time_series(rt_ex,argz)
     push!(argz,"ls"=>ls)
     ##################### multi period setup #################################
-    mn_data = multi_period_setup(ls, scenario_data, data, markets, infinite_grid, argz)
-    s=update_settings(s, argz, data)
-#   if (haskey(s,"home_market") && length(s["home_market"])>0)
-#      mn_data=zonal_adjust(mn_data, s);end
+	s=update_settings(s, argz, data)
+    mn_data, xd  = multi_period_setup(ls, scenario_data, data, markets, infinite_grid, argz, s)
+	s["xd"]=xd
+	push!(s,"max_invest_per_year"=>max_invest_per_year(argz))
     return  mn_data, data, argz, s
+    #return  scenario_data, data, argz, s, ls, markets, infinite_grid
+end
+
+#seperates wfs from genz and defines markets/wfs zones
+function main_ACDC_wgen_types(rt_ex,argz, s)
+    ################# Load topology files ###################################
+    topology_df(rt_ex, s["relax_problem"], s["AC"])#creates .m file
+    data, ics_ac, ics_dc, nodes = filter_mfile_cables(rt_ex)#loads resulting topology and filters for candidate cables
+    ############### defines size and market of genz and wfs ###################
+	scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4UKBEDEDK.jld2")
+	######## Batteries are removed and modeled seperately time series #########
+	for (k_sc,sc) in scenario_data["Generation"]["Scenarios"]
+		for (k_cunt,cuntree) in sc;filter!(:Generation_Type=>x->x!="Battery", cuntree);end;end
+	####################### Freeze offshore expansion of data #################
+	developement_zones=filter(:type=>x->x==0,nodes)[!,:country]
+	Base_offshore=Dict();for (k_cunt,cuntree) in scenario_data["Generation"]["Scenarios"]["NT2025"]
+	push!(Base_offshore,k_cunt=>filter(:Generation_Type=>x->x=="Offshore Wind", cuntree))end;
+	for (k_sc,sc) in scenario_data["Generation"]["Scenarios"]
+		for (k_cunt,cuntree) in sc;
+			if (issubset([k_cunt],developement_zones))
+				owf=findfirst(x->x=="Offshore Wind", cuntree[!,:Generation_Type]);
+				scenario_data["Generation"]["Scenarios"][k_sc][k_cunt][!,:Capacity][owf]=Base_offshore[k_cunt][!,"Capacity"][1]
+		end;end;end
+	###########################################################################
+	markets,all_gens,map_gen_types = gen_types(argz["owpp_mva"],nodes,data, scenario_data,s)
+	map_gen_types["markets"]=markets
+	map_gen_types["costs"]=scenario_data["Generation"]["costs"]
+    #################### Calculates cable options for AC lines
+    data=AC_cable_options(data,argz["candidate_ics_ac"],ics_ac,data["baseMVA"])
+    print_topology_data_AC(data,markets)#print to verify
+    #################### Calculates cable options for DC lines
+    data=DC_cable_options(data,argz["candidate_ics_dc"],ics_dc,data["baseMVA"])
+    additional_params_PMACDC(data)
+    print_topology_data_DC(data,markets)#print to verify
+    ##################### load time series data ##############################
+    scenario_data = load_time_series_gentypes(rt_ex,argz, scenario_data,markets)
+    ##################### multi period setup #################################
+	s["ic_lim"]=argz["conv_lim"]/data["baseMVA"]
+    s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]])
+    s["scenarios_length"] = length(argz["scenario_names"])
+    s["years_length"] = length(argz["scenario_years"])
+    s["hours_length"] = argz["ls"]
+    mn_data, xd, map_gen_types  = multi_period_setup_wgen_type(scenario_data, data, all_gens, markets, argz, s, map_gen_types)
+	for (g,gen) in mn_data["nw"]
+		gen["gen"]=Dict(gen["gen"]);end
+	s["xd"]=xd
+	push!(s,"max_invest_per_year"=>max_invest_per_year(argz))
+    return  mn_data, data, argz, s,map_gen_types
 end
 
 function update_settings(s, argz, data)
@@ -40,7 +88,7 @@ end
 
 ########################################## Cables ###############################################
 ###################### HVAC/HVDC
-#loads .m result and filters candidates 
+#loads .m result and filters candidates
 function filter_mfile_cables(rt_ex)
     nodes = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "node_generation")...)
 	edges = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "connections_acdc")...)
@@ -115,6 +163,7 @@ function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
 	cable_pu_x=Dict{String,Any}()
 	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(data["ne_branch"]), by=x->parse(Int64,x)))
 		last(acb)["source_id"][2]=i
+		#last(acb)["br_status"]=0
 		push!(temp_cables_ne,string(i)=>last(acb))
 		for (j,acb_con) in enumerate(sort(OrderedCollections.OrderedDict(data["branch"]), by=x->parse(Int64,x)))
 			if (last(acb)["f_bus"]==last(acb_con)["f_bus"] && last(acb)["t_bus"]==last(acb_con)["t_bus"])
@@ -227,6 +276,7 @@ function DC_cable_options(data,candidate_ics_dc,ics_dc,pu)
 	cable_pu_r=Dict{String,Any}()
 	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(data["branchdc_ne"]), by=x->parse(Int64,x)))
 		last(acb)["source_id"][2]=i
+		#last(acb)["status"]=0
 		push!(temp_cables_ne,string(i)=>last(acb))
 		for (j,acb_con) in enumerate(sort(OrderedCollections.OrderedDict(data["branchdc"]), by=x->parse(Int64,x)))
 			if (last(acb)["fbusdc"]==last(acb_con)["fbusdc"] && last(acb)["tbusdc"]==last(acb_con)["tbusdc"])
@@ -370,19 +420,66 @@ end
 ########################################## Generators ##############################################################
 
 #seperates wfs from genz and defines markets/wfs zones
-function genz_n_wfs(owpp_mva,nodes,pu)
-    infinite_grid=sum(owpp_mva)*3
-    markets_wfs=[String[],String[]]#UK,DE,DK must be in same order as .m file gens
-    for (k,cunt) in enumerate(nodes[!,"country"])
-        if (nodes[!,"type"][k]>0)
-        push!(markets_wfs[1],cunt);else
-        push!(markets_wfs[2],cunt);end
-    end
+function genz_n_wfs(owpp_mva,nodes,pu,s)
+	s["onshore_nodes"]=[];s["offshore_nodes"]=[];
+	infinite_grid=sum(owpp_mva)*3
+	s,markets_wfs=divide_onshore_offshore(nodes,s)
     genz=[];wfz=[]
     for i=1:1:length(markets_wfs[1]); push!(genz,(i,infinite_grid/pu));end
     for i=1:1:length(markets_wfs[1]); push!(genz,(i+length(markets_wfs[1])+length(markets_wfs[2]),infinite_grid/pu));end
     for i=1:1:length(markets_wfs[2]); push!(wfz,(i+length(markets_wfs[1]),owpp_mva[i]/pu));end
     return infinite_grid, genz, wfz, markets_wfs
+end
+
+function divide_onshore_offshore(nodes,s)
+	s["onshore_nodes"]=[];s["offshore_nodes"]=[];
+    markets_wfs=[String[],String[]]#UK,DE,DK must be in same order as .m file gens
+    for (k,cuntree) in enumerate(nodes[!,"country"])
+        if (nodes[!,"type"][k]>0)
+        push!(markets_wfs[1],cuntree);push!(s["onshore_nodes"],k);else
+        push!(markets_wfs[2],cuntree);push!(s["offshore_nodes"],k);end
+    end
+	return s,markets_wfs
+end
+
+function gen_types(owpp_mva,nodes,data,scenario_data,s)
+	s,markets_wfs=divide_onshore_offshore(nodes,s)
+	map_gen_types=Dict{String,Any}();push!(map_gen_types,"type"=>Tuple[]);
+	base_gens=deepcopy(data["gen"])
+	all_gens=Dict{String, Any}()
+	push!(all_gens,"onshore"=>Dict())
+	for (gen,country) in enumerate(markets_wfs[1])
+		push!(all_gens["onshore"],country=>Dict())
+		if !(haskey(map_gen_types,"countries"));push!(map_gen_types,"countries"=>Dict());end
+		if !(haskey(map_gen_types["countries"],country));push!(map_gen_types["countries"],country=>[]);end
+		for (t,type) in enumerate(scenario_data["Generation"]["keys"])
+			generator_number=string((gen-1)*length(scenario_data["Generation"]["keys"])+t)
+			push!(all_gens["onshore"][country],type=>Dict())
+			push!(all_gens["onshore"][country][type],generator_number=>copy(base_gens[string(gen)]))
+			all_gens["onshore"][country][type][generator_number]["source_id"]=["gen",parse(Int64,generator_number)]
+			all_gens["onshore"][country][type][generator_number]["index"]=parse(Int64,generator_number)
+			all_gens["onshore"][country][type][generator_number]["gen_status"]=1
+			push!(map_gen_types["type"],(generator_number,type))
+			push!(map_gen_types["countries"][country],generator_number)
+		end
+	end
+
+	push!(all_gens,"offshore"=>Dict())
+	for (gen,country) in enumerate(markets_wfs[2])
+		if !(haskey(all_gens["offshore"],country))
+			push!(all_gens["offshore"],country=>Dict());end
+		if !(haskey(map_gen_types,"offshore"));push!(map_gen_types,"offshore"=>Dict());end
+		if !(haskey(map_gen_types["offshore"],country));push!(map_gen_types["offshore"],country=>[]);end
+		generator_number=string(length(all_gens["onshore"])*length(scenario_data["Generation"]["keys"])+gen)
+		push!(all_gens["offshore"][country],generator_number=>copy(base_gens[string(length(markets_wfs[1])+gen)]))
+		all_gens["offshore"][country][generator_number]["source_id"]=["gen",parse(Int64,generator_number)]
+		all_gens["offshore"][country][generator_number]["index"]=parse(Int64,generator_number)
+		all_gens["offshore"][country][generator_number]["gen_status"]=1
+		push!(map_gen_types["type"],(generator_number,"Offshore Wind"))
+		push!(map_gen_types["offshore"][country],generator_number)
+	end
+
+    return markets_wfs,all_gens, map_gen_types
 end
 
 ################################################ Converters #####################################
@@ -594,6 +691,267 @@ function print_owpps(result_mip,argz)
                 println(string(i)*": "*string(wf["wf_pacmax"]))
         end;end
     end
+end
+
+
+####################################### Genration/Demand Summary ###################################################
+
+function summarize_generator_solution_data(result_mip, data, argz, map_gen_types,s)#print solution
+	gen_tbls=build_generator_tables(result_mip, data)
+	gen_by_market=sort_by_country(gen_tbls,map_gen_types,s)
+	gen_by_offshore=sort_by_offshore(gen_tbls,map_gen_types,s)
+	load_by_market=sort_load_by_country(gen_tbls,map_gen_types)
+	gen_consume=Dict()
+	push!(gen_consume,"onshore_generation"=>gen_by_market)
+	push!(gen_consume,"offshore_generation"=>gen_by_offshore)
+	push!(gen_consume,"onshore_demand"=>load_by_market)
+	return gen_consume
+end
+function sort_load_by_country(gen_tbls,map_gen_types)
+	per_market=Dict()
+	for (s,sc) in gen_tbls
+		if !(haskey(per_market,s));push!(per_market,s=>Dict());end
+		col_names=names(sc)
+		for (cuntree,gens) in map_gen_types["loads"]
+			for gen in gens
+			if !(haskey(per_market[s],cuntree));push!(per_market[s],cuntree=>DataFrames.DataFrame(Symbol(col_names[1])=>sc[!,Symbol(col_names[1])]));end
+				col_num=findfirst(x->x==string(gen),col_names)
+				if !(isnothing(col_num))
+				per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol(col_names[col_num])=>sc[!,Symbol(col_names[col_num])]))
+			end;end
+		end
+	end
+
+	return per_market
+end
+
+function sort_by_offshore(gen_tbls,map_gen_types,set)
+	per_market=Dict()
+	for (s,sc) in gen_tbls
+		if !(haskey(per_market,s));push!(per_market,s=>Dict());end
+		col_names=names(sc)
+		for (cuntree,gens) in map_gen_types["offshore"]
+			for gen in gens
+			if !(haskey(per_market[s],cuntree));push!(per_market[s],cuntree=>DataFrames.DataFrame(Symbol(col_names[1])=>sc[!,Symbol(col_names[1])]));end
+				col_num=findfirst(x->x==gen,col_names)
+				if !(isnothing(col_num))
+				per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol("Offshore Wind")=>sc[!,Symbol(col_names[col_num])]))
+			end;end
+		end
+
+		for cuntree_num in set["offshore_nodes"]
+			cuntree=map_gen_types["markets"][2][cuntree_num-length(set["onshore_nodes"])]
+			if !(haskey(per_market[s],cuntree));push!(per_market[s],cuntree=>DataFrames.DataFrame(Symbol(col_names[1])=>sc[!,Symbol(col_names[1])]));end
+			per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol("Battery")=>sc[!,Symbol("Battery "*string(cuntree_num))]))
+		end
+	end
+	return per_market
+end
+
+function sort_by_country(gen_tbls,map_gen_types,set)
+	per_market=Dict()
+	for (s,sc) in gen_tbls
+		if !(haskey(per_market,s));push!(per_market,s=>Dict());end
+		col_names=names(sc)
+		for (cuntree,gens) in map_gen_types["countries"]
+			for gen in gens
+			if !(haskey(per_market[s],cuntree));push!(per_market[s],cuntree=>DataFrames.DataFrame(Symbol(col_names[1])=>sc[!,Symbol(col_names[1])]));end
+				col_num=findfirst(x->x==gen,col_names)
+				if !(isnothing(col_num))
+				per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol(col_names[col_num])=>sc[!,Symbol(col_names[col_num])]))
+			end;end
+			for (num,type) in map_gen_types["type"];
+				cunt_col_names=names(per_market[s][cuntree])
+				location=findfirst(x->x==num,cunt_col_names)
+				if !(isnothing(location))
+					DataFrames.rename!(per_market[s][cuntree], cunt_col_names[location]=>type)
+				end
+			end
+		end
+
+		for cuntree_num in set["onshore_nodes"]
+			println(cuntree_num)
+			cuntree=map_gen_types["markets"][1][cuntree_num]
+			if !(haskey(per_market[s],cuntree));push!(per_market[s],cuntree=>DataFrames.DataFrame(Symbol(col_names[1])=>sc[!,Symbol(col_names[1])]));end
+				per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol("Battery")=>sc[!,Symbol("Battery "*string(cuntree_num))]))
+		end
+	end
+	return per_market
+end
+
+function build_generator_tables(result_mip, data)
+	gen_per_scenario=Dict{}()
+	for (s,sc) in data["scenario"]
+		titles=["ts"]
+		for (g,gen) in sort!(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["gen"]), by=x->parse(Int64,x));push!(titles,string(g));end
+		for (s,bat) in sort!(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["storage"]), by=x->parse(Int64,x));push!(titles,"Battery "*string(s));end
+		for (cts,ts) in sort!(OrderedCollections.OrderedDict(sc), by=x->parse(Int64,x))
+			ts_row=[];push!(ts_row,ts)
+			for (g,gen) in sort!(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(ts)]["gen"]), by=x->parse(Int64,x))
+				push!(ts_row,gen["pg"])
+			end
+			for (s,bat) in sort!(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(ts)]["storage"]), by=x->parse(Int64,x))
+				push!(ts_row,-1*bat["ps"])
+			end
+			titles=hcat(titles,ts_row)
+		end
+
+		namelist = Symbol.(titles[1:end,1])
+		df  = DataFrames.DataFrame()
+		for (i, name) in enumerate(namelist)
+    	df[!,name] =  [titles[i,j] for j in 2:length(titles[i,:])];end
+		push!(gen_per_scenario,s=>df)
+	end
+	return gen_per_scenario
+end
+
+######################### plotting generation types ###################################
+
+function plot_marginal_price(gen,map_gen_types, country)
+    col_names=names(gen[!,2:end])
+    for col in col_names;
+        if (isapprox(sum(gen[!,col]),0,atol=1))
+            DataFrames.select!(gen, DataFrames.Not(Symbol(col)))
+    end;end
+    marginal_prices=[]
+    for row in eachrow(gen)
+	    active_gen_types=[]
+	    for k in keys(row[2:end])
+		    if (row[k]>0)
+			    push!(active_gen_types,map_gen_types["costs"][string(k)])
+		    end
+	    end
+	    push!(marginal_prices,maximum(active_gen_types))
+    end
+    low_rng=minimum(marginal_prices)
+    high_rng=maximum(marginal_prices)
+    scatter_vec=[
+	PlotlyJS.scatter(
+	    x=gen[!,:ts], y=marginal_prices,
+	    name="Marginal Price", mode="lines",
+	    line=PlotlyJS.attr(width=1, color="black")
+	)]
+
+	PlotlyJS.plot(
+	scatter_vec, PlotlyJS.Layout(yaxis_range=(low_rng, high_rng),yaxis_title="€/MWh",xaxis_title="time steps",title=country))
+end
+
+
+function plot_generation_profile(gen, con, country)
+    clrs=generation_color_map()
+    col_names=names(gen[!,2:end])
+    for col in col_names;
+        if (isapprox(sum(gen[!,col]),0,atol=1))
+            DataFrames.select!(gen, DataFrames.Not(Symbol(col)))
+    end;end
+	#battery energy
+	con_sum=DataFrames.DataFrame();con_sum[!,:ts]=con[!,:ts]
+	if (hasproperty(gen,:Battery))
+		bat=gen[!,"Battery"]
+		bat_d=[imp>=0 ? imp : 0 for imp in bat]
+		if (sum(bat_d)>0);gen[!,"Battery Discharge"]=bat_d;end
+		bat_c=[exp<=0 ? exp : 0 for exp in bat]
+		if (sum(bat_c)<0);con[!,"Battery Charge"]=bat_c;end
+		if (sum(bat_c)<0);con_sum[!,"Battery Charge"]=bat_c;end
+		gen=DataFrames.select!(gen,DataFrames.Not(Symbol("Battery")))
+	end
+
+
+    col_names_con=names(con[!,1:end])
+    all_con=length(col_names_con)>1 ? abs.(sum(eachcol(con[!,2:end]))) : zeros(Int8,length(con[!,:ts]))
+    all_gen=abs.(sum(eachcol(gen[!,2:end])))
+    #imported energy
+    import_export=all_con.-all_gen
+    imp=[imp>=0 ? imp : 0 for imp in import_export]
+    if (sum(imp)>0);gen[!,"Import"]=imp;end
+    #Set range
+    gen[!,2:end]=gen[!,2:end]./10
+    all_gen=abs.(sum(eachcol(gen[!,2:end])))
+    rng_gen=maximum(all_gen)
+    #exported energy
+    exp=[exp<=0 ? exp : 0 for exp in import_export]
+    if (sum(exp)<0);con_sum[!,"Export"]=exp;end
+	if (sum(all_con)>0);con_sum[!,"Demand"]=-1*all_con;end
+
+    con_sum[!,2:end]=con_sum[!,2:end]./10
+	all_con=abs.(sum(eachcol(con_sum[!,2:end])))
+    rng_con=maximum(all_con)
+
+    col_names_gen=names(gen[!,2:end])
+    col_names_con=names(con_sum[!,2:end])
+    scatter_vec_gen=[
+        PlotlyJS.scatter(
+            x=gen[!,:ts], y=gen[!,Symbol(nm)],
+            stackgroup="one", name=String(nm), mode="lines", hoverinfo="x+y",
+            line=PlotlyJS.attr(width=0.5, color=clrs[nm])
+        ) for nm in col_names_gen]
+
+        scatter_vec_con=[
+            PlotlyJS.scatter(
+                x=con_sum[!,:ts], y=con_sum[!,Symbol(nm)],
+                stackgroup="two", name=String(nm), mode="lines", hoverinfo="x+y",
+                line=PlotlyJS.attr(width=0.5, color=clrs[nm])
+            ) for nm in col_names_con]
+
+         scatter_vec=vcat(scatter_vec_con,scatter_vec_gen)
+            PlotlyJS.plot(
+            scatter_vec, PlotlyJS.Layout(yaxis_range=(-1*rng_con, rng_gen),yaxis_title="GW",xaxis_title="time steps",title=country))
+end
+
+function plot_dual_marginal_price(result_mip, tss, cuntree)
+    clrs=generation_color_map()    
+    marg_price=Dict();push!(marg_price,"cuntrees"=>Dict());if !(haskey(marg_price,"ts"));push!(marg_price,"ts"=>[]);end
+    for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
+        if (issubset([string(n)],tss)) 
+            push!(marg_price["ts"],n)
+            for (b,bs) in nw["bus"];
+                if (parse(Int8,b)==first(cuntree))
+            if !(haskey(marg_price["cuntrees"],last(cuntree)));push!(marg_price["cuntrees"],last(cuntree)=>[]);end
+            push!(marg_price["cuntrees"][last(cuntree)],bs["lam_kcl_r"]*-10);end;end;
+        end;end
+        
+        #low_rng=minimum(marginal_prices)
+        #high_rng=maximum(marginal_prices)
+        scatter_vec_gen=[
+            PlotlyJS.scatter(
+                x=marg_price["ts"], y=marginal_prices,
+                name=cuntree, mode="lines",
+                line=PlotlyJS.attr(width=2, color=clrs[cuntree])
+            ) for (cuntree,marginal_prices) in marg_price["cuntrees"]]
+        lims=[(maximum(marginal_prices),minimum(marginal_prices)) for (cuntree,marginal_prices) in marg_price["cuntrees"]]
+        PlotlyJS.plot(
+            scatter_vec_gen, PlotlyJS.Layout(yaxis_range=(minimum(last.(lims)), maximum(first.(lims))),yaxis_title="€/MWh",xaxis_title="time steps",title="Marginal price "*last(cuntree)))
+    end
+
+function generation_color_map()
+        color_dict=Dict("Offshore Wind"=>"darkgreen",
+        "UK"=>"darkgreen",
+        "WF"=>"navy",
+        "DE"=>"red",
+        "DK"=>"black",
+        "Onshore Wind"=>"forestgreen",
+        "Solar PV"=>"yellow",
+        "Solar Thermal"=>"orange",
+        "Gas CCGT new"=>"chocolate",
+		"Gas OCGT new"=>"orange",
+        "Gas CCGT old 1"=>"brown",
+        "Gas CCGT old 2"=>"darkorange",
+        "Gas CCGT present 1"=>"tan2",
+        "Gas CCGT present 2"=>"sienna",
+        "Reservoir"=>"blue",
+        "Run-of-River"=>"navy",
+        "Nuclear"=>"gray69",
+        "Other RES"=>"yellowgreen",
+        "Gas CCGT new CCS"=>"sienna1",
+        "Gas CCGT present 1 CCS"=>"sienna2",
+        "Gas CCGT present 2 CCS"=>"sienna3",
+        "Battery Discharge"=>"azure",
+		"Battery Charge"=>"white",
+        "Gas CCGT CCS"=>"sienna4",
+        "Demand"=>"grey",
+        "Import"=>"red",
+        "Export"=>"black")
+        return color_dict
 end
 
 

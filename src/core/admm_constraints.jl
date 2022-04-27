@@ -12,7 +12,6 @@ function constraint_power_balance_acne_dcne_strg_admm(pm::_PM.AbstractDCPModel, 
     ps   = _PM.var(pm, n, :ps)
     #ps_ne   = _PM.var(pm, n, :ps_ne)
     v = 1
-    _beta=1
     nodal_balance=0.0
     nodal_balance_l2=0.0
     if !(isempty(bus_arcs))
@@ -60,10 +59,6 @@ function constraint_power_balance_acne_dcne_strg_admm(pm::_PM.AbstractDCPModel, 
     #println("nodal balnce_l2: "*string(nodal_balance_l2))
 
     _PM.sol(pm, n, :bus, i)[:imbalance] = nodal_balance
-    return lambda*nodal_balance+_beta*(nodal_balance^2)
-    #else
-    #    return nodal_balance
-    #end
-    #return _beta*(nodal_balance^2)
+    return lambda*nodal_balance+pm.setting["beta"]/2*(nodal_balance^2)
 end
 

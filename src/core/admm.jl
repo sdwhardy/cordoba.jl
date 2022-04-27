@@ -1,9 +1,10 @@
-#Main logic for ADMM 
+#Main logic for ADMM
 function admm_4_AjAwAgAuAo_main(mn_data, gurobi, s)
     results_set=[]
     eps=s["eps"]#set max value of residual for convergence
     residual=Inf#Initialize residual
-    agents=["Ag","Au","Ao","Aw","Aj"]#Initilize agents
+    #agents=["Ag","Au","Ao","Aw","Aj"]#Initilize agents
+    agents=["Aall","Ao"]#Initilize agents
     push!(s,"fixed_variables" => Dict{String,Any}())#reserve memory for varible updates
     push!(s,"agent" => "")#create agent dictionary entry
     s["fixed_variables"] = admm_4_AjAwAgAuAo_intialize(mn_data["nw"], s["fixed_variables"], s["wfz"], s["genz"])#set initial values for fixed variables
@@ -22,7 +23,7 @@ function admm_4_AjAwAgAuAo_main(mn_data, gurobi, s)
             end
         end
         [println(first(r)*" "*string(last(r)["objective"])) for r in results_set]#print current objective
-        s["fixed_variables"], residual = dual_variable_update(s["fixed_variables"])#update the dual variable
+        s["fixed_variables"], residual = dual_variable_update(s["fixed_variables"], s["beta"])#update the dual variable
         println("Residual: "*string(residual))#print residual
     #end
     end
@@ -145,6 +146,10 @@ function admm_4_AjAwAgAuAo_update(rez, fixed_variables, agent, wfz)
         elseif (agent=="Aj")#storage
             fixed_variables=update_storage(n,nw,fixed_variables)
             fixed_variables=update_imbalance(n,nw,fixed_variables)
+        elseif (agent=="Aall")#all agents except TSO
+            fixed_variables=update_genz(n,nw,fixed_variables,wfz)
+            fixed_variables=update_storage(n,nw,fixed_variables)
+            fixed_variables=update_imbalance(n,nw,fixed_variables)
         end
     end
     return fixed_variables
@@ -221,8 +226,7 @@ function update_storage(key,nw,fixed_variables)
     return fixed_variables
 end
 ################################################# Dual update ####################################################
-function dual_variable_update(fixed_variables)
-    beta=2.5
+function dual_variable_update(fixed_variables, beta)
     residuals=[]
     for (n,nw) in fixed_variables
         for (i_b,b) in nw["bus"]
@@ -237,7 +241,7 @@ end
 ################################################# fixing agent values ############################################
 function fix_variables(pm)
     for n in _PM.nw_ids(pm)
-        if (pm.setting["agent"]=="Ao" || pm.setting["agent"]=="Aox")
+        if (pm.setting["agent"]=="Ao")
             fix_storage(pm, n)#set storage vars
             fix_genz(pm, n)#set gen vars
             fix_wind(pm, n)#set wind vars
@@ -267,6 +271,10 @@ function fix_variables(pm)
             fix_storage(pm, n)#set storage vars
             fix_wind(pm, n)#set wind vars
             fix_genz(pm, n)#set gen vars
+            fix_branchesdc(pm, n)#set branch vars
+            fix_branchesac(pm, n)
+            fix_convdc(pm,n)#set convdc vars
+        elseif (pm.setting["agent"]=="Aall")
             fix_branchesdc(pm, n)#set branch vars
             fix_branchesac(pm, n)
             fix_convdc(pm,n)#set convdc vars
