@@ -865,6 +865,7 @@ function plot_generation_profile(gen, con, country)
     imp=[imp>=0 ? imp : 0 for imp in import_export]
     if (sum(imp)>0);gen[!,"Import"]=imp;end
     #Set range
+    gen[!,2:end]=gen[!,2:end]./10
     all_gen=abs.(sum(eachcol(gen[!,2:end])))
     rng_gen=maximum(all_gen)
     #exported energy
@@ -872,6 +873,7 @@ function plot_generation_profile(gen, con, country)
     if (sum(exp)<0);con_sum[!,"Export"]=exp;end
 	if (sum(all_con)>0);con_sum[!,"Demand"]=-1*all_con;end
 
+    con_sum[!,2:end]=con_sum[!,2:end]./10
 	all_con=abs.(sum(eachcol(con_sum[!,2:end])))
     rng_con=maximum(all_con)
 
@@ -893,21 +895,50 @@ function plot_generation_profile(gen, con, country)
 
          scatter_vec=vcat(scatter_vec_con,scatter_vec_gen)
             PlotlyJS.plot(
-            scatter_vec, PlotlyJS.Layout(yaxis_range=(-1*rng_con, rng_gen),yaxis_title="MW",xaxis_title="time steps",title=country))
+            scatter_vec, PlotlyJS.Layout(yaxis_range=(-1*rng_con, rng_gen),yaxis_title="GW",xaxis_title="time steps",title=country))
 end
+
+function plot_dual_marginal_price(result_mip, tss, cuntree)
+    clrs=generation_color_map()    
+    marg_price=Dict();push!(marg_price,"cuntrees"=>Dict());if !(haskey(marg_price,"ts"));push!(marg_price,"ts"=>[]);end
+    for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
+        if (issubset([string(n)],tss)) 
+            push!(marg_price["ts"],n)
+            for (b,bs) in nw["bus"];
+                if (parse(Int8,b)==first(cuntree))
+            if !(haskey(marg_price["cuntrees"],last(cuntree)));push!(marg_price["cuntrees"],last(cuntree)=>[]);end
+            push!(marg_price["cuntrees"][last(cuntree)],bs["lam_kcl_r"]*-10);end;end;
+        end;end
+        
+        #low_rng=minimum(marginal_prices)
+        #high_rng=maximum(marginal_prices)
+        scatter_vec_gen=[
+            PlotlyJS.scatter(
+                x=marg_price["ts"], y=marginal_prices,
+                name=cuntree, mode="lines",
+                line=PlotlyJS.attr(width=2, color=clrs[cuntree])
+            ) for (cuntree,marginal_prices) in marg_price["cuntrees"]]
+        lims=[(maximum(marginal_prices),minimum(marginal_prices)) for (cuntree,marginal_prices) in marg_price["cuntrees"]]
+        PlotlyJS.plot(
+            scatter_vec_gen, PlotlyJS.Layout(yaxis_range=(minimum(last.(lims)), maximum(first.(lims))),yaxis_title="€/MWh",xaxis_title="time steps",title="Marginal price "*last(cuntree)))
+    end
 
 function generation_color_map()
         color_dict=Dict("Offshore Wind"=>"darkgreen",
+        "UK"=>"darkgreen",
+        "WF"=>"navy",
+        "DE"=>"red",
+        "DK"=>"black",
         "Onshore Wind"=>"forestgreen",
         "Solar PV"=>"yellow",
         "Solar Thermal"=>"orange",
         "Gas CCGT new"=>"chocolate",
-		"Gas OCGT new"=>"chocolate2",
-        "Gas CCGT old 1"=>"chocolate3",
-        "Gas CCGT old 2"=>"tan1",
+		"Gas OCGT new"=>"orange",
+        "Gas CCGT old 1"=>"brown",
+        "Gas CCGT old 2"=>"darkorange",
         "Gas CCGT present 1"=>"tan2",
         "Gas CCGT present 2"=>"sienna",
-        "Reservoir"=>"blue1",
+        "Reservoir"=>"blue",
         "Run-of-River"=>"navy",
         "Nuclear"=>"gray69",
         "Other RES"=>"yellowgreen",

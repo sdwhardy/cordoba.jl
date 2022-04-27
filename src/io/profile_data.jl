@@ -349,7 +349,10 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
 		if !(haskey(demand_curve_reduced,cuntree));push!(demand_curve_reduced,cuntree=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
 		for fuel_cost in unique_costs
 			capacity=sum(filter(:fuel_cost=>x->x==fuel_cost,df)[!,:generation])
-			push!(demand_curve_reduced[cuntree],[capacity/cuntree_total,fuel_cost])
+			#push!(demand_curve_reduced[cuntree],[capacity/cuntree_total,fuel_cost])
+            #println(string(cuntree)*"|"*string(capacity/cuntree_total)*"|"*string(fuel_cost))
+            push!(demand_curve_reduced[cuntree],[1/length(unique_costs),fuel_cost])
+            println(string(cuntree)*"|"*string(1/length(unique_costs))*"|"*string(fuel_cost))
 		end
 	end
 

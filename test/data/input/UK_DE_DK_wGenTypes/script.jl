@@ -44,41 +44,18 @@ gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#sele
 result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
 _CBD.print_solution_data(result_mip, data, argz)#print solution
 gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data, argz, map_gen_types,s)#print solution
-###################################### plotting ################################
-#using PlotlyJS
+###################################### plotting ################################	
+
+country="UK"#,"DE","DK"]
+scenario="1"
+con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
+gen=gen_consume_summary["onshore_generation"][scenario][country]#[121:144,:]
+_CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
+_CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (2,"DE"))
+
+
 country="DE"#,"DE","DK"]
 scenario="1"
 con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
 #con=select!(con,:ts)
-gen=gen_consume_summary["onshore_generation"][scenario][country]#[121:144,:]
-_CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
 _CBD.plot_marginal_price(deepcopy(gen),map_gen_types,country*" "*scenario)
-
-
-
-#with OBZ
-s["home_market"]=[]#nodes within Zonal market
-result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-_CBD.print_solution_data(result_mip, data, argz)#print solution
-################## Run Convex Formulation ################
-s["relax_problem"]=true
-mn_data, data, argz, s = _CBD.main_ACDC_wstrg(rt_ex,argz, s)#Build data structure for given options
-gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
-result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-_CBD.print_solution_data(result_mip, data, argz)#print convex solution
-mn_data, data, s = _CBD.convex2mip(result_mip, data, mn_data, s)#Convert convex to candicate cables
-gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap" => 1e-4)#In large problems a larger MIPgap (1-5%?) may be desirable
-result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)
-_CBD.print_solution_data(result_mip, data, argz)#print MIP solution=#
-
-################## Run ADMM Formulation ################
-s["relax_problem"]=true
-mn_data, data, argz, s = _CBD.main_ACDC_wstrg(rt_ex,argz, s);#Build data structure for given options
-gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 0)
-result_mip = _CBD.admm_4_AjAwAgAuAo_main(mn_data, gurobi, s);#Solve problem
-_CBD.print_solution_data(result_mip, data, argz)#print Convex (ADMM) solution
-
-mn_data, data, s = _CBD.convex2mip(result_mip, data, mn_data, s)#Convert convex to candicate cables
-gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap" => 1e-4)#In large problems a larger MIPgap (1-5%?) may be desirable
-result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-_CBD.print_solution_data(result_mip, data, argz)#print MIP solution

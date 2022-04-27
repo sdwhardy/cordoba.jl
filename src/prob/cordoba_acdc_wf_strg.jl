@@ -235,6 +235,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                 objective_min_cost_acdc_convex_convcble_strg_npv(pm)
                 fix_dc_ne_lines2zero(pm)
                 fix_ac_ne_lines2zero(pm)
+                undo_relax=JuMP.relax_integrality(pm.model)
             else
                 objective_min_cost_acdc_convex_conv_strg_npv(pm)
             end
