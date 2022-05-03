@@ -9,10 +9,19 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
         for (s, gen) in _PM.ref(pm, nw, :gen)
             if issubset([s],first.(pm.setting["wfz"]))
                 ########################################
+                if (pm.setting["rebalancing"]==true)
+                    JuMP.set_lower_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
+                    JuMP.set_upper_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
+                else
+                    
+              
+                #println(pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
+                ########################################
                 JuMP.set_lower_bound(wf_pacmax[s],  0)
                 #JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s-length(pm.setting["genz"])/2)]))
                 JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s+1-minimum(first.(pm.setting["wfz"])))]))
                 #######################################
+                end
             end
         end
     end
@@ -104,8 +113,15 @@ function variable_convdc_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounde
             #println("p_rateA[s]: ")
             #println(p_rateA[s])
             ########################################
-            JuMP.set_lower_bound(p_pacmax[s],  0)
-            JuMP.set_upper_bound(p_pacmax[s],  pm.setting["ic_lim"])
+            if (pm.setting["rebalancing"]==true)
+                JuMP.set_lower_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
+            else
+                JuMP.set_lower_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmin"][nw])
+            end
+            #println(pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
+            #println(pm.setting["ic_lim"])
+            JuMP.set_upper_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
+            #JuMP.set_upper_bound(p_pacmax[s],  pm.setting["ic_lim"])
             #######################################
         end
     end
@@ -342,8 +358,15 @@ function variable_dcbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
     if bounded
         for (s, branchdc) in _PM.ref(pm, nw, :branchdc)
             #######################################
-            JuMP.set_lower_bound(p_rateA[s],  0)
-            JuMP.set_upper_bound(p_rateA[s],  pm.setting["ic_lim"])
+            if (pm.setting["rebalancing"]==true)
+                JuMP.set_lower_bound(p_rateA[s],  pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw])
+            else
+                JuMP.set_lower_bound(p_rateA[s],  0)
+            end
+            #JuMP.set_upper_bound(p_rateA[s],  pm.setting["ic_lim"])
+           # println("prev upper limit: "*string(pm.setting["ic_lim"]))
+           # println("upper limit: "*string(pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw]))
+            JuMP.set_upper_bound(p_rateA[s],  pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw])
             #######################################
         end
     end
@@ -378,8 +401,13 @@ function variable_acbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
     if bounded
         for (s, branch) in _PM.ref(pm, nw, :branch)
             ########################################
-            JuMP.set_lower_bound(p_rateAC[s],  0)
-            JuMP.set_upper_bound(p_rateAC[s],  pm.setting["rad_lim"])
+            if (pm.setting["rebalancing"]==true)
+                JuMP.set_lower_bound(p_rateAC[s],  pm.setting["xd"]["branch"][string(s)]["rateA"][nw])
+            else
+                JuMP.set_lower_bound(p_rateAC[s],  0)
+            end
+            #JuMP.set_upper_bound(p_rateAC[s],  pm.setting["rad_lim"])
+            JuMP.set_upper_bound(p_rateAC[s],  pm.setting["xd"]["branch"][string(s)]["rateA"][nw])
             #######################################
         end
     end

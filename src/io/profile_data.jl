@@ -19,16 +19,20 @@ function load_time_series(rt_ex, argz)
     return scenario_data, ls
 end
 
+
 #load Time series data
 function load_time_series_gentypes(rt_ex, argz, scenario_data,markets)
 	ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4UKBEDEDK.jld2")
     #keep only specified scenarios
-    d_keys=keys(scenario_data["Generation"]["Scenarios"]);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data["Generation"]["Scenarios"],k);end;end
-	d_keys=keys(scenario_data["Demand"]);for k in d_keys;if !(issubset([string(k)],argz["scenario_names"]));delete!(scenario_data["Demand"],k);end;end
+    namestokeep=vcat(argz["scenario_names"],"Base")
+    d_keys=keys(scenario_data["Generation"]["Scenarios"]);for k in d_keys;if !(issubset([string(k)],namestokeep));delete!(scenario_data["Generation"]["Scenarios"],k);end;end
+	d_keys=keys(scenario_data["Demand"]);for k in d_keys;if !(issubset([string(k)],namestokeep));delete!(scenario_data["Demand"],k);end;end
 	#Keep only specified markets
 	countries=unique(vcat(markets[1],markets[2]))
-	d_keys=keys(scenario_data["Generation"]["Scenarios"]);for k in d_keys;c_keys=keys(scenario_data["Generation"]["Scenarios"][k]);
-	for c in c_keys;if !(issubset([string(c)],countries));delete!(scenario_data["Generation"]["Scenarios"][k],c);end;end;end
+	d_keys=keys(scenario_data["Generation"]["Scenarios"]);
+    for k in d_keys;y_keys=keys(scenario_data["Generation"]["Scenarios"][k]);
+	for y in y_keys;c_keys=keys(scenario_data["Generation"]["Scenarios"][k][y]);
+    for c in c_keys;if !(issubset([string(c)],countries));delete!(scenario_data["Generation"]["Scenarios"][k][y],c);end;end;end;end
 	for key in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
 		if !(issubset([string(key)],countries));
 			delete!(scenario_data["Generation"]["RES"]["Offshore Wind"],key);
@@ -64,13 +68,13 @@ function load_time_series_gentypes(rt_ex, argz, scenario_data,markets)
 			tss2keep=vcat(tss2keep,ts2keep)
 			end;end
 	clmns2keep=[count*"_MWh" for count in countries];push!(clmns2keep,"time_stamp")
-	for scenario in keys(scenario_data["Demand"])
-		offset2020=Dates.Year(Dates.year(scenario_data["Demand"][scenario][!,:time_stamp][1])-2020)
-		scenario_data["Demand"][scenario][!,:time_stamp]=scenario_data["Demand"][scenario][!,:time_stamp].-offset2020;
-		filter!(:time_stamp=>x->issubset([x],tss2keep),scenario_data["Demand"][scenario]);
-		cs2delete=[name for name in names(scenario_data["Demand"][scenario]) if !(issubset([name],clmns2keep))]
-		DataFrames.select!(scenario_data["Demand"][scenario],DataFrames.Not(cs2delete))
-	end
+	for scenario in keys(scenario_data["Demand"]);for yr in keys(scenario_data["Demand"][scenario]);
+		offset2020=Dates.Year(Dates.year(scenario_data["Demand"][scenario][yr][!,:time_stamp][1])-2020)
+		scenario_data["Demand"][scenario][yr][!,:time_stamp]=scenario_data["Demand"][scenario][yr][!,:time_stamp].-offset2020;
+		filter!(:time_stamp=>x->issubset([x],tss2keep),scenario_data["Demand"][scenario][yr]);
+		cs2delete=[name for name in names(scenario_data["Demand"][scenario][yr]) if !(issubset([name],clmns2keep))]
+		DataFrames.select!(scenario_data["Demand"][scenario][yr],DataFrames.Not(cs2delete))
+	end;end
 	push!(argz,"ls"=>ls)
     return scenario_data
 end
@@ -97,7 +101,6 @@ function multi_period_setup(ls,scenario_data,data, markets, infinite_grid, argz,
     return mn_data, extradata
 end
 
-
 #multi period problem setup
 function multi_period_setup_wgen_type(scenario_data,data, all_gens, markets, argz, s, map_gen_types)
     #################### Multi-period input parameters #######################
@@ -105,7 +108,7 @@ function multi_period_setup_wgen_type(scenario_data,data, all_gens, markets, arg
     scenario["planning_horizon"] = argz["scenario_planning_horizon"]; # in years, to scale generation cost
 
     extradata,data,map_gen_types =create_profile_sets_mesh_wgen_type(dim, scenario, data, all_gens, scenario_data, markets, s, argz, map_gen_types)
-    extradata = create_profile_sets_rest_wgen_type(dim, extradata, data)
+    extradata = create_profile_sets_rest_wgen_type(dim, extradata, data, argz)
     #########################################################################
     #################### Scale cost data
     scale_cost_data_hourly!(extradata, scenario)
@@ -283,13 +286,14 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
         extradata["gen"][string(g)]["pmin"] = Array{Float64,2}(undef, 1, number_of_hours)
 		extradata["gen"][string(g)]["cost"] = [Vector{Float64}() for i=1:number_of_hours]
 		if (gen["type"]==0)
-		extradata["gen"][string(g)]["invest"] = Array{Float64,2}(undef, 1, number_of_hours);end
+		extradata["gen"][string(g)]["invest"] = Array{Float64,2}(undef, 1, number_of_hours);
+        extradata["gen"][string(g)]["wf_pmax"] = Array{Float64,2}(undef, 1, number_of_hours);end
     end
 
 	for (k_sc,sc) in scenario["sc_names"]
 		for (k_yr,yr) in sc
-			k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
-			k_sc_sd=k_yr=="2020" ? "NT" : k_sc[1:2]
+			#k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
+			k_sc_sd=k_yr=="2020" ? "Base" : k_sc[1:2]
 			for (h,d) in enumerate(yr)
 		        #Day ahead BE
 		        #onshore generators
@@ -297,7 +301,7 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
 		        	for (fuel, type) in country
 						for (g, gen) in type
 		            	#market generator onshore
-						S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][k_sc_sd*k_yr_sd][xy])[!,:Capacity]
+						S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][k_sc_sd][k_yr][xy])[!,:Capacity]
 						if isempty(S_row)
 							extradata["gen"][string(g)]["pmax"][1, d] = 0
 							extradata["gen"][string(g)]["cost"][d] = [0,0]
@@ -326,6 +330,7 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
 						extradata["gen"][string(g)]["pmin"][1, d] = 0
 		                extradata["gen"][string(g)]["cost"][d] = [0,0]
 						extradata["gen"][string(g)]["invest"][1, d] = gen["invest"]
+                        extradata["gen"][string(g)]["wf_pmax"][1, d] = argz["owpp_mva"][j]/pu
 						push!(wfz,(parse(Int64,g),argz["owpp_mva"][j]/pu))
 				end;end
 			end
@@ -344,15 +349,21 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
     #adjust demand curve
 	demand_curve_reduced=Dict()
 	for (cuntree, df) in demand_curve
-		cuntree_total=sum(df[!,:generation])
+		#cuntree_total=sum(df[!,:generation])
 		unique_costs=unique(df[!,:fuel_cost])
+		top=maximum(unique_costs)
+		bottom=minimum(unique_costs)
+		step=(top-bottom)/9
 		if !(haskey(demand_curve_reduced,cuntree));push!(demand_curve_reduced,cuntree=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
-		for fuel_cost in unique_costs
-			capacity=sum(filter(:fuel_cost=>x->x==fuel_cost,df)[!,:generation])
+		#for fuel_cost in unique_costs
+		for i = 1:1:10
+			#capacity=sum(filter(:fuel_cost=>x->x==fuel_cost,df)[!,:generation])
 			#push!(demand_curve_reduced[cuntree],[capacity/cuntree_total,fuel_cost])
             #println(string(cuntree)*"|"*string(capacity/cuntree_total)*"|"*string(fuel_cost))
-            push!(demand_curve_reduced[cuntree],[1/length(unique_costs),fuel_cost])
-            println(string(cuntree)*"|"*string(1/length(unique_costs))*"|"*string(fuel_cost))
+            #push!(demand_curve_reduced[cuntree],[1/length(unique_costs),fuel_cost])
+            push!(demand_curve_reduced[cuntree],[1/10,top-(i-1)*step])
+			#println(string(cuntree)*"|"*string(1/10)*"|"*string(top-(i-1)*step))
+
 		end
 	end
 
@@ -391,14 +402,14 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
 	#onshore loads
 	for (k_sc,sc) in scenario["sc_names"]
 		for (k_yr,yr) in sc
-			k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
-			k_sc_sd=k_yr=="2020" ? "NT" : k_sc[1:2]
+			#k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
+			k_sc_sd=k_yr=="2020" ? "Base" : k_sc[1:2]
 			for (h,d) in enumerate(yr)
 		        #loads
 				for (cuntree, dic) in loads
 			        for (l, load) in sort!(OrderedCollections.OrderedDict(dic), by=x->parse(Int64,x))
 						ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
-						S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd*k_yr_sd])[!,Symbol(cuntree*"_MWh")]
+						S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd][k_yr])[!,Symbol(cuntree*"_MWh")]
 		                extradata["gen"][string(l)]["pmax"][1, d] = 0
 		                extradata["gen"][string(l)]["pmin"][1, d] = load["pmin"]*S_row[1]/pu
 		                extradata["gen"][string(l)]["cost"][d] = load["cost"]
@@ -926,7 +937,7 @@ function create_profile_sets_rest(number_of_hours, extradata, data_orig)
 end
 
 
-function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_orig)
+function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_orig, argz)
     pu=data_orig["baseMVA"]
     e2me=1000000/pu#into ME/PU
     data=Dict{String,Any}()#;data["convdc"]=Dict{String,Any}()
@@ -936,10 +947,14 @@ function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_ori
     for (c, cnv) in data["convdc"]
         extradata["convdc"][c] = Dict{String,Any}()
         extradata["convdc"][c]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["convdc"][c]["Pacmax"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["convdc"][c]["Pacmin"] = Array{Float64,2}(undef, 1, number_of_hours)
     end
     for d in 1:number_of_hours
         for (c, cnv) in data["convdc"]
                 extradata["convdc"][c]["cost"][1, d] = cnv["cost"]
+                extradata["convdc"][c]["Pacmax"][1, d] = argz["conv_lim"]/pu
+                extradata["convdc"][c]["Pacmin"][1, d] = 0.0
         end
     end
 
@@ -1014,10 +1029,18 @@ function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_ori
     for (b, br) in data["branchdc"]
         extradata["branchdc"][b] = Dict{String,Any}()
         extradata["branchdc"][b]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+        ##################
+        extradata["branchdc"][b]["rateA"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["branchdc"][b]["r"] = Array{Float64,2}(undef, 1, number_of_hours) 
+        ##################
     end
     for d in 1:number_of_hours
         for (b, br) in data["branchdc"]
                 extradata["branchdc"][b]["cost"][1, d] = br["cost"]
+                #######################################################
+                extradata["branchdc"][b]["rateA"][1, d] = br["rateA"]
+                extradata["branchdc"][b]["r"][1, d] = br["r"]
+                #######################################################
         end
     end
 
@@ -1026,10 +1049,18 @@ function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_ori
     for (b, br) in data["branch"]
         extradata["branch"][b] = Dict{String,Any}()
         extradata["branch"][b]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+        ##################
+        extradata["branch"][b]["rateA"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["branch"][b]["br_r"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["branch"][b]["br_x"] = Array{Float64,2}(undef, 1, number_of_hours) 
+        ##################
     end
     for d in 1:number_of_hours
         for (b, br) in data["branch"]
                 extradata["branch"][b]["cost"][1, d] = br["cost"]
+                extradata["branch"][b]["rateA"][1, d] = br["rateA"]
+                extradata["branch"][b]["br_r"][1, d] = br["br_r"]
+                extradata["branch"][b]["br_x"][1, d] = br["br_x"]
         end
     end
     return extradata

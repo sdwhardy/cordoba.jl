@@ -135,7 +135,7 @@ function post_cordoba_acdc_wgentypes(pm::_PM.AbstractPowerModel)
                         _PMACDC.constraint_power_balance_dc_dcne(pm, i; nw = n)
                     else
                         is=intersect(_PM.ids(pm, n, :busdc),first.(pm.setting["home_market"]))
-                        constraint_power_balance_dc_dcne_hm_node(pm, i, is; nw = n)
+                        #constraint_power_balance_dc_dcne_hm_node(pm, i, is; nw = n)
                     end
                 else
                     _PMACDC.constraint_power_balance_dc_dcne(pm, i; nw = n)

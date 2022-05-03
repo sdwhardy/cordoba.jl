@@ -27,35 +27,47 @@ function main_ACDC_wstrg(rt_ex,argz, s)
     #return  scenario_data, data, argz, s, ls, markets, infinite_grid
 end
 
+
 #seperates wfs from genz and defines markets/wfs zones
 function main_ACDC_wgen_types(rt_ex,argz, s)
     ################# Load topology files ###################################
     topology_df(rt_ex, s["relax_problem"], s["AC"])#creates .m file
     data, ics_ac, ics_dc, nodes = filter_mfile_cables(rt_ex)#loads resulting topology and filters for candidate cables
     ############### defines size and market of genz and wfs ###################
-	scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4UKBEDEDK.jld2")
-	######## Batteries are removed and modeled seperately time series #########
-	for (k_sc,sc) in scenario_data["Generation"]["Scenarios"]
-		for (k_cunt,cuntree) in sc;filter!(:Generation_Type=>x->x!="Battery", cuntree);end;end
+	scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2")
+        ######## Batteries are removed and modeled seperately time series #########
+	for (k_sc,sc) in scenario_data["Generation"]["Scenarios"];for (k_yr,yr) in sc; for (k_cunt,cuntree) in yr;
+		filter!(:Generation_Type=>x->x!="Battery", cuntree);end;end;end
 	####################### Freeze offshore expansion of data #################
 	developement_zones=filter(:type=>x->x==0,nodes)[!,:country]
-	Base_offshore=Dict();for (k_cunt,cuntree) in scenario_data["Generation"]["Scenarios"]["NT2025"]
+	Base_offshore=Dict();for (k_cunt,cuntree) in scenario_data["Generation"]["Scenarios"]["Base"]["2020"]
 	push!(Base_offshore,k_cunt=>filter(:Generation_Type=>x->x=="Offshore Wind", cuntree))end;
 	for (k_sc,sc) in scenario_data["Generation"]["Scenarios"]
-		for (k_cunt,cuntree) in sc;
-			if (issubset([k_cunt],developement_zones))
-				owf=findfirst(x->x=="Offshore Wind", cuntree[!,:Generation_Type]);
-				scenario_data["Generation"]["Scenarios"][k_sc][k_cunt][!,:Capacity][owf]=Base_offshore[k_cunt][!,"Capacity"][1]
-		end;end;end
+        for (k_yr,yr) in sc;
+            for (k_cunt,cuntree) in yr;
+                if (issubset([k_cunt],developement_zones))
+                    owf=findfirst(x->x=="Offshore Wind", cuntree[!,:Generation_Type]);
+                    scenario_data["Generation"]["Scenarios"][k_sc][k_yr][k_cunt][!,:Capacity][owf]=Base_offshore[k_cunt][!,"Capacity"][1]
+                end;end;end;end
 	###########################################################################
 	markets,all_gens,map_gen_types = gen_types(argz["owpp_mva"],nodes,data, scenario_data,s)
 	map_gen_types["markets"]=markets
 	map_gen_types["costs"]=scenario_data["Generation"]["costs"]
     #################### Calculates cable options for AC lines
     data=AC_cable_options(data,argz["candidate_ics_ac"],ics_ac,data["baseMVA"])
+    if (haskey(s, "wf_circuit") && length(s["wf_circuit"])>0)
+    for (b,br) in data["ne_branch"]
+        if !(issubset([br["f_bus"]],s["wf_circuit"]) && issubset([br["t_bus"]],s["wf_circuit"]))
+            br["rateA"]=br["rateB"]=br["rateC"]=0
+        end;end;end
     print_topology_data_AC(data,markets)#print to verify
     #################### Calculates cable options for DC lines
     data=DC_cable_options(data,argz["candidate_ics_dc"],ics_dc,data["baseMVA"])
+    if (haskey(s, "wf_circuit") && length(s["wf_circuit"])>0)
+    for (b,br) in data["branchdc_ne"]
+        if !(issubset([br["fbusdc"]],s["wf_circuit"]) && issubset([br["tbusdc"]],s["wf_circuit"]))
+            br["rateA"]=br["rateB"]=br["rateC"]=0
+        end;end;end
     additional_params_PMACDC(data)
     print_topology_data_DC(data,markets)#print to verify
     ##################### load time series data ##############################
@@ -63,7 +75,7 @@ function main_ACDC_wgen_types(rt_ex,argz, s)
     ##################### multi period setup #################################
 	s["ic_lim"]=argz["conv_lim"]/data["baseMVA"]
     s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]])
-    s["scenarios_length"] = length(argz["scenario_names"])
+    s["scenarios_length"] = length(argz["scenario_names"])*length(argz["res_years"])
     s["years_length"] = length(argz["scenario_years"])
     s["hours_length"] = argz["ls"]
     mn_data, xd, map_gen_types  = multi_period_setup_wgen_type(scenario_data, data, all_gens, markets, argz, s, map_gen_types)
@@ -150,6 +162,7 @@ function filter_AClines(data,edges,nodes)
     return data, ics_ac
 end
 
+
 function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
     z_base_ac=(data["bus"]["1"]["base_kv"])^2/pu
     data=additional_candidatesICS_AC(data,candidate_ics_ac,ics_ac)#adds additional candidates
@@ -161,6 +174,7 @@ function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
 	cable_pu_costs=Dict{String,Any}()
 	cable_pu_r=Dict{String,Any}()
 	cable_pu_x=Dict{String,Any}()
+    cable_rateA=Dict{String,Any}()
 	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(data["ne_branch"]), by=x->parse(Int64,x)))
 		last(acb)["source_id"][2]=i
 		#last(acb)["br_status"]=0
@@ -173,10 +187,12 @@ function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
 					push!(cable_pu_costs[string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])],last(acb)["construction_cost"]/(last(acb)["rate_a"]))
 					push!(cable_pu_r[string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])],last(acb)["br_r"])
 					push!(cable_pu_x[string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])],last(acb)["br_x"])
+                    push!(cable_rateA[string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])],last(acb)["rate_a"])
 				else
 					push!(cable_pu_costs,string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])=>[last(acb)["construction_cost"]/(last(acb)["rate_a"])])
 					push!(cable_pu_r,string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])=>[last(acb)["br_r"]])
 					push!(cable_pu_x,string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])=>[last(acb)["br_x"]])
+                    push!(cable_rateA,string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])=>[last(acb)["rate_a"]])
 				end
 				break
 			end
@@ -198,6 +214,7 @@ function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
 		last(acb)["br_r"]=(trms_total_R/trms_R)
 		last(acb)["br_x"]=(trms_total_X/trms_X)
 		last(acb)["cost"]=(trms_total/trms)
+        last(acb)["rateA"]=last(acb)["rateB"]=last(acb)["rateC"]=maximum(b for b in cable_rateA[string(last(acb)["f_bus"])*"_"*string(last(acb)["t_bus"])])
 		last(acb)["source_id"][2]=i
 		push!(temp_cables2,string(i)=>last(acb))
 	end
@@ -274,6 +291,7 @@ function DC_cable_options(data,candidate_ics_dc,ics_dc,pu)
 	temp_cables=Dict{String,Any}()
 	cable_pu_costs=Dict{String,Any}()
 	cable_pu_r=Dict{String,Any}()
+    cable_rateA=Dict{String,Any}()
 	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(data["branchdc_ne"]), by=x->parse(Int64,x)))
 		last(acb)["source_id"][2]=i
 		#last(acb)["status"]=0
@@ -288,9 +306,11 @@ function DC_cable_options(data,candidate_ics_dc,ics_dc,pu)
 		if (haskey(cable_pu_costs,string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])))
 			push!(cable_pu_costs[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])],last(acb)["cost"]/(last(acb)["rateA"]/pu))
 			push!(cable_pu_r[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])],last(acb)["r"])
+            push!(cable_rateA[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])],last(acb)["rateA"])
 		else
 			push!(cable_pu_costs,string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])=>[last(acb)["cost"]/(last(acb)["rateA"]/pu)])
 			push!(cable_pu_r,string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])=>[last(acb)["r"]])
+            push!(cable_rateA,string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])=>[last(acb)["rateA"]])
 		end
 	end
 	data["branchdc_ne"]=temp_cables_ne
@@ -305,6 +325,7 @@ function DC_cable_options(data,candidate_ics_dc,ics_dc,pu)
 		#last(acb)["cost"]=trms_max
 		last(acb)["r"]=trms_total_R/trms_R
 		last(acb)["source_id"][2]=i
+        last(acb)["rateA"]=maximum(r for r in cable_rateA[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
 		push!(temp_cables2,string(i)=>last(acb))
 	end
 	data["branchdc"]=temp_cables2
@@ -547,7 +568,7 @@ function converter_parameters_rxb(data)
 end
 
 ####################################### Print solution ################################
-
+#=
 function print_solution_data(result_mip, data_mip, argz)
     println("Description: test-"*string(argz["test"])*" k-"*string(argz["k"])*" years-"*string(argz["scenario_years"])*" scenarios-"*string(argz["scenario_names"]))
     if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
@@ -691,6 +712,154 @@ function print_owpps(result_mip,argz)
                 println(string(i)*": "*string(wf["wf_pacmax"]))
         end;end
     end
+end=#
+
+
+function print_solution_wcost_data(result_mip, argz,data)
+    println("Description: test-"*string(argz["test"])*" k-"*string(argz["k"])*" years-"*string(argz["scenario_years"])*" scenarios-"*string(argz["scenario_names"]))
+    if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
+        println("%%%%%%% CONVEX SOLUTION %%%%%%%")
+        print_branch(result_mip,argz,data)
+        print_branchdc(result_mip,argz,data)
+    else
+        println("%%%%%%% MIP SOLUTION %%%%%%%")
+        print_branch_ne(result_mip,argz,data)
+        print_branchdc_ne(result_mip,argz,data)
+    end
+    print_owpps(result_mip,argz, data)
+    print_converters(result_mip,argz,data)
+    print_storage(result_mip,argz,data)
+    println("objective: "*string(result_mip["objective"])*" achieved in: "*string(result_mip["solve_time"]))
+end
+
+function print_branch_ne(result_mip,argz,data_mip)
+    if (haskey(result_mip["solution"]["nw"]["1"],"ne_branch"))
+        println("%%%% Cables HVAC t0 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["ne_branch"]), by=x->parse(Int64,x))
+            if (br["built"]==1)
+                println(string(i)*": "*string(data_mip["ne_branch"][i]["f_bus"])*" - "*string(data_mip["ne_branch"][i]["t_bus"])*" MVA: "*string(data_mip["ne_branch"][i]["rate_a"])*" cost: "*string(data_mip["ne_branch"][i]["construction_cost"]))
+        end;end
+        println("%%%% Cables HVAC t2 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["ls"]+1)]["ne_branch"]), by=x->parse(Int64,x))
+            if (br["built"]==1)
+                println(string(i)*": "*string(data_mip["ne_branch"][i]["f_bus"])*" - "*string(data_mip["ne_branch"][i]["t_bus"])*" MVA: "*string(data_mip["ne_branch"][i]["rate_a"])*" cost: "*string(data_mip["ne_branch"][i]["construction_cost"]))
+        end;end
+        println("%%%% Cables HVAC tinf %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["ne_branch"]), by=x->parse(Int64,x))
+            if (br["built"]==1)
+                println(string(i)*": "*string(data_mip["ne_branch"][i]["f_bus"])*" - "*string(data_mip["ne_branch"][i]["t_bus"])*" MVA: "*string(data_mip["ne_branch"][i]["rate_a"])*" cost: "*string(data_mip["ne_branch"][i]["construction_cost"]))
+        end;end
+    end
+end
+
+function print_branchdc_ne(result_mip,argz,data_mip)
+    if (haskey(result_mip["solution"]["nw"]["1"],"branchdc_ne"))
+        println("%%%% Cables HVDC t0 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branchdc_ne"]), by=x->parse(Int64,x))
+            if (br["isbuilt"]==1)
+                println(string(i)*": "*string(data_mip["branchdc_ne"][i]["fbusdc"])*" - "*string(data_mip["branchdc_ne"][i]["tbusdc"])*" MVA: "*string(data_mip["branchdc_ne"][i]["rateA"])*" cost: "*string(data_mip["branchdc_ne"][i]["cost"]))
+        end;end
+        println("%%%% Cables HVDC t2 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["ls"]+1)]["branchdc_ne"]), by=x->parse(Int64,x))
+            if (br["isbuilt"]==1)
+                println(string(i)*": "*string(data_mip["branchdc_ne"][i]["fbusdc"])*" - "*string(data_mip["branchdc_ne"][i]["tbusdc"])*" MVA: "*string(data_mip["branchdc_ne"][i]["rateA"])*" cost: "*string(data_mip["branchdc_ne"][i]["cost"]))
+        end;end
+        println("%%%% Cables HVDC tinf %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branchdc_ne"]), by=x->parse(Int64,x))
+            if (br["isbuilt"]==1)
+                println(string(i)*": "*string(data_mip["branchdc_ne"][i]["fbusdc"])*" - "*string(data_mip["branchdc_ne"][i]["tbusdc"])*" MVA: "*string(data_mip["branchdc_ne"][i]["rateA"])*" cost: "*string(data_mip["branchdc_ne"][i]["cost"]))
+        end;end
+    end
+end
+
+function print_storage(result_mip,argz,data)
+    if (haskey(result_mip["solution"]["nw"]["1"],"storage"))
+        println("%%%% Storage t0 %%%%")
+        for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["storage"]), by=x->parse(Int64,x))
+                println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(s["e_absmax"]*data["storage"][i]["cost"]))
+        end
+        println("%%%% Storage t2 %%%%")
+        for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["ls"]+1)]["storage"]), by=x->parse(Int64,x))
+                println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string((s["e_absmax"]-result_mip["solution"]["nw"]["1"]["storage"][i]["e_absmax"])*data["storage"][i]["cost"]*2/3*(1/((1+argz["dr"])^(10)))))
+        end
+        println("%%%% Storage tinf %%%%")
+        for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["storage"]), by=x->parse(Int64,x))
+            println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string((s["e_absmax"]-result_mip["solution"]["nw"][string(argz["ls"]+1)]["storage"][i]["e_absmax"])*data["storage"][i]["cost"]*1/3*(1/((1+argz["dr"])^(20)))))
+        end
+    end
+end
+
+function print_converters(result_mip,argz,data)
+    if (haskey(result_mip["solution"]["nw"]["1"],"convdc"))
+        println("%%%% Converters t0 %%%%")
+        for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["convdc"]), by=x->parse(Int64,x))
+                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cv["p_pacmax"]*data["convdc"][i]["cost"]))
+        end;
+        println("%%%% Converters t2 %%%%")
+        for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["ls"]+1)]["convdc"]), by=x->parse(Int64,x))
+                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string((cv["p_pacmax"]-result_mip["solution"]["nw"]["1"]["convdc"][i]["p_pacmax"])*data["convdc"][i]["cost"]*2/3*(1/((1+argz["dr"])^(10)))))
+        end;
+        println("%%%% Converters tinf %%%%")
+        for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["convdc"]), by=x->parse(Int64,x))
+                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string((cv["p_pacmax"]-result_mip["solution"]["nw"][string(argz["ls"]+1)]["convdc"][i]["p_pacmax"])*data["convdc"][i]["cost"]*1/3*(1/((1+argz["dr"])^(20)))))
+        end;
+    end
+end
+
+function print_owpps(result_mip,argz,data)
+    if (haskey(result_mip["solution"]["nw"]["1"],"gen"))
+        println("%%%% OWPPS T0 %%%%")
+        for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["gen"]), by=x->parse(Int64,x))
+            if (haskey(wf,"wf_pacmax"))
+                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(wf["wf_pacmax"]*data["gen"][i]["invest"]))
+        end;end
+        println("%%%% OWPPS T2 %%%%")
+        for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["ls"]+1)]["gen"]), by=x->parse(Int64,x))
+            if (haskey(wf,"wf_pacmax"))
+                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string((wf["wf_pacmax"]-result_mip["solution"]["nw"]["1"]["gen"][i]["wf_pacmax"])*data["gen"][i]["invest"]*2/3*(1/((1+argz["dr"])^(10)))))
+        end;end
+        println("%%%% OWPPS Tinf %%%%")
+        for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["gen"]), by=x->parse(Int64,x))
+            if (haskey(wf,"wf_pacmax"))
+                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string((wf["wf_pacmax"]-result_mip["solution"]["nw"][string(argz["ls"]+1)]["gen"][i]["wf_pacmax"])*data["gen"][i]["invest"]*1/3*(1/((1+argz["dr"])^(20)))))
+        end;end
+    end
+end
+
+function print_branch(result_mip,argz,data)
+    if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
+        println("%%%% Cables HVAC t0 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branch"]), by=x->parse(Int64,x))
+            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(br["p_rateAC"]*data["branch"][i]["cost"]))
+        end
+        println("%%%% Cables HVAC t2 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["ls"]+1)]["branch"]), by=x->parse(Int64,x))
+                println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(((br["p_rateAC"]-result_mip["solution"]["nw"]["1"]["branch"][i]["p_rateAC"])*data["branch"][i]["cost"])*2/3*(1/((1+argz["dr"])^(10)))))
+        end
+        println("%%%% Cables HVAC tinf %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branch"]), by=x->parse(Int64,x))
+                println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(((br["p_rateAC"]-result_mip["solution"]["nw"][string(argz["ls"]+1)]["branch"][i]["p_rateAC"])*data["branch"][i]["cost"])*1/3*(1/((1+argz["dr"])^(20)))))
+        end
+    end
+end
+
+
+
+function print_branchdc(result_mip,argz,data)
+    if (haskey(result_mip["solution"]["nw"]["1"],"branchdc"))
+        println("%%%% Cables HVDC t0 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branchdc"]), by=x->parse(Int64,x))
+                println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(br["p_rateA"]*data["branchdc"][i]["cost"]))
+        end
+        println("%%%% Cables HVDC t2 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["ls"]+1)]["branchdc"]), by=x->parse(Int64,x))
+                println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(((br["p_rateA"]-result_mip["solution"]["nw"]["1"]["branchdc"][i]["p_rateA"])*data["branchdc"][i]["cost"])*2/3*(1/((1+argz["dr"])^(10)))))
+        end
+        println("%%%% Cables HVDC tinf %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branchdc"]), by=x->parse(Int64,x))
+                println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(((br["p_rateA"]-result_mip["solution"]["nw"][string(argz["ls"]+1)]["branchdc"][i]["p_rateA"])*data["branchdc"][i]["cost"])*1/3*(1/((1+argz["dr"])^(20)))))
+        end
+    end
 end
 
 
@@ -770,7 +939,6 @@ function sort_by_country(gen_tbls,map_gen_types,set)
 		end
 
 		for cuntree_num in set["onshore_nodes"]
-			println(cuntree_num)
 			cuntree=map_gen_types["markets"][1][cuntree_num]
 			if !(haskey(per_market[s],cuntree));push!(per_market[s],cuntree=>DataFrames.DataFrame(Symbol(col_names[1])=>sc[!,Symbol(col_names[1])]));end
 				per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol("Battery")=>sc[!,Symbol("Battery "*string(cuntree_num))]))
@@ -806,6 +974,23 @@ function build_generator_tables(result_mip, data)
 end
 
 ######################### plotting generation types ###################################
+
+function plot_cumulative_income(hourly_income, hrs)
+    hours2days=(8760*10/hrs)/24
+    wf_price=6678#6205.14#only true if 4GW all in year one
+    cum_income=[sum(hourly_income["income"][1:i]) for (i,ic) in enumerate(hourly_income["income"])]
+    data = [PlotlyJS.bar(;x=parse.(Int64,hourly_income["hour"])*hours2days,
+                name="Cumulative Revenue (NPV)", y=cum_income),PlotlyJS.scatter(;x=parse.(Int64,hourly_income["hour"])*hours2days,
+                y=ones(length(hourly_income["hour"]))*wf_price,name="Investment (CAPEX+OPEX)", line=PlotlyJS.attr(width=2, color="red")),
+                PlotlyJS.scatter(;x=parse.(Int64,hourly_income["hour"])*hours2days,
+               	y=hourly_income["power"]*100,name="Energy Production", line=PlotlyJS.attr(width=2, color="black"), yaxis="y2")]
+        PlotlyJS.plot(data, PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_income)),font_size=35,yaxis_range=(0,maximum(cum_income)), yaxis_title="M€",xaxis_title="Days",yaxis2=PlotlyJS.attr(
+        title="MWh",
+        overlaying="y",
+        side="right"
+    )))
+end
+
 
 function plot_marginal_price(gen,map_gen_types, country)
     col_names=names(gen[!,2:end])
@@ -895,21 +1080,47 @@ function plot_generation_profile(gen, con, country)
 
          scatter_vec=vcat(scatter_vec_con,scatter_vec_gen)
             PlotlyJS.plot(
-            scatter_vec, PlotlyJS.Layout(yaxis_range=(-1*rng_con, rng_gen),yaxis_title="GW",xaxis_title="time steps",title=country))
+            scatter_vec, PlotlyJS.Layout(font_size=25,yaxis_range=(-1*rng_con, rng_gen),yaxis_title="GW",xaxis_title="time steps"))
+end
+function undo_marginal_price_scaling(s,argz,result_mip)
+    function undo_npv_hourly(x,current_yr)
+        cost = (1+argz["dr"])^(current_yr-base_year) * x# npv
+        return deepcopy(cost)
+    end
+
+    function undo_hourly_scaling(cost0)
+        cost=cost0*((hl*yl)/(8760*argz["scenario_planning_horizon"]))*e2me
+        return deepcopy(cost)
+    end
+    e2me=1000000/result_mip["solution"]["nw"]["1"]["baseMVA"]
+    base_year=parse(Int64,argz["scenario_years"][1])
+    sl=s["scenarios_length"]
+    yl=s["years_length"]
+    hl=s["hours_length"]
+    for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
+        for (b,bs) in nw["bus"];
+            _sc=floor(Int64,(parse(Int64,n)-1)/(yl*hl))
+            _yr=ceil(Int64,(parse(Int64,n)-_sc*(yl*hl))/(hl))
+            bs["lam_kcl_r"]=undo_npv_hourly(bs["lam_kcl_r"],parse(Int64,argz["scenario_years"][_yr]))
+            bs["lam_kcl_r"]=undo_hourly_scaling(bs["lam_kcl_r"])*-1*sl
+        end
+    end
+    return result_mip
 end
 
 function plot_dual_marginal_price(result_mip, tss, cuntree)
-    clrs=generation_color_map()    
+    
+    clrs=generation_color_map()
     marg_price=Dict();push!(marg_price,"cuntrees"=>Dict());if !(haskey(marg_price,"ts"));push!(marg_price,"ts"=>[]);end
     for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
-        if (issubset([string(n)],tss)) 
+        if (issubset([string(n)],tss))
             push!(marg_price["ts"],n)
             for (b,bs) in nw["bus"];
                 if (parse(Int8,b)==first(cuntree))
-            if !(haskey(marg_price["cuntrees"],last(cuntree)));push!(marg_price["cuntrees"],last(cuntree)=>[]);end
-            push!(marg_price["cuntrees"][last(cuntree)],bs["lam_kcl_r"]*-10);end;end;
+                if !(haskey(marg_price["cuntrees"],last(cuntree)));push!(marg_price["cuntrees"],last(cuntree)=>[]);end
+                push!(marg_price["cuntrees"][last(cuntree)],bs["lam_kcl_r"]);end;end;
         end;end
-        
+
         #low_rng=minimum(marginal_prices)
         #high_rng=maximum(marginal_prices)
         scatter_vec_gen=[
@@ -920,8 +1131,80 @@ function plot_dual_marginal_price(result_mip, tss, cuntree)
             ) for (cuntree,marginal_prices) in marg_price["cuntrees"]]
         lims=[(maximum(marginal_prices),minimum(marginal_prices)) for (cuntree,marginal_prices) in marg_price["cuntrees"]]
         PlotlyJS.plot(
-            scatter_vec_gen, PlotlyJS.Layout(yaxis_range=(minimum(last.(lims)), maximum(first.(lims))),yaxis_title="€/MWh",xaxis_title="time steps",title="Marginal price "*last(cuntree)))
+            scatter_vec_gen, PlotlyJS.Layout(font_size=35,yaxis_range=(minimum(last.(lims)), maximum(first.(lims))),yaxis_title="€/MWh",xaxis_title="time steps"))
     end
+
+function owpp_profit_obz(s, result_mip, tss, bus, gen)
+    hl=1#s["hours_length"]
+    yl=1#s["years_length"]
+    sl=s["scenarios_length"]
+    me2e=1#1000000
+    hourly_income=Dict();push!(hourly_income,"price"=>[]);push!(hourly_income,"income"=>[]);push!(hourly_income,"power"=>[]);push!(hourly_income,"hour"=>[]);
+    for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
+        if (issubset([string(n)],tss))
+            b=nw["bus"][bus];
+            g=nw["gen"][gen];
+            push!(hourly_income["power"],g["pg"]);
+            push!(hourly_income["price"],b["lam_kcl_r"]);
+            push!(hourly_income["income"],g["pg"]*b["lam_kcl_r"]*-hl*yl*sl*me2e);
+            push!(hourly_income["hour"],n);
+    end;end
+    return hourly_income
+end
+
+
+function transmission_line_profits(s, result_mip, tss, data)
+    hl=1#s["hours_length"]
+    yl=1#s["years_length"]
+    sl=s["scenarios_length"]
+    me2e=1#1000000
+    hourly_income=Dict();push!(hourly_income,"hour"=>[]);push!(hourly_income,"ac"=>Dict());push!(hourly_income,"dc"=>Dict());
+    for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
+        if (issubset([string(n)],tss))
+            push!(hourly_income["hour"],n)
+            bs=nw["bus"];
+            brs_dc=nw["branchdc"];
+            brs=nw["branch"];
+            for (k_br,br_dc) in brs_dc
+                if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branchdc"][k_br]["p_rateA"]>0)
+                if !(haskey(hourly_income["dc"],k_br));
+                    push!(hourly_income["dc"],k_br=>Dict());push!(hourly_income["dc"][k_br],"delta_price"=>[]);push!(hourly_income["dc"][k_br],"rent"=>[]);push!(hourly_income["dc"][k_br],"power"=>[]);end
+                    
+            push!(hourly_income["dc"][k_br]["power"],br_dc["pt"]);
+            push!(hourly_income["dc"][k_br]["delta_price"],(bs[string(data["branchdc"][k_br]["fbusdc"])]["lam_kcl_r"]-bs[string(data["branchdc"][k_br]["tbusdc"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
+            push!(hourly_income["dc"][k_br]["rent"],hourly_income["dc"][k_br]["power"][end]*hourly_income["dc"][k_br]["delta_price"][end]);
+                end;end
+            for (k_br,br_ac) in brs
+                if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branch"][k_br]["p_rateAC"]>0)
+                if !(haskey(hourly_income["ac"],k_br));
+                    push!(hourly_income["ac"],k_br=>Dict());push!(hourly_income["ac"][k_br],"delta_price"=>[]);push!(hourly_income["ac"][k_br],"rent"=>[]);push!(hourly_income["ac"][k_br],"power"=>[]);end
+                    
+            push!(hourly_income["ac"][k_br]["power"],br_ac["pt"]);
+            push!(hourly_income["ac"][k_br]["delta_price"],(bs[string(data["branch"][k_br]["f_bus"])]["lam_kcl_r"]-bs[string(data["branch"][k_br]["t_bus"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
+            push!(hourly_income["ac"][k_br]["rent"],hourly_income["ac"][k_br]["power"][end]*hourly_income["ac"][k_br]["delta_price"][end]);
+                end;end
+    end;end
+    return hourly_income
+end
+
+
+function plot_cumulative_income_tl(hourly_income_tl, hrs)
+    hours2days=(8760*10/hrs)/24
+    tl_price=6558#6205.14#only true if 4GW all in year one
+    cum_income=Dict()
+    for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["dc"]), by=x->parse(Int64,x)) 
+        push!(cum_income,k_br=>[sum(br["rent"][1:i]) for (i,ic) in enumerate(br["rent"])]);end
+    data1=[
+        PlotlyJS.bar(
+            x=parse.(Int64,hourly_income_tl["hour"])*hours2days, y=inc,
+            name="DC branch "*String(nm),
+            line=PlotlyJS.attr(width=2)
+        ) for (nm,inc) in sort!(OrderedCollections.OrderedDict(cum_income), by=x->parse(Int64,x),rev=true)]
+    data2=PlotlyJS.scatter(x=parse.(Int64,hourly_income_tl["hour"])*hours2days,
+                y=ones(length(hourly_income_tl["hour"]))*tl_price,name="Investment", line=PlotlyJS.attr(width=2, color="black"))
+                data=vcat(data1,data2)
+        PlotlyJS.plot(data, PlotlyJS.Layout(;barmode="stack",font_size=35, yaxis_title="M€",xaxis_title="Days"))
+end
 
 function generation_color_map()
         color_dict=Dict("Offshore Wind"=>"darkgreen",
@@ -959,6 +1242,7 @@ end
 function convex2mip(result_mip, data, mn_data, s)
     s["agent"]=""
     s["relax_problem"]=false
+    s["output"]["duals"]=false
     if (s["AC"]=="1")
         data["ne_branch"]=convex2mip_AC(result_mip, data);end
     data["branchdc_ne"]=convex2mip_DC(result_mip, data)
@@ -1044,4 +1328,143 @@ function convex2mip_AC(result_mip, data)
     end
     ac_cables=unique_candidateIC_AC(ac_cables)
     return ac_cables
+end
+
+function remove_integers(result_mip,mn_data,data,s)
+    for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+        for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
+            #dc cables
+            for (bc,brc) in data["branchdc"]
+                for (b,br) in result_mip["solution"]["nw"][string(ts)]["branchdc_ne"];
+                    if (brc["fbusdc"]==data["branchdc_ne"][b]["fbusdc"] && brc["tbusdc"]==data["branchdc_ne"][b]["tbusdc"])
+                        if (br["isbuilt"]>0)
+                           # mn_data["nw"][string(ts)]["branchdc"][bc]["status"]=1
+                           # mn_data["nw"][string(ts)]["branchdc"][bc]["r"]=data["branchdc_ne"][b]["r"]
+                           # mn_data["nw"][string(ts)]["branchdc"][bc]["rateA"]=mn_data["nw"][string(ts)]["branchdc"][bc]["rateB"]=mn_data["nw"][string(ts)]["branchdc"][bc]["rateC"]=data["branchdc_ne"][b]["rateA"]
+                            s["xd"]["branchdc"][bc]["rateA"][1,ts]=data["branchdc_ne"][b]["rateA"]
+                            s["xd"]["branchdc"][bc]["r"][1,ts]=data["branchdc_ne"][b]["r"]
+                            s["xd"]["branchdc"][bc]["cost"][1,ts]=0.0;
+                            break
+                        else
+                          #  mn_data["nw"][string(ts)]["branchdc"][bc]["status"]=1
+                            s["xd"]["branchdc"][bc]["cost"][1,ts]=0.0;
+                            s["xd"]["branchdc"][bc]["rateA"][1,ts]=0.0
+                        end
+                    end;end;end
+
+            #ac cables
+            for (bc,brc) in data["branch"] 
+                if (haskey(result_mip["solution"]["nw"][string(ts)],"ne_branch"))
+                for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
+                        if (brc["f_bus"]==data["ne_branch"][b]["f_bus"] && brc["t_bus"]==data["ne_branch"][b]["t_bus"])                      
+                                if (br["built"]>0)
+                                 #   mn_data["nw"][string(ts)]["branch"][bc]["br_status"]=1
+                                 #   mn_data["nw"][string(ts)]["branch"][bc]["br_r"]=data["ne_branch"][b]["br_r"]
+                                 #   mn_data["nw"][string(ts)]["branch"][bc]["br_x"]=data["ne_branch"][b]["br_x"]
+                                    s["xd"]["branch"][bc]["rateA"][1,ts]=data["ne_branch"][b]["rate_a"]
+                                    s["xd"]["branch"][bc]["br_r"][1,ts]=data["ne_branch"][b]["br_r"]
+                                    s["xd"]["branch"][bc]["cost"][1,ts]=0.0;
+                                    break
+                                else
+                                  #  mn_data["nw"][string(ts)]["branch"][bc]["br_status"]=1
+                                    s["xd"]["branch"][bc]["rateA"][1,ts]=0
+                                    s["xd"]["branch"][bc]["cost"][1,ts]=0.0;
+                                end
+                        
+                    end;end;end;end
+    end;end
+    return s, mn_data
+end
+
+
+
+function set_zonal_grid(result_mip,mn_data,s)
+    for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+        for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
+            #dc cables
+            for (b,br) in result_mip["solution"]["nw"][string(ts)]["branchdc_ne"];
+                if (issubset([mn_data["nw"][string(ts)]["branchdc_ne"][b]["fbusdc"]],s["home_market"]) && issubset([mn_data["nw"][string(ts)]["branchdc_ne"][b]["tbusdc"]],s["home_market"]))
+                    if (br["isbuilt"]>0)
+                            s["xd"]["branchdc_ne"][b]["cost"][1,ts]=0.0;
+                    else
+                            s["xd"]["branchdc_ne"][b]["cost"][1,ts]=s["xd"]["branchdc_ne"][b]["cost"][1,ts]*100;
+                    end
+                end;end;
+
+            #ac cables
+            if (haskey(result_mip["solution"]["nw"][string(ts)],"ne_branch"))
+            for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
+                if (issubset([mn_data["nw"][string(ts)]["ne_branch"][b]["f_bus"]],s["home_market"]) && issubset([mn_data["nw"][string(ts)]["ne_branch"][b]["t_bus"]],s["home_market"]))
+                if (br["built"]>0)
+                        s["xd"]["ne_branch"][b]["cost"][1,ts]=0.0;
+                else
+                    s["xd"]["ne_branch"][b]["construction_cost"][1,ts]=s["xd"]["ne_branch"][b]["construction_cost"][1,ts]*100;
+                end;end;
+            end;end
+            #converters
+            if (haskey(result_mip["solution"]["nw"][string(ts)],"convdc"))
+                for (c,cnv) in result_mip["solution"]["nw"][string(ts)]["convdc"];
+                    if (cnv["p_pacmax"]>0)
+                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=cnv["p_pacmax"];
+                    end;end;end
+    end;end
+    return mn_data, s
+end
+
+function set_rebalancing_grid(result_mip,mn_data,s)
+    for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+        for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
+            #dc cables
+            for (b,br) in result_mip["solution"]["nw"][string(ts)]["branchdc_ne"];
+                if (br["isbuilt"]>0)
+                        s["xd"]["branchdc_ne"][b]["cost"][1,ts]=0.0;
+                    end
+                end;
+
+            #ac cables
+            if (haskey(result_mip["solution"]["nw"][string(ts)],"ne_branch"))
+            for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
+                if (br["built"]>0)
+                        s["xd"]["ne_branch"][b]["cost"][1,ts]=0.0;
+                end;end;end
+            #converters
+            if (haskey(result_mip["solution"]["nw"][string(ts)],"convdc"))
+                for (c,cnv) in result_mip["solution"]["nw"][string(ts)]["convdc"];
+                    if (cnv["p_pacmax"]>0)
+                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=cnv["p_pacmax"];
+                            s["xd"]["convdc"][c]["Pacmax"][1,ts]=cnv["p_pacmax"];
+                    else
+                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=0;
+                            s["xd"]["convdc"][c]["Pacmax"][1,ts]=0;
+                    end;end;end
+            println("ABUNAI!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            s["xd"]["gen"]["163"]["wf_pmax"][1,ts]=result_mip["solution"]["nw"][string(ts)]["gen"]["163"]["wf_pacmax"];
+    end;end
+    return mn_data, s
+end
+
+
+function combine_solutions(result_mip_hm,result_mip_wf)
+    for (n,nw) in result_mip_wf["solution"]["nw"]
+        for (b,br) in nw["branchdc_ne"]
+            if (br["isbuilt"]==1)
+                result_mip_hm["solution"]["nw"][n]["branchdc_ne"][b]=br
+            end
+        end
+        for (b,br) in nw["ne_branch"]
+            if (br["built"]==1)
+                result_mip_hm["solution"]["nw"][n]["ne_branch"][b]=br
+            end
+        end
+    end
+    return result_mip_hm
+end   
+
+function hm_market_prices(result_mip, result_mip_hm_prices)
+    for (n,nw) in result_mip_hm_prices["solution"]["nw"]
+        for (b,bs) in nw["bus"]
+            result_mip["solution"]["nw"][n]["bus"][b]["lam_kcl_r"]=deepcopy(bs["lam_kcl_r"])
+        end
+    end
+    return result_mip
 end

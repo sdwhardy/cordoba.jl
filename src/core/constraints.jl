@@ -172,9 +172,11 @@ function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, is::Set
         if (i==1);bus_arcs_dcgrid=PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v)
         else;bus_arcs=vcat(bus_arcs_dcgrid,PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v))
         end;end
-    #=println("bus_arcs_dcgrid")
-    for (l,i,j) in bus_arcs_dcgrid; println(l)print(" ")print(i)print(" ")print(j)
-    end=#
+        bus_arcs_dcgrid=[a for a in bus_arcs_dcgrid if !(issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
+    
+    #    println("bus_arcs_dcgrid")
+    #for (l,i,j) in bus_arcs_dcgrid; println(l);print(" ");print(i);print(" ");print(j);println()
+    #end
 
     bus_arcs_dcgrid_ne=[];for (i,v) in enumerate(is);
 
@@ -223,7 +225,13 @@ function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, n::Int,
     pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
 
     cstr=JuMP.@constraint(pm.model, sum(p_dcgrid[a] for a in bus_arcs_dcgrid) + sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc[c] for c in bus_convs_dc) + sum(pconv_dc_ne[c] for c in bus_convs_dc_ne)  == -1*sum(pd))
-#    println(cstr)
+    #println(cstr)
+    if _IM.report_duals(pm)
+        for i in is
+            _PM.sol(pm, n, :bus, i)[:lam_kcl_r] = cstr
+            _PM.sol(pm, n, :bus, i)[:lam_kcl_i] = NaN
+        end
+    end
 end
 
 function constraint_power_balance_dcne_dcne_hm(pm::_PM.AbstractPowerModel, is::Set{Int64}; nw::Int=pm.cnw)
@@ -239,6 +247,8 @@ function constraint_power_balance_dcne_dcne_hm(pm::_PM.AbstractPowerModel, is::S
         if (i==1);bus_arcs_dcgrid_ne=PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, v)
         else;bus_arcs_dcgrid_ne=vcat(bus_arcs_dcgrid_ne,PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, v))
         end;end
+        bus_arcs_dcgrid_ne=[a for a in bus_arcs_dcgrid_ne if !(issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
+    
 #    println("bus_arcs_dcgrid_ne")
 #    println(bus_arcs_dcgrid_ne)
 
@@ -272,7 +282,13 @@ pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
 xb = _PM.var(pm, n, :branchdc_ne)
 xc = _PM.var(pm, n, :conv_ne)
 cstr = JuMP.@constraint(pm.model, sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc_ne[c] for c in bus_ne_convs_dc_ne)  == -1*sum(pd_ne))
-#    println(cstr)
+    #println(cstr)
+    if _IM.report_duals(pm)
+        for i in is
+            _PM.sol(pm, n, :bus, i)[:lam_kcl_r] = cstr
+            _PM.sol(pm, n, :bus, i)[:lam_kcl_i] = NaN
+        end
+    end
 end
 
 function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractPowerModel, is::Set{Int64}; nw::Int=pm.cnw)
@@ -282,6 +298,8 @@ function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractPowerModel, 
         if (i==1);bus_arcs=PowerModels.ref(pm, nw, :bus_arcs, v)
         else;bus_arcs=vcat(bus_arcs,PowerModels.ref(pm, nw, :bus_arcs, v))
         end;end
+    bus_arcs=[a for a in bus_arcs if !(issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
+    
     #println("bus_arcs")
     #println(bus_arcs)
 
@@ -289,6 +307,8 @@ function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractPowerModel, 
         if (i==1);bus_arcs_ne=PowerModels.ref(pm, nw, :ne_bus_arcs, v)
         else;bus_arcs_ne=vcat(bus_arcs_ne,PowerModels.ref(pm, nw, :ne_bus_arcs, v))
         end;end
+    bus_arcs_ne=[a for a in bus_arcs_ne if !(issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
+    
 #    println("bus_arcs_ne")
 #    println(bus_arcs_ne)
 
@@ -296,6 +316,8 @@ function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractPowerModel, 
         if (i==1);bus_arcs_dc=PowerModels.ref(pm, nw, :bus_arcs_dc, v)
         else;bus_arcs_dc=vcat(bus_arcs_dc,PowerModels.ref(pm, nw, :bus_arcs_dc, v))
         end;end
+    bus_arcs_dc=[a for a in bus_arcs_dc if !(issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
+    
 #    println("bus_arcs_dc")
 #    println(bus_arcs_dc)
 
@@ -375,13 +397,13 @@ function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractDCPModel, n:
 
     #cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) -sum(ps_ne[s] for s in bus_storage_ne) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
     cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
-#    println(cstr)
-    #=if _IM.report_duals(pm)
+    #println(cstr)
+    if _IM.report_duals(pm)
         for i in is
             _PM.sol(pm, n, :bus, i)[:lam_kcl_r] = cstr
             _PM.sol(pm, n, :bus, i)[:lam_kcl_i] = NaN
         end
-    end=#
+    end
 end
 
 ############################ Fixing branch variables for MIP vs Convex approx ###########################
@@ -460,11 +482,11 @@ function constraint_ohms_dc_branch_ne(pm::_PM.AbstractPowerModel, i::Int; nw::In
     f_idx = (i, f_bus, t_bus)
     t_idx = (i, t_bus, f_bus)
     p = PowerModels.ref(pm, nw, :dcpol)
-#    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
+    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
 #        println("%%%%% Inside!!!!!!!!!! %%%%%")
     #    println(pm.setting["home_market"])
         constraint_ohms_dc_branch_ne(pm, nw, f_bus, t_bus, f_idx, t_idx, branch["r"], p, rate_a)
-#    end
+    end
 end
 
 function constraint_ohms_dc_branch_ne(pm::_PM.AbstractDCPModel, n::Int, f_bus, t_bus, f_idx, t_idx, r, p, rate_a)
@@ -487,9 +509,9 @@ function constraint_ohms_dc_branch(pm::_PM.AbstractPowerModel, i::Int; nw::Int=p
     t_idx = (i, t_bus, f_bus)
 
     p = _PM.ref(pm, nw, :dcpol)
-    #if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
+    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
         constraint_ohms_dc_branch(pm, nw, f_bus, t_bus, f_idx, t_idx, branch["r"], p, p_rateA)
-    #end
+    end
 end
 
 function constraint_ohms_dc_branch(pm::_PM.AbstractDCPModel, n::Int,  f_bus, t_bus, f_idx, t_idx, r, p, p_rateA)
@@ -514,7 +536,9 @@ function constraint_ohms_ac_branch(pm::_PM.AbstractPowerModel, i::Int; nw::Int=p
     t_bus = branch["t_bus"]
     f_idx = (i, f_bus, t_bus)
     t_idx = (i, t_bus, f_bus)
-    constraint_ohms_ac_branch(pm, nw, f_idx, t_idx, f_bus, t_bus, rate_a)
+    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
+        constraint_ohms_ac_branch(pm, nw, f_idx, t_idx, f_bus, t_bus, rate_a)
+    end
 end
 
 function constraint_ohms_ac_branch(pm::_PM.AbstractDCPModel, n::Int, f_idx, t_idx, f_bus, t_bus, rate_a)
@@ -535,9 +559,9 @@ function constraint_ohms_ac_branch_ne(pm::_PM.AbstractPowerModel, i::Int; nw::In
     t_bus = branch["t_bus"]
     f_idx = (i, f_bus, t_bus)
     t_idx = (i, t_bus, f_bus)
-    #if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
+    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
         constraint_ohms_ac_branch_ne(pm, nw, f_idx, t_idx, f_bus, t_bus, rate_a)
-    #end
+    end
 end
 
 function constraint_ohms_ac_branch_ne(pm::_PM.AbstractDCPModel, n::Int, f_idx, t_idx, f_bus, t_bus, rate_a)
@@ -615,25 +639,33 @@ function calc_wf_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
     hl=pm.setting["hours_length"]
     _sc=floor(Int64,(n-1)/(yl*hl))
     _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+    #println(string(n)*" "*string(sl)*" "*string(yl)*" "*string(hl)*" "*string(_sc)*" "*string(_yr))
     wfs=[]
     wfs_ns=[]
     cost = 0
     if (_yr==1)
-        for nt=n:hl:n+yl*hl-1
+        for nt=n:hl:n+(yl-_yr)*hl
             push!(wfs,_PM.ref(pm, nt, :gen));push!(wfs_ns,nt);end
         for (k,gs) in enumerate(wfs)
             #for (i,g) in gs;println(string(i)*" "*string(wfs_ns[k])*" "*string(n));end
             #for (i,g) in gs;println(string(i)*" "*string(wfs_ns[k])*" "*string(n));end
             #for (i,g) in gs;if issubset([string(i)],first.(pm.setting["wfz"]));println(string(i)*" is subset of wfz");end;end
+            #println(string(wfs_ns[k])*" - "*string(wfs_ns[k]+hl))
             cost = cost + sum(calc_single_wf_cost_npv(i,pm.setting["xd"]["gen"][string(i)]["invest"][wfs_ns[k]],n) for (i,g) in gs if issubset([i],first.(pm.setting["wfz"])))
-        end
+            if (wfs_ns[k]+hl<=n+(yl-_yr)*hl)
+                cost = cost - sum(calc_single_wf_cost_npv(i,pm.setting["xd"]["gen"][string(i)]["invest"][wfs_ns[k]+hl],n) for (i,g) in gs if issubset([i],first.(pm.setting["wfz"])))
+        end;end
     else
         for nt=n:hl:n+(yl-_yr)*hl
             push!(wfs,_PM.ref(pm, nt, :gen));push!(wfs_ns,nt);end
         for (k,gs) in enumerate(wfs)
+            #println(string(wfs_ns[k])*" - "*string(wfs_ns[k]+hl))
             cost = cost + sum(calc_single_wf_cost_npv(i,pm.setting["xd"]["gen"][string(i)]["invest"][wfs_ns[k]],n) for (i,g) in gs if issubset([i],first.(pm.setting["wfz"])))
             cost = cost - sum(calc_single_wf_cost_npv(i,pm.setting["xd"]["gen"][string(i)]["invest"][wfs_ns[k]],n-hl) for (i,g) in gs if issubset([i],first.(pm.setting["wfz"])))
-        end
+            if (wfs_ns[k]+hl<=n+(yl-_yr)*hl)
+                cost = cost - sum(calc_single_wf_cost_npv(i,pm.setting["xd"]["gen"][string(i)]["invest"][wfs_ns[k]+hl],n) for (i,g) in gs if issubset([i],first.(pm.setting["wfz"])))
+                cost = cost + sum(calc_single_wf_cost_npv(i,pm.setting["xd"]["gen"][string(i)]["invest"][wfs_ns[k]+hl],n-hl) for (i,g) in gs if issubset([i],first.(pm.setting["wfz"])))
+        end;end
     end
     return cost
 end
@@ -686,18 +718,23 @@ function calc_storage_cost_cordoba_max_invest(pm::_PM.AbstractPowerModel, n::Int
     stores_nt=[]
     cost = 0
     if (_yr==1)
-        for nt=n:hl:n+yl*hl-1
+        for nt=n:hl:n+(yl-_yr)*hl
             push!(stores,_PM.ref(pm, nt, :storage));push!(stores_nt,nt);end
         for (k,s) in enumerate(stores)
             cost = cost + sum(calc_single_storage_cost_npv(i,pm.setting["xd"]["storage"][string(i)]["cost"][stores_nt[k]],n) for (i,b) in s)
-        end
+            if (stores_nt[k]+hl<=n+(yl-_yr)*hl)
+                cost = cost - sum(calc_single_storage_cost_npv(i,pm.setting["xd"]["storage"][string(i)]["cost"][stores_nt[k]+hl],n) for (i,b) in s)
+        end;end
     else
         for nt=n:hl:n+(yl-_yr)*hl
             push!(stores,_PM.ref(pm, nt, :storage));;push!(stores_nt,nt);end
         for (k,s) in enumerate(stores)
             cost = cost + sum(calc_single_storage_cost_npv(i,pm.setting["xd"]["storage"][string(i)]["cost"][stores_nt[k]],n) for (i,b) in s)
             cost = cost - sum(calc_single_storage_cost_npv(i,pm.setting["xd"]["storage"][string(i)]["cost"][stores_nt[k]],n-hl) for (i,b) in s)
-        end
+            if (stores_nt[k]+hl<=n+(yl-_yr)*hl)
+                cost = cost - sum(calc_single_storage_cost_npv(i,pm.setting["xd"]["storage"][string(i)]["cost"][stores_nt[k]+hl],n) for (i,b) in s)
+            cost = cost + sum(calc_single_storage_cost_npv(i,pm.setting["xd"]["storage"][string(i)]["cost"][stores_nt[k]+hl],n-hl) for (i,b) in s)
+        end;end
     end
     return cost
 end
@@ -719,18 +756,23 @@ function calc_convdc_convexafy_cost_max_invest(pm::_PM.AbstractPowerModel, n::In
     convdc_ns=[]
     cost = 0
     if (_yr==1)
-        for nt=n:hl:n+yl*hl-1
+        for nt=n:hl:n+(yl-_yr)*hl
             push!(convdc,_PM.ref(pm, nt, :convdc));push!(convdc_ns,nt)end
         for (k,c) in enumerate(convdc)
             cost = cost + sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][convdc_ns[k]],n) for (i,b) in c)
-        end
+            if (convdc_ns[k]+hl<=n+(yl-_yr)*hl)
+                cost = cost - sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][convdc_ns[k]+hl],n) for (i,b) in c)
+        end;end
     else
         for nt=n:hl:n+(yl-_yr)*hl
             push!(convdc,_PM.ref(pm, nt, :convdc));push!(convdc_ns,nt);end
         for (k,c) in enumerate(convdc)
             cost = cost + sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][convdc_ns[k]],n) for (i,b) in c)
             cost = cost - sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][convdc_ns[k]],n-hl) for (i,b) in c)
-        end
+            if (convdc_ns[k]+hl<=n+(yl-_yr)*hl)
+                cost = cost - sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][convdc_ns[k]+hl],n) for (i,b) in c)
+                cost = cost + sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][convdc_ns[k]+hl],n-hl) for (i,b) in c)            
+        end;end
     end
     return cost
 end
@@ -752,18 +794,23 @@ function calc_branchdc_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
     brs_ns=[]
     cost = 0
     if (_yr==1)
-        for nt=n:hl:n+yl*hl-1
+        for nt=n:hl:n+(yl-_yr)*hl
             push!(brs,_PM.ref(pm, nt, :branchdc));push!(brs_ns,nt);end
         for (k,bs) in enumerate(brs)
             cost = cost + sum(calc_single_branchdc_cost_npv(i,pm.setting["xd"]["branchdc"][string(i)]["cost"][brs_ns[k]],n) for (i,b) in bs)
-        end
+            if (brs_ns[k]+hl<=n+(yl-_yr)*hl)
+            cost = cost - sum(calc_single_branchdc_cost_npv(i,pm.setting["xd"]["branchdc"][string(i)]["cost"][brs_ns[k]+hl],n) for (i,b) in bs)
+        end;end
     else
         for nt=n:hl:n+(yl-_yr)*hl
             push!(brs,_PM.ref(pm, nt, :branchdc));push!(brs_ns,nt);end
         for (k,bs) in enumerate(brs)
             cost = cost + sum(calc_single_branchdc_cost_npv(i,pm.setting["xd"]["branchdc"][string(i)]["cost"][brs_ns[k]],n) for (i,b) in bs)
             cost = cost - sum(calc_single_branchdc_cost_npv(i,pm.setting["xd"]["branchdc"][string(i)]["cost"][brs_ns[k]],n-hl) for (i,b) in bs)
-        end
+            if (brs_ns[k]+hl<=n+(yl-_yr)*hl)
+            cost = cost - sum(calc_single_branchdc_cost_npv(i,pm.setting["xd"]["branchdc"][string(i)]["cost"][brs_ns[k]+hl],n) for (i,b) in bs)
+            cost = cost + sum(calc_single_branchdc_cost_npv(i,pm.setting["xd"]["branchdc"][string(i)]["cost"][brs_ns[k]+hl],n-hl) for (i,b) in bs)
+        end;end
     end
     return cost
 end
@@ -785,17 +832,23 @@ function calc_branch_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
     brs_ns=[]
     cost = 0
     if (_yr==1)
-        for nt=n:hl:n+yl*hl-1
+        for nt=n:hl:n+(yl-_yr)*hl
             push!(brs,_PM.ref(pm, nt, :branch));push!(brs_ns,nt);end
         for (k,bs) in enumerate(brs)
             cost = cost + sum(calc_single_branch_cost_npv(i,pm.setting["xd"]["branch"][string(i)]["cost"][brs_ns[k]],n) for (i,b) in bs)
-        end
+            if (brs_ns[k]+hl<=n+(yl-_yr)*hl)
+                cost = cost - sum(calc_single_branch_cost_npv(i,pm.setting["xd"]["branch"][string(i)]["cost"][brs_ns[k]+hl],n) for (i,b) in bs)
+        end;end
     else
         for nt=n:hl:n+(yl-_yr)*hl
             push!(brs,_PM.ref(pm, nt, :branch));push!(brs_ns,nt);end
         for (k,bs) in enumerate(brs)
             cost = cost + sum(calc_single_branch_cost_npv(i,pm.setting["xd"]["branch"][string(i)]["cost"][brs_ns[k]],n) for (i,b) in bs)
             cost = cost - sum(calc_single_branch_cost_npv(i,pm.setting["xd"]["branch"][string(i)]["cost"][brs_ns[k]],n-hl) for (i,b) in bs)
+            if (brs_ns[k]+hl<=n+(yl-_yr)*hl)
+                cost = cost - sum(calc_single_branch_cost_npv(i,pm.setting["xd"]["branch"][string(i)]["cost"][brs_ns[k]+hl],n) for (i,b) in bs)
+            cost = cost + sum(calc_single_branch_cost_npv(i,pm.setting["xd"]["branch"][string(i)]["cost"][brs_ns[k]+hl],n-hl) for (i,b) in bs)
+            end    
         end
     end
     return cost
@@ -913,6 +966,7 @@ function constraint_t0t1(vss, pm)
     hl=pm.setting["hours_length"]
     s=1
     y=1
+    #println(vss)
     for (i,vs) in enumerate(vss)
         for (j,v) in enumerate(last(vs))
             if (mod(i,hl)!=1)

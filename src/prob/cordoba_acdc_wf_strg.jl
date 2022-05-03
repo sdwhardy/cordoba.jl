@@ -61,7 +61,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
 
             #######################################################################################
         end
-        if (haskey(pm.setting,"relax_problem") && pm.setting["relax_problem"]==true)
+        if ((haskey(pm.setting,"relax_problem") && pm.setting["relax_problem"]==true))
             sort!(vdp, by = x -> x[1])
             constraint_t0t1(vdp,pm)
             sort!(vacp, by = x -> x[1])
@@ -95,9 +95,6 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                     if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
                         if !(issubset(i,pm.setting["home_market"]))
                             constraint_power_balance_acne_dcne_strg(pm, i; nw = n)
-                        else
-                            is=intersect(_PM.ids(pm, n, :busdc),first.(pm.setting["home_market"]))
-                            constraint_power_balance_acne_dcne_strg_hm_node(pm, i, is; nw = n)
                         end
                     else
                         constraint_power_balance_acne_dcne_strg(pm, i; nw = n)
@@ -130,36 +127,33 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             end
 
             for i in _PM.ids(pm, n, :busdc)
-                if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
+              #= if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
                     if !(issubset(i,pm.setting["home_market"]))
                         _PMACDC.constraint_power_balance_dc_dcne(pm, i; nw = n)
-                    else
-                        is=intersect(_PM.ids(pm, n, :busdc),first.(pm.setting["home_market"]))
-                        constraint_power_balance_dc_dcne_hm_node(pm, i, is; nw = n)
                     end
-                else
+                else=#
                     _PMACDC.constraint_power_balance_dc_dcne(pm, i; nw = n)
-                end
+                #end
             end
 
             if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
                 is=intersect(_PM.ids(pm, n, :busdc),first.(pm.setting["home_market"]))
-                constraint_power_balance_dc_dcne_hm(pm, is; nw = n)
+                #constraint_power_balance_dc_dcne_hm(pm, is; nw = n)
             end
 
             for i in _PM.ids(pm, n, :busdc_ne)
-                if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
+              #= if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
                     if !(issubset(i,pm.setting["home_market"]))
                         _PMACDC.constraint_power_balance_dcne_dcne(pm, i; nw = n)
                     end
-                else
+                else=#
                     _PMACDC.constraint_power_balance_dcne_dcne(pm, i; nw = n)
-                end
+               #end
             end
 
             if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
                 is=intersect(_PM.ids(pm, n, :busdc_ne),first.(pm.setting["home_market"]))
-                constraint_power_balance_dcne_dcne_hm(pm, is; nw = n)
+             #   constraint_power_balance_dcne_dcne_hm(pm, is; nw = n)
             end
 
             for i in _PM.ids(pm, n, :branchdc)
@@ -248,5 +242,6 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
         #=for v in JuMP.all_variables(pm.model)
             println(v)
         end=#
+        #println(pm.model)
 end
 

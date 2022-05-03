@@ -47,6 +47,24 @@ function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerM
     )
 end
 
+#Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
+function objective_min_cost_acdc_convex_allcble_strg_npv(pm::_PM.AbstractPowerModel)
+    return JuMP.@objective(pm.model, Min,
+        sum(pm.ref[:scenario_prob][s] *
+            sum(
+                calc_gen_cost(pm, n)
+                + calc_convdc_convexafy_cost_npv(pm, n)
+                + calc_branch_cost_npv(pm, n)
+                + calc_branchdc_cost_npv(pm, n)
+                + calc_ne_branch_cost(pm, n)
+                + calc_branchdc_ne_cost(pm, n)
+                + calc_storage_cost_cordoba_npv(pm, n)
+                + calc_wf_cost_npv(pm, n)
+            for (sc, n) in scenario)
+        for (s, scenario) in pm.ref[:scenario])
+    )
+end
+
 ################################### Convex variable costs #######################################
 #cost of generation
 function calc_gen_cost(pm::_PM.AbstractPowerModel, n::Int)
