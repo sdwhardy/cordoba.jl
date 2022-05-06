@@ -482,11 +482,11 @@ function constraint_ohms_dc_branch_ne(pm::_PM.AbstractPowerModel, i::Int; nw::In
     f_idx = (i, f_bus, t_bus)
     t_idx = (i, t_bus, f_bus)
     p = PowerModels.ref(pm, nw, :dcpol)
-    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
+    #if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
 #        println("%%%%% Inside!!!!!!!!!! %%%%%")
     #    println(pm.setting["home_market"])
         constraint_ohms_dc_branch_ne(pm, nw, f_bus, t_bus, f_idx, t_idx, branch["r"], p, rate_a)
-    end
+    #end
 end
 
 function constraint_ohms_dc_branch_ne(pm::_PM.AbstractDCPModel, n::Int, f_bus, t_bus, f_idx, t_idx, r, p, rate_a)
@@ -509,9 +509,9 @@ function constraint_ohms_dc_branch(pm::_PM.AbstractPowerModel, i::Int; nw::Int=p
     t_idx = (i, t_bus, f_bus)
 
     p = _PM.ref(pm, nw, :dcpol)
-    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
+    #if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
         constraint_ohms_dc_branch(pm, nw, f_bus, t_bus, f_idx, t_idx, branch["r"], p, p_rateA)
-    end
+    #end
 end
 
 function constraint_ohms_dc_branch(pm::_PM.AbstractDCPModel, n::Int,  f_bus, t_bus, f_idx, t_idx, r, p, p_rateA)
@@ -536,9 +536,9 @@ function constraint_ohms_ac_branch(pm::_PM.AbstractPowerModel, i::Int; nw::Int=p
     t_bus = branch["t_bus"]
     f_idx = (i, f_bus, t_bus)
     t_idx = (i, t_bus, f_bus)
-    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
+    #if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
         constraint_ohms_ac_branch(pm, nw, f_idx, t_idx, f_bus, t_bus, rate_a)
-    end
+    #end
 end
 
 function constraint_ohms_ac_branch(pm::_PM.AbstractDCPModel, n::Int, f_idx, t_idx, f_bus, t_bus, rate_a)
@@ -559,9 +559,9 @@ function constraint_ohms_ac_branch_ne(pm::_PM.AbstractPowerModel, i::Int; nw::In
     t_bus = branch["t_bus"]
     f_idx = (i, f_bus, t_bus)
     t_idx = (i, t_bus, f_bus)
-    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
+    #if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
         constraint_ohms_ac_branch_ne(pm, nw, f_idx, t_idx, f_bus, t_bus, rate_a)
-    end
+    #end
 end
 
 function constraint_ohms_ac_branch_ne(pm::_PM.AbstractDCPModel, n::Int, f_idx, t_idx, f_bus, t_bus, rate_a)
@@ -875,14 +875,20 @@ function calc_branch_ne_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
         for nt=n:hl:n+yl*hl-1
             push!(brs,_PM.ref(pm, nt, :ne_branch));push!(brs_ns,nt)end
         for (k,bs) in enumerate(brs)
-            cost = cost + sum(calc_single_branch_ne_cost_npv(i,pm.setting["xd"]["ne_branch"][string(i)]["construction_cost"][brs_ns[k]],n) for (i,b) in bs)
+            if (length(bs)>0)
+                #println(bs)
+                cost = cost + sum(calc_single_branch_ne_cost_npv(i,pm.setting["xd"]["ne_branch"][string(i)]["construction_cost"][brs_ns[k]],n) for (i,b) in bs)
+            end
         end
     else
         for nt=n:hl:n-hl+(yl-_yr+1)*hl
             push!(brs,_PM.ref(pm, nt, :ne_branch));push!(brs_ns,nt);end
         for (k,bs) in enumerate(brs)
-            cost = cost + sum(calc_single_branch_ne_cost_npv(i,pm.setting["xd"]["ne_branch"][string(i)]["construction_cost"][brs_ns[k]],n) for (i,b) in bs)
-            cost = cost - sum(calc_single_branch_ne_cost_npv(i,pm.setting["xd"]["ne_branch"][string(i)]["construction_cost"][brs_ns[k]],n-hl) for (i,b) in bs)
+            if (length(bs)>0)
+                #println(bs)
+                cost = cost + sum(calc_single_branch_ne_cost_npv(i,pm.setting["xd"]["ne_branch"][string(i)]["construction_cost"][brs_ns[k]],n) for (i,b) in bs)
+                cost = cost - sum(calc_single_branch_ne_cost_npv(i,pm.setting["xd"]["ne_branch"][string(i)]["construction_cost"][brs_ns[k]],n-hl) for (i,b) in bs)
+            end
         end
     end
     return cost

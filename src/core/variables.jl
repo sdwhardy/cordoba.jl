@@ -9,7 +9,7 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
         for (s, gen) in _PM.ref(pm, nw, :gen)
             if issubset([s],first.(pm.setting["wfz"]))
                 ########################################
-                if (pm.setting["rebalancing"]==true)
+                if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
                     JuMP.set_lower_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
                     JuMP.set_upper_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
                 else
@@ -113,7 +113,7 @@ function variable_convdc_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounde
             #println("p_rateA[s]: ")
             #println(p_rateA[s])
             ########################################
-            if (pm.setting["rebalancing"]==true)
+            if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
                 JuMP.set_lower_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
             else
                 JuMP.set_lower_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmin"][nw])
@@ -168,19 +168,28 @@ function variable_storage_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bound
         for (s, strg) in _PM.ref(pm, nw, :storage)
             #println("p_rateA[s]: ")
             #println(p_rateA[s])
-            if issubset([s],first.(pm.setting["onshore_nodes"]))
+            #if issubset([s],first.(pm.setting["onshore_nodes"]))
                 #println("onshore battery: "*string(s))
                 ########################################
-                JuMP.set_lower_bound(e_absmax[s],  0)
-                JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_onshore"])
+                if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
+                    JuMP.set_lower_bound(e_absmax[s],  pm.setting["xd"]["storage"][string(s)]["pmax"][nw])
+                else
+                    JuMP.set_lower_bound(e_absmax[s],  pm.setting["xd"]["storage"][string(s)]["pmin"][nw])
+                end
+                #println(pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
+                #println(pm.setting["ic_lim"])
+                JuMP.set_upper_bound(e_absmax[s],  pm.setting["xd"]["storage"][string(s)]["pmax"][nw])
+                
+                #JuMP.set_lower_bound(e_absmax[s],  0)
+                #JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_onshore"])
                 #######################################
-            elseif issubset([s],first.(pm.setting["offshore_nodes"]))
+            #elseif issubset([s],first.(pm.setting["offshore_nodes"]))
                 #println("offshore battery: "*string(s))
                 ########################################
-                JuMP.set_lower_bound(e_absmax[s],  0)
-                JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_offshore"])
+               # JuMP.set_lower_bound(e_absmax[s],  0)
+                #JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_offshore"])
                 #######################################
-            end
+            #end
 
         end
     end

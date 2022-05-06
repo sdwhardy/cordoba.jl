@@ -79,6 +79,67 @@ function load_time_series_gentypes(rt_ex, argz, scenario_data,markets)
     return scenario_data
 end
 
+#
+#load Time series data
+function load_time_series_gentypes(s, scenario_data)
+	ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4UKBEDEDK.jld2")
+    #keep only specified scenarios
+    namestokeep=vcat(s["scenario_names"],"Base")
+    d_keys=keys(scenario_data["Generation"]["Scenarios"]);for k in d_keys;if !(issubset([string(k)],namestokeep));delete!(scenario_data["Generation"]["Scenarios"],k);end;end
+	d_keys=keys(scenario_data["Demand"]);for k in d_keys;if !(issubset([string(k)],namestokeep));delete!(scenario_data["Demand"],k);end;end
+	#Keep only specified markets
+	countries=unique(vcat(s["map_gen_types"]["markets"][1],s["map_gen_types"]["markets"][2]))
+	d_keys=keys(scenario_data["Generation"]["Scenarios"]);
+    for k in d_keys;y_keys=keys(scenario_data["Generation"]["Scenarios"][k]);
+	for y in y_keys;c_keys=keys(scenario_data["Generation"]["Scenarios"][k][y]);
+    for c in c_keys;if !(issubset([string(c)],countries));delete!(scenario_data["Generation"]["Scenarios"][k][y],c);end;end;end;end
+	for key in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
+		if !(issubset([string(key)],countries));
+			delete!(scenario_data["Generation"]["RES"]["Offshore Wind"],key);
+			delete!(scenario_data["Generation"]["RES"]["Onshore Wind"],key);
+			delete!(scenario_data["Generation"]["RES"]["Solar PV"],key);
+		end;end
+	#keep only specified weather years
+	for country in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
+		for year in keys(scenario_data["Generation"]["RES"]["Offshore Wind"][country])
+			if !(issubset([string(year)],s["res_years"]));
+				delete!(scenario_data["Generation"]["RES"]["Offshore Wind"][country],year);
+				delete!(scenario_data["Generation"]["RES"]["Onshore Wind"][country],year);
+				delete!(scenario_data["Generation"]["RES"]["Solar PV"][country],year);
+			end;end;end
+	#keep only k specified days
+	tss2keep=[];ls=0
+	for country in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
+		for year in keys(scenario_data["Generation"]["RES"]["Offshore Wind"][country])
+			ts2keep=ks[year][s["k"]]
+			if (haskey(s, "test") && s["test"]==true)
+				ts2keep=ts2keep[1:2]
+		    end
+			filter!(:time_stamp=>x->issubset([x],ts2keep),scenario_data["Generation"]["RES"]["Offshore Wind"][country][year]);
+			filter!(:time_stamp=>x->issubset([x],ts2keep),scenario_data["Generation"]["RES"]["Onshore Wind"][country][year]);
+			filter!(:time_stamp=>x->issubset([x],ts2keep),scenario_data["Generation"]["RES"]["Solar PV"][country][year]);
+			#place common timestamp in 2020
+			offset2020=Dates.Year(2020-parse(Int64,year))
+			scenario_data["Generation"]["RES"]["Offshore Wind"][country][year][!,:time_stamp]=scenario_data["Generation"]["RES"]["Offshore Wind"][country][year][!,:time_stamp].+offset2020
+			scenario_data["Generation"]["RES"]["Onshore Wind"][country][year][!,:time_stamp]=scenario_data["Generation"]["RES"]["Onshore Wind"][country][year][!,:time_stamp].+offset2020
+			scenario_data["Generation"]["RES"]["Solar PV"][country][year][!,:time_stamp]=scenario_data["Generation"]["RES"]["Solar PV"][country][year][!,:time_stamp].+offset2020;
+			ls=length(ts2keep)
+			ts2keep=ts2keep.+offset2020
+			tss2keep=vcat(tss2keep,ts2keep)
+			end;end
+	clmns2keep=[count*"_MWh" for count in countries];push!(clmns2keep,"time_stamp")
+	for scenario in keys(scenario_data["Demand"]);for yr in keys(scenario_data["Demand"][scenario]);
+		offset2020=Dates.Year(Dates.year(scenario_data["Demand"][scenario][yr][!,:time_stamp][1])-2020)
+		scenario_data["Demand"][scenario][yr][!,:time_stamp]=scenario_data["Demand"][scenario][yr][!,:time_stamp].-offset2020;
+		filter!(:time_stamp=>x->issubset([x],tss2keep),scenario_data["Demand"][scenario][yr]);
+		cs2delete=[name for name in names(scenario_data["Demand"][scenario][yr]) if !(issubset([name],clmns2keep))]
+		DataFrames.select!(scenario_data["Demand"][scenario][yr],DataFrames.Not(cs2delete))
+	end;end
+    s["hours_length"] = ls
+	return scenario_data
+end
+
+
 #multi period problem setup
 function multi_period_setup(ls,scenario_data,data, markets, infinite_grid, argz, s)
     #################### Multi-period input parameters #######################
@@ -101,7 +162,7 @@ function multi_period_setup(ls,scenario_data,data, markets, infinite_grid, argz,
     return mn_data, extradata
 end
 
-#multi period problem setup
+
 function multi_period_setup_wgen_type(scenario_data,data, all_gens, markets, argz, s, map_gen_types)
     #################### Multi-period input parameters #######################
     data,scenario, dim = multi_period_stoch_year_setup_wgen_type(argz["ls"],argz["res_years"],argz["scenario_years"],argz["scenario_names"],data);
@@ -152,7 +213,87 @@ function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario
     return all_scenario_data,data,scenario, dim
 end
 
+#multi period problem setup
+function multi_period_setup_wgen_type(scenario_data,data, all_gens, s)
+    #################### Multi-period input parameters #######################
+    data, s = multi_period_stoch_year_setup_wgen_type(s,data);
+    extradata, data = create_profile_sets_mesh_wgen_type(data, all_gens, scenario_data, s)
+    extradata = create_profile_sets_rest_wgen_type(extradata, data, s)
+    #########################################################################
+    #################### Scale cost data
+    scale_cost_data_hourly!(extradata, s["scenario"])
+    s["xd"]=costs_datas_wREZ(extradata, s)
+
+    ######################################################
+    xtradata = Dict{String,Any}()
+    xtradata["dim"] = Dict{String,Any}()
+    xtradata["dim"] = s["dim"]
+    ######################################################
+    # Create data dictionary where time series data is included at the right place
+    mn_data = _PMACDC.multinetwork_data(data, xtradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
+    for (g,gen) in mn_data["nw"]
+		gen["gen"]=Dict(gen["gen"]);end
+    return mn_data, s
+end
+
 #Organizes nw numbers per scenario-year
+function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
+    scenario = Dict{String, Any}("hours" => ls,"years" => length(scenario_years), "sc_names" => Dict{String, Any}())
+    data["scenario"] = Dict{String, Any}()
+    data["scenario_prob"] = Dict{String, Any}()
+    all_scenario_data=DataFrames.DataFrame()
+    #set problem dimension
+    dim = scenario["hours"] * length(scenario_years) * length(scenario_names)
+    for _nm in scenario_names; push!(scenario["sc_names"], _nm=> Dict{String, Any}());for _yr in scenario_years; push!(scenario["sc_names"][_nm], _yr=> []);end;end
+
+    for (s,(_sc, data_by_sc)) in enumerate(scenario_data);
+        data["scenario"][string(s)] = Dict()
+        data["scenario_prob"][string(s)] = 1/(length(scenario_names))
+        for (t,(_yr, data_by_yr)) in enumerate(data_by_sc);
+            all_scenario_data=vcat(all_scenario_data,scenario_data[_sc][_yr])
+            start_idx=(s-1)*scenario["hours"]*length(scenario_years)
+            start_idx=start_idx+(t-1)*scenario["hours"]
+            for h in 1 : scenario["hours"]
+                network = start_idx + h
+                h2=h+(t-1)*scenario["hours"]
+                data["scenario"][string(s)]["$h2"] = network
+                push!(scenario["sc_names"][_sc][_yr],network)
+            end
+        end;
+    end
+    return all_scenario_data,data,scenario, dim
+end
+
+#Organizes nw numbers per scenario-year
+function multi_period_stoch_year_setup_wgen_type(s,data)
+	scenario_names=unique([sn[1:2] for sn in s["scenario_names"]])
+    scenario = Dict{String, Any}("hours" => s["hours_length"],"years" => length(s["scenario_years"]), "sc_names" => Dict{String, Any}())
+    data["scenario"] = Dict{String, Any}()
+    data["scenario_prob"] = Dict{String, Any}()
+    #set problem dimension
+    dim = scenario["hours"] * length(s["scenario_years"]) * length(s["res_years"]) * length(s["scenario_names"])
+    for _nm in scenario_names; for _by in s["res_years"]; push!(scenario["sc_names"], string(_nm)*string(_by)=> Dict{String, Any}());for _yr in s["scenario_years"]; push!(scenario["sc_names"][string(_nm)*string(_by)], _yr=> []);end;end;end
+
+    for (s,(k_sc,_sc)) in enumerate(scenario["sc_names"]);
+		data["scenario"][string(s)] = Dict()
+        data["scenario_prob"][string(s)] = 1/length(scenario["sc_names"])
+        for (t,(k_yr,_yr)) in enumerate(sort(OrderedCollections.OrderedDict(_sc), by=x->parse(Int64,x)));
+            start_idx=(s-1)*scenario["hours"]*length(_sc)
+            start_idx=start_idx+(t-1)*scenario["hours"]
+            for h in 1 : scenario["hours"]
+                network = start_idx + h
+                h2=h+(t-1)*scenario["hours"]
+                data["scenario"][string(s)]["$h2"] = network
+                push!(scenario["sc_names"][string(k_sc)][k_yr],network)
+            end
+        end;
+    end
+    s["scenario"]=scenario
+    s["scenario"]["planning_horizon"] = s["scenario_planning_horizon"]; # in years, to scale generation cost
+    s["dim"]=dim
+    return data,s
+end
+
 function multi_period_stoch_year_setup_wgen_type(ls,res_years,scenario_years,scenario_names,data)
 	scenario_names=unique([sn[1:2] for sn in scenario_names])
     scenario = Dict{String, Any}("hours" => ls,"years" => length(scenario_years), "sc_names" => Dict{String, Any}())
@@ -255,6 +396,174 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
         gen["type"]=0
     end
     return extradata,data_orig
+end
+
+function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, s)
+	genz=[];wfz=[]
+    pu=data_orig["baseMVA"]
+    e2me=1000000/pu#into ME/PU
+    extradata = Dict{String,Any}()
+    data=Dict{String,Any}();data["gen"]=Dict{String,Any}()
+    extradata["dim"] = Dict{String,Any}()
+    extradata["dim"] = s["dim"]
+    extradata["gen"] = Dict{String,Any}()
+	demand_curve = Dict{String,Any}()
+
+	for (c,country) in all_gens["onshore"];
+		for (fuel,type) in country;
+			for (num,g) in type;
+				push!(data["gen"],num=>g)
+				;end;end;end
+
+	for (c,country) in all_gens["offshore"];
+		for (num,g) in country;
+		push!(data["gen"],num=>g);end;end
+
+    data["gen"]=sort!(OrderedCollections.OrderedDict(data["gen"]), by=x->parse(Int64,x))
+	for (g, gen) in data["gen"]
+        extradata["gen"][string(g)] = Dict{String,Any}()
+        extradata["gen"][string(g)]["pmax"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["gen"][string(g)]["pmin"] = Array{Float64,2}(undef, 1, s["dim"])
+		extradata["gen"][string(g)]["cost"] = [Vector{Float64}() for i=1:s["dim"]]
+		if (gen["type"]==0)
+		extradata["gen"][string(g)]["invest"] = Array{Float64,2}(undef, 1, s["dim"]);
+        extradata["gen"][string(g)]["wf_pmax"] = Array{Float64,2}(undef, 1, s["dim"]);end
+    end
+
+	for (k_sc,sc) in s["scenario"]["sc_names"]
+		for (k_yr,yr) in sc
+			#k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
+			k_sc_sd=k_yr=="2020" ? "Base" : k_sc[1:2]
+			for (h,d) in enumerate(yr)
+		        #Day ahead BE
+		        #onshore generators
+				for (xy, country) in all_gens["onshore"]
+		        	for (fuel, type) in country
+						for (g, gen) in type
+		            	#market generator onshore
+						S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][k_sc_sd][k_yr][xy])[!,:Capacity]
+						if isempty(S_row)
+							extradata["gen"][string(g)]["pmax"][1, d] = 0
+							extradata["gen"][string(g)]["cost"][d] = [0,0]
+							extradata["gen"][string(g)]["pmin"][1, d] = 0
+		#					extradata["gen"][string(g)]["gen_status"][1, d] = 0
+						else
+							if issubset([fuel],keys(scenario_data["Generation"]["RES"]))
+								CF=scenario_data["Generation"]["RES"][fuel][xy][k_sc[3:6]][!,Symbol(xy*"_MWh")][h]
+								extradata["gen"][string(g)]["pmax"][1, d] = CF*S_row[1]/pu
+							else
+								extradata["gen"][string(g)]["pmax"][1, d] = S_row[1]/pu
+							end
+							extradata["gen"][string(g)]["pmin"][1, d] = 0
+			                extradata["gen"][string(g)]["cost"][d] = [scenario_data["Generation"]["costs"][fuel]/e2me,0]
+							if !(haskey(demand_curve,xy));push!(demand_curve,xy=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
+							push!(demand_curve[xy],[S_row[1]/pu,scenario_data["Generation"]["costs"][fuel]/e2me])
+							push!(genz,(parse(Int64,g),S_row[1]/pu))
+						end
+				end;end;end
+				#Wind power Plants
+				for (j,(xy, country)) in enumerate(all_gens["offshore"])
+		        	for (i,(g, gen)) in enumerate(country)
+					#wind gen
+						CF=scenario_data["Generation"]["RES"]["Offshore Wind"][xy][k_sc[3:6]][!,Symbol(xy*"_MWh")][h]
+		                extradata["gen"][string(g)]["pmax"][1, d] = CF
+						extradata["gen"][string(g)]["pmin"][1, d] = 0
+		                extradata["gen"][string(g)]["cost"][d] = [0,0]
+						extradata["gen"][string(g)]["invest"][1, d] = gen["invest"]
+                        extradata["gen"][string(g)]["wf_pmax"][1, d] = s["owpp_mva"][j]/pu
+						push!(wfz,(parse(Int64,g),s["owpp_mva"][j]/pu))
+				end;end
+			end
+        end
+    end
+	#set ["type"]
+    for (g, gen) in data["gen"]
+		if (isapprox(sum(extradata["gen"][g]["pmax"]),0,atol=10e-3) && isapprox(sum(extradata["gen"][g]["pmin"]),0,atol=10e-3))
+			gen["gen_status"]=0;
+		else
+		end
+    end
+	#=xy="DE"
+	if !(haskey(demand_curve,xy));push!(demand_curve,xy=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
+	push!(demand_curve[xy],[1,3])=#
+    #adjust demand curve
+	demand_curve_reduced=Dict()
+	for (cuntree, df) in demand_curve
+		#cuntree_total=sum(df[!,:generation])
+		unique_costs=unique(df[!,:fuel_cost])
+		top=maximum(unique_costs)
+		bottom=minimum(unique_costs)
+		step=(top-bottom)/9
+		if !(haskey(demand_curve_reduced,cuntree));push!(demand_curve_reduced,cuntree=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
+		#for fuel_cost in unique_costs
+		for i = 1:1:10
+			#capacity=sum(filter(:fuel_cost=>x->x==fuel_cost,df)[!,:generation])
+			#push!(demand_curve_reduced[cuntree],[capacity/cuntree_total,fuel_cost])
+            #println(string(cuntree)*"|"*string(capacity/cuntree_total)*"|"*string(fuel_cost))
+            #push!(demand_curve_reduced[cuntree],[1/length(unique_costs),fuel_cost])
+            push!(demand_curve_reduced[cuntree],[1/10,top-(i-1)*step])
+			#println(string(cuntree)*"|"*string(1/10)*"|"*string(top-(i-1)*step))
+
+		end
+	end
+
+	#add loads
+	#all_gens["onshore"]["UK"]["Gas"]["8"]=g
+	num_of_gens=length(data["gen"])
+	if !(haskey(s["map_gen_types"],"loads"));push!(s["map_gen_types"],"loads"=>Dict());end
+	loads=Dict{String,Any}()
+	for (cuntree,df) in demand_curve_reduced
+		if !(haskey(loads,cuntree));push!(loads,cuntree=>Dict());end
+		load=deepcopy(first(first(all_gens["onshore"][cuntree])[2])[2])
+		for row in eachrow(df)
+			#reset load parameters
+	    	load["type"]=1
+			load["gen_status"]=1
+	        load["index"]=num_of_gens+1
+	        load["source_id"][2]=num_of_gens+1
+	        load["pmin"]=deepcopy(row[:generation])*-1
+	        load["pmax"]=0
+			load["cost"]=[deepcopy(row[:fuel_cost]),0]
+	        push!(loads[cuntree],string(num_of_gens+1)=>deepcopy(load))
+	        num_of_gens=num_of_gens+1
+
+			#map load to country
+			if !(haskey(s["map_gen_types"]["loads"],cuntree));push!(s["map_gen_types"]["loads"],cuntree=>[]);end
+			push!(s["map_gen_types"]["loads"][cuntree],num_of_gens)
+	end;end
+	for (cuntree, dic) in loads
+    	for (l, load) in dic
+	        extradata["gen"][string(l)] = Dict{String,Any}()
+	        extradata["gen"][string(l)]["pmax"] = Array{Float64,2}(undef, 1, s["dim"])
+	        extradata["gen"][string(l)]["pmin"] = Array{Float64,2}(undef, 1, s["dim"])
+	        extradata["gen"][string(l)]["cost"] = [Vector{Float64}() for i=1:s["dim"]]
+    end;end
+
+	#onshore loads
+	for (k_sc,sc) in s["scenario"]["sc_names"]
+		for (k_yr,yr) in sc
+			#k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
+			k_sc_sd=k_yr=="2020" ? "Base" : k_sc[1:2]
+			for (h,d) in enumerate(yr)
+		        #loads
+				for (cuntree, dic) in loads
+			        for (l, load) in sort!(OrderedCollections.OrderedDict(dic), by=x->parse(Int64,x))
+						ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
+						S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd][k_yr])[!,Symbol(cuntree*"_MWh")]
+		                extradata["gen"][string(l)]["pmax"][1, d] = 0
+		                extradata["gen"][string(l)]["pmin"][1, d] = load["pmin"]*S_row[1]/pu
+		                extradata["gen"][string(l)]["cost"][d] = load["cost"]
+		                push!(data["gen"],string(l)=>load)
+						push!(genz,(parse(Int64,l),S_row[1]/pu))
+			        end
+				end
+    end;end;end
+	unique!(x->first(x),genz)
+	unique!(x->first(x),wfz)
+	push!(s,"genz"=>genz)
+    push!(s,"wfz"=>wfz)
+	data_orig["gen"]=data["gen"]
+    return extradata, data_orig
 end
 
 function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig, all_gens, scenario_data, markets, s, argz, map_gen_types)
@@ -937,6 +1246,144 @@ function create_profile_sets_rest(number_of_hours, extradata, data_orig)
 end
 
 
+function create_profile_sets_rest_wgen_type(extradata, data_orig, s)
+    pu=data_orig["baseMVA"]
+    e2me=1000000/pu#into ME/PU
+    data=Dict{String,Any}()#;data["convdc"]=Dict{String,Any}()
+
+    extradata["convdc"] = Dict{String,Any}()
+    data["convdc"]=sort!(OrderedCollections.OrderedDict(data_orig["convdc"]), by=x->parse(Int64,x))
+    for (c, cnv) in data["convdc"]
+        extradata["convdc"][c] = Dict{String,Any}()
+        extradata["convdc"][c]["cost"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["convdc"][c]["Pacmax"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["convdc"][c]["Pacmin"] = Array{Float64,2}(undef, 1, s["dim"])
+    end
+    for d in 1:s["dim"]
+        for (c, cnv) in data["convdc"]
+                extradata["convdc"][c]["cost"][1, d] = cnv["cost"]
+                extradata["convdc"][c]["Pacmax"][1, d] = s["conv_lim"]/pu
+                extradata["convdc"][c]["Pacmin"][1, d] = 0.0
+        end
+    end
+
+    extradata["ne_branch"] = Dict{String,Any}()
+    data["ne_branch"]=sort!(OrderedCollections.OrderedDict(data_orig["ne_branch"]), by=x->parse(Int64,x))
+    for (b, br) in data["ne_branch"]
+        extradata["ne_branch"][b] = Dict{String,Any}()
+        extradata["ne_branch"][b]["construction_cost"] = Array{Float64,2}(undef, 1, s["dim"])
+    end
+    for d in 1:s["dim"]
+        for (b, br) in data["ne_branch"]
+                extradata["ne_branch"][b]["construction_cost"][1, d] = br["construction_cost"]
+        end
+    end
+
+    extradata["branchdc_ne"] = Dict{String,Any}()
+    data["branchdc_ne"]=sort!(OrderedCollections.OrderedDict(data_orig["branchdc_ne"]), by=x->parse(Int64,x))
+    for (b, br) in data["branchdc_ne"]
+        extradata["branchdc_ne"][b] = Dict{String,Any}()
+        extradata["branchdc_ne"][b]["cost"] = Array{Float64,2}(undef, 1, s["dim"])
+    end
+    for d in 1:s["dim"]
+        for (b, br) in data["branchdc_ne"]
+                extradata["branchdc_ne"][b]["cost"][1, d] = br["cost"]
+        end
+    end
+
+    extradata["convdc_ne"] = Dict{String,Any}()
+    data["convdc_ne"]=sort!(OrderedCollections.OrderedDict(data_orig["convdc_ne"]), by=x->parse(Int64,x))
+    for (c, cnv) in data["convdc_ne"]
+        extradata["convdc_ne"][c] = Dict{String,Any}()
+        extradata["convdc_ne"][c]["cost"] = Array{Float64,2}(undef, 1, s["dim"])
+    end
+    for d in 1:s["dim"]
+        for (c, cnv) in data["convdc_ne"]
+                extradata["convdc_ne"][c]["cost"][1, d] = cnv["cost"]
+        end
+    end
+
+    extradata["ne_storage"] = Dict{String,Any}()
+    data["ne_storage"]=sort!(OrderedCollections.OrderedDict(data_orig["ne_storage"]), by=x->parse(Int64,x))
+    for (b, stg) in data["ne_storage"]
+        extradata["ne_storage"][b] = Dict{String,Any}()
+        extradata["ne_storage"][b]["eq_cost"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["ne_storage"][b]["inst_cost"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["ne_storage"][b]["cost_abs"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["ne_storage"][b]["cost_inj"] = Array{Float64,2}(undef, 1, s["dim"])
+    end
+    for d in 1:s["dim"]
+        for (b, stg) in data["ne_storage"]
+                extradata["ne_storage"][b]["eq_cost"][1, d] = stg["eq_cost"]
+                extradata["ne_storage"][b]["inst_cost"][1, d] = stg["inst_cost"]
+                extradata["ne_storage"][b]["cost_abs"][1, d] = stg["cost_abs"]
+                extradata["ne_storage"][b]["cost_inj"][1, d] = stg["cost_inj"]
+        end
+    end
+
+    extradata["storage"] = Dict{String,Any}()
+    data["storage"]=sort!(OrderedCollections.OrderedDict(data_orig["storage"]), by=x->parse(Int64,x))
+    for (b, stg) in data["storage"]
+        extradata["storage"][b] = Dict{String,Any}()
+        extradata["storage"][b]["cost"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["storage"][b]["pmax"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["storage"][b]["pmin"] = Array{Float64,2}(undef, 1, s["dim"])
+    end
+    for d in 1:s["dim"]
+        for (b, stg) in data["storage"]
+                extradata["storage"][b]["cost"][1, d] = stg["cost"]
+                if (issubset([stg["storage_bus"]],s["offshore_nodes"]))
+                    extradata["storage"][b]["pmax"][1, d] = s["strg_lim_offshore"]
+                else
+                    extradata["storage"][b]["pmax"][1, d] = s["strg_lim_onshore"];end
+                extradata["storage"][b]["pmin"][1, d] = 0.0
+        end
+    end
+    
+
+    extradata["branchdc"] = Dict{String,Any}()
+    data["branchdc"]=sort!(OrderedCollections.OrderedDict(data_orig["branchdc"]), by=x->parse(Int64,x))
+    for (b, br) in data["branchdc"]
+        extradata["branchdc"][b] = Dict{String,Any}()
+        extradata["branchdc"][b]["cost"] = Array{Float64,2}(undef, 1, s["dim"])
+        ##################
+        extradata["branchdc"][b]["rateA"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["branchdc"][b]["r"] = Array{Float64,2}(undef, 1, s["dim"]) 
+        ##################
+    end
+    for d in 1:s["dim"]
+        for (b, br) in data["branchdc"]
+                extradata["branchdc"][b]["cost"][1, d] = br["cost"]
+                #######################################################
+                extradata["branchdc"][b]["rateA"][1, d] = br["rateA"]
+                extradata["branchdc"][b]["r"][1, d] = br["r"]
+                #######################################################
+        end
+    end
+
+    extradata["branch"] = Dict{String,Any}()
+    data["branch"]=sort!(OrderedCollections.OrderedDict(data_orig["branch"]), by=x->parse(Int64,x))
+    for (b, br) in data["branch"]
+        extradata["branch"][b] = Dict{String,Any}()
+        extradata["branch"][b]["cost"] = Array{Float64,2}(undef, 1, s["dim"])
+        ##################
+        extradata["branch"][b]["rateA"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["branch"][b]["br_r"] = Array{Float64,2}(undef, 1, s["dim"])
+        extradata["branch"][b]["br_x"] = Array{Float64,2}(undef, 1, s["dim"]) 
+        ##################
+    end
+    for d in 1:s["dim"]
+        for (b, br) in data["branch"]
+                extradata["branch"][b]["cost"][1, d] = br["cost"]
+                extradata["branch"][b]["rateA"][1, d] = br["rateA"]
+                extradata["branch"][b]["br_r"][1, d] = br["br_r"]
+                extradata["branch"][b]["br_x"][1, d] = br["br_x"]
+        end
+    end
+    return extradata
+end
+
+
 function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_orig, argz)
     pu=data_orig["baseMVA"]
     e2me=1000000/pu#into ME/PU
@@ -1017,12 +1464,17 @@ function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_ori
     for (s, stg) in data["storage"]
         extradata["storage"][s] = Dict{String,Any}()
         extradata["storage"][s]["cost"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["storage"][s]["pmax"] = Array{Float64,2}(undef, 1, number_of_hours)
+        extradata["storage"][s]["pmin"] = Array{Float64,2}(undef, 1, number_of_hours)
     end
     for d in 1:number_of_hours
         for (s, stg) in data["storage"]
                 extradata["storage"][s]["cost"][1, d] = stg["cost"]
+                extradata["storage"][s]["pmax"][1, d] = argz["strg_lim_onshore"]#argz["strg_lim_offshore"]
+                extradata["storage"][s]["pmin"][1, d] = 0.0
         end
     end
+    
 
     extradata["branchdc"] = Dict{String,Any}()
     data["branchdc"]=sort!(OrderedCollections.OrderedDict(data_orig["branchdc"]), by=x->parse(Int64,x))
@@ -1061,6 +1513,171 @@ function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_ori
                 extradata["branch"][b]["rateA"][1, d] = br["rateA"]
                 extradata["branch"][b]["br_r"][1, d] = br["br_r"]
                 extradata["branch"][b]["br_x"][1, d] = br["br_x"]
+        end
+    end
+    return extradata
+end
+
+function costs_datas_wREZ(extradata, s)
+    function npv_yearly(x,current_yr)
+		#println(string(x)*" "*string(current_yr))
+        cost = (1 / (1+s["dr"])^(current_yr-base_year)) * x *((s["scenario_planning_horizon"]-(current_yr-base_year))/s["scenario_planning_horizon"])# npv
+        return deepcopy(cost)
+    end
+    function npv_hourly(x,current_yr)
+        cost = (1 / (1+s["dr"])^(current_yr-base_year)) * x# npv
+        return deepcopy(cost)
+    end
+    function mip(cost0, cost1)
+        cost=cost0-cost1
+        return deepcopy(cost)
+    end
+    base_year=parse(Int64,s["scenario_years"][1])
+    sl=s["scenarios_length"]
+    yl=s["years_length"]
+    hl=s["hours_length"]
+    if (haskey(extradata,"convdc"))
+        for (c,cnv) in extradata["convdc"]
+            for (n,cst) in enumerate(cnv["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["convdc"][c]["cost"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+        end
+    end
+    if (haskey(extradata,"gen"))
+        for (g,gen) in extradata["gen"]
+            if (haskey(gen,"cost"))
+                for (n,cst) in enumerate(gen["cost"])
+                    _sc=floor(Int64,(n-1)/(yl*hl))
+                    _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                    extradata["gen"][g]["cost"][n]=npv_hourly(cst,parse(Int64,s["scenario_years"][_yr]))
+                end
+            end
+        end
+        for (g,gen) in extradata["gen"]
+            if (haskey(gen,"invest"))
+                for (n,cst) in enumerate(gen["invest"])
+                    _sc=floor(Int64,(n-1)/(yl*hl))
+                    _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+					#println(typeof(cst))
+                    extradata["gen"][g]["invest"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+                end
+            end
+        end
+    end
+    if (haskey(extradata,"ne_branch"))
+        for (b,br) in extradata["ne_branch"]
+            for (n,cst) in enumerate(br["construction_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_branch"][b]["construction_cost"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(br["construction_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["ne_branch"][b]["construction_cost"][n]=mip(cst,extradata["ne_branch"][b]["construction_cost"][n+hl])
+                end
+            end
+        end
+    end
+    if (haskey(extradata,"branchdc_ne"))
+        for (b,br) in extradata["branchdc_ne"]
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["branchdc_ne"][b]["cost"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["branchdc_ne"][b]["cost"][n]=mip(cst,extradata["branchdc_ne"][b]["cost"][n+hl])
+                end
+            end
+        end
+    end
+    if (haskey(extradata,"convdc_ne"))
+        for (c,cnv) in extradata["convdc_ne"]
+            for (n,cst) in enumerate(cnv["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["convdc_ne"][c]["cost"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(cnv["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["convdc_ne"][c]["cost"][n]=mip(cst,extradata["convdc_ne"][c]["cost"][n+hl])
+                end
+            end
+        end
+    end
+    if (haskey(extradata,"ne_storage"))
+        for (b,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["eq_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][b]["eq_cost"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(stg["eq_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["ne_storage"][b]["eq_cost"][n]=mip(cst,extradata["ne_storage"][b]["eq_cost"][n+hl])
+                end
+            end
+        end
+        for (b,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["inst_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][b]["inst_cost"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+            for (n,cst) in enumerate(stg["inst_cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                if (n<=(_sc)*yl*hl+(yl-1)*hl)
+                    extradata["ne_storage"][b]["inst_cost"][n]=mip(cst,extradata["ne_storage"][b]["inst_cost"][n+hl])
+                end
+            end
+        end
+        for (b,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["cost_abs"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][b]["cost_abs"][n]=npv_hourly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+        end
+        for (b,stg) in extradata["ne_storage"]
+            for (n,cst) in enumerate(stg["cost_inj"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["ne_storage"][b]["cost_inj"][n]=npv_hourly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+        end
+    end
+    if (haskey(extradata,"branchdc"))
+        for (b,br) in extradata["branchdc"]
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["branchdc"][b]["cost"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+        end
+    end
+    if (haskey(extradata,"branch"))
+        for (b,br) in extradata["branch"]
+            for (n,cst) in enumerate(br["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["branch"][b]["cost"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
+        end
+    end
+    if (haskey(extradata,"storage"))
+        for (b,stg) in extradata["storage"]
+            for (n,cst) in enumerate(stg["cost"])
+                _sc=floor(Int64,(n-1)/(yl*hl))
+                _yr=ceil(Int64,(n-_sc*(yl*hl))/(hl))
+                extradata["storage"][b]["cost"][n]=npv_yearly(cst,parse(Int64,s["scenario_years"][_yr]))
+            end
         end
     end
     return extradata

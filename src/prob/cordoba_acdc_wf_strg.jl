@@ -88,12 +88,11 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             for i in _PM.ids(pm, n, :ref_buses)
                 _PM.constraint_theta_ref(pm, i, nw = n)
             end
-
-        
+            
             if (!(haskey(pm.setting, "agent")) || (pm.setting["agent"] == ""))
                 for i in _PM.ids(pm, n, :bus)
-                    if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
-                        if !(issubset(i,pm.setting["home_market"]))
+                    if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0                        
+                        if !(is_intra_zonal(i,i,pm.setting["home_market"]))
                             constraint_power_balance_acne_dcne_strg(pm, i; nw = n)
                         end
                     else
@@ -101,9 +100,11 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                     end
                 end
             end
-            if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
-                is=intersect(_PM.ids(pm, n, :bus),first.(pm.setting["home_market"]))
-                constraint_power_balance_acne_dcne_strg_hm(pm, is; nw = n)
+            if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
+                for zm in pm.setting["home_market"]
+                    is=intersect(_PM.ids(pm, n, :bus),zm)
+                    constraint_power_balance_acne_dcne_strg_hm(pm, is; nw = n)
+                end
             end
 
             for i in _PM.ids(pm, n, :branch)
@@ -127,33 +128,37 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             end
 
             for i in _PM.ids(pm, n, :busdc)
-              #= if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
-                    if !(issubset(i,pm.setting["home_market"]))
+               if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
+                    if !(is_intra_zonal(i,i,pm.setting["home_market"]))
                         _PMACDC.constraint_power_balance_dc_dcne(pm, i; nw = n)
                     end
-                else=#
+                else
                     _PMACDC.constraint_power_balance_dc_dcne(pm, i; nw = n)
-                #end
+                end
             end
 
-            if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
-                is=intersect(_PM.ids(pm, n, :busdc),first.(pm.setting["home_market"]))
-                #constraint_power_balance_dc_dcne_hm(pm, is; nw = n)
+            if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
+                for zm in pm.setting["home_market"]
+                    is=intersect(_PM.ids(pm, n, :busdc),zm)
+                    constraint_power_balance_dc_dcne_hm(pm, is; nw = n)
+                end
             end
 
             for i in _PM.ids(pm, n, :busdc_ne)
-              #= if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
-                    if !(issubset(i,pm.setting["home_market"]))
+               if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
+                    if !(is_intra_zonal(i,i,pm.setting["home_market"]))
                         _PMACDC.constraint_power_balance_dcne_dcne(pm, i; nw = n)
                     end
-                else=#
+                else
                     _PMACDC.constraint_power_balance_dcne_dcne(pm, i; nw = n)
-               #end
+               end
             end
 
-            if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 1
-                is=intersect(_PM.ids(pm, n, :busdc_ne),first.(pm.setting["home_market"]))
-             #   constraint_power_balance_dcne_dcne_hm(pm, is; nw = n)
+            if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
+                for zm in pm.setting["home_market"]
+                    is=intersect(_PM.ids(pm, n, :busdc_ne),zm)
+                    constraint_power_balance_dcne_dcne_hm(pm, is; nw = n)
+                end
             end
 
             for i in _PM.ids(pm, n, :branchdc)
