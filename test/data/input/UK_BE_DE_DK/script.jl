@@ -6,7 +6,7 @@ import PowerModels; const _PM = PowerModels
 using OrderedCollections
 ##################### File parameters #################################
 s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\UK_DE_DK\\",#folder path
+"rt_ex"=>pwd()*"\\test\\data\\input\\UK_BE_DE_DK\\",#folder path
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
 ################# temperal parameters #################
 "test"=>false,#if true smallest (2 hour) problem variation is built for testing
@@ -19,12 +19,12 @@ s = Dict(
 "yearly_investment"=>100000,
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
-"owpp_mva"=>[4000],#mva of wf in MVA
+"owpp_mva"=>[2000,4000,4000],#mva of wf in MVA
 "conv_lim"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,
 "strg_lim_onshore"=>10,
-"candidate_ics_ac"=>[6/5,1,4/5,3/5,2/5,1/5],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[6/5,1,4/5,3/5,2/5,1/5],#DC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_ac"=>[1,4/5,3/5,2/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1,4/5,3/5,2/5],#DC Candidate Cable sizes (fraction of full MVA)
 ################## optimization/solver setup options ###################
 "output" => Dict("branch_flows" => false),
 "eps"=>0.0001,#admm residual (100kW)
@@ -42,14 +42,14 @@ s["home_market"]=[]
 result_mip, data, mn_data, s = _CBD.nodal_market_main(s)
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_results.jld2",results)
 
 
-s["home_market"]=[[3,4]]
+s["home_market"]=[[2,4],[3,5],[4,6]]
 result_mip, data, mn_data, s = _CBD.zonal_market_main(s);
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_ALLinHM.jld2",results)
 
 
 #result_mip=deepcopy(result_mip_001)

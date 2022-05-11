@@ -6,20 +6,20 @@ import PowerModels; const _PM = PowerModels
 using OrderedCollections
 ##################### File parameters #################################
 s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\UK_DE_DK_BE\\",#folder path
+"rt_ex"=>pwd()*"\\test\\data\\input\\UK_DK_BE\\",#folder path
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
 ################# temperal parameters #################
 "test"=>false,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
-"scenario_names"=>["NT","DE"],#["NT","DE","GA"]
-"k"=>2,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
+"scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
+"k"=>6,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
 "res_years"=>["2012","2016"],#Options: ["2012","2013","2014","2015","2016"]
 "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
 "dr"=>0.04,#discount rate
 "yearly_investment"=>100000,
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
-"owpp_mva"=>[4000],#mva of wf in MVA
+"owpp_mva"=>[2000,4000],#mva of wf in MVA
 "conv_lim"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,
 "strg_lim_onshore"=>10,
@@ -40,23 +40,29 @@ s = Dict(
 #NOTE only very basic intuitive check passed on functions wgen_type
 s["home_market"]=[]
 result_mip, data, mn_data, s = _CBD.nodal_market_main(s)
-_CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
+capex=_CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 
-s["home_market"]=[[1,4]]
+
+
+s["home_market"]=[[4,5]]
 result_mip, data, mn_data, s = _CBD.zonal_market_main(s);
-_CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
+capex=_CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
+
+results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DK_BE\\zodal_results.jld2",results)
 
 #result_mip=deepcopy(result_mip_001)
 gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data,s)#print solution
 #####################################
 
-country="DK"#,"DE","DK"]
+country="BE"#,"DE","DK"]
 scenario="1"
 con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
 gen=gen_consume_summary["onshore_generation"][scenario][country]#[121:144,:]
 _CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
 
-country="DE"#,"DE","DK"]
+
+country="DK"#,"DE","DK"]
 scenario="1"
 con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
 gen=gen_consume_summary["offshore_generation"][scenario][country]#[121:144,:]
@@ -65,6 +71,7 @@ _CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
 
 hourly_income_wf=_CBD.owpp_profit_obz(s, result_mip, keys(mn_data["scenario"][scenario]), "4", "163");
 _CBD.plot_cumulative_income(hourly_income_wf, s["hours_length"])
+
 sum(hourly_income_wf["power"])#3262.67155
 sum(hourly_income_wf["income"])#3262.67155
 
