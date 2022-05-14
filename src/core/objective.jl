@@ -16,22 +16,6 @@ function objective_min_cost_acdc_convex_conv_strg_npv(pm::_PM.AbstractPowerModel
 end
 
 #Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
-function objective_min_cost_acdc_convex_conv_wgentypes_npv(pm::_PM.AbstractPowerModel)
-    return JuMP.@objective(pm.model, Min,
-        sum(pm.ref[:scenario_prob][s] *
-            sum(
-                calc_gen_cost_wgentypes(pm, n)
-                + calc_convdc_convexafy_cost_npv(pm, n)
-                + calc_branch_cost_npv(pm, n)
-                + calc_branchdc_cost_npv(pm, n)
-                + calc_storage_cost_cordoba_npv(pm, n)
-                + calc_wf_cost_npv(pm, n)
-            for (sc, n) in scenario)
-        for (s, scenario) in pm.ref[:scenario])
-    )
-end
-
-#Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
 function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerModel)
     return JuMP.@objective(pm.model, Min,
         sum(pm.ref[:scenario_prob][s] *
@@ -46,6 +30,22 @@ function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerM
         for (s, scenario) in pm.ref[:scenario])
     )
 end
+
+#Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
+#=function objective_min_cost_acdc_convex_conv_wgentypes_npv(pm::_PM.AbstractPowerModel)
+    return JuMP.@objective(pm.model, Min,
+        sum(pm.ref[:scenario_prob][s] *
+            sum(
+                calc_gen_cost_wgentypes(pm, n)
+                + calc_convdc_convexafy_cost_npv(pm, n)
+                + calc_branch_cost_npv(pm, n)
+                + calc_branchdc_cost_npv(pm, n)
+                + calc_storage_cost_cordoba_npv(pm, n)
+                + calc_wf_cost_npv(pm, n)
+            for (sc, n) in scenario)
+        for (s, scenario) in pm.ref[:scenario])
+    )
+end=#
 
 #Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
 function objective_min_cost_acdc_convex_allcble_strg_npv(pm::_PM.AbstractPowerModel)

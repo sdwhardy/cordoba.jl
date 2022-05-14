@@ -170,11 +170,13 @@ function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, is::Set
     #bus = PowerModels.ref(pm, nw, :bus, i)
     bus_arcs_dcgrid=[];for (i,v) in enumerate(is);
         if (i==1);bus_arcs_dcgrid=PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v)
-        else;bus_arcs=vcat(bus_arcs_dcgrid,PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v))
+        else;bus_arcs_dcgrid=vcat(bus_arcs_dcgrid,PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v))
         end;end
+       # println("bus_arcs_dcgrid")
+        #println(bus_arcs_dcgrid)
         bus_arcs_dcgrid=[a for a in bus_arcs_dcgrid if !(issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
     
-    #    println("bus_arcs_dcgrid")
+      # println(bus_arcs_dcgrid)
     #for (l,i,j) in bus_arcs_dcgrid; println(l);print(" ");print(i);print(" ");print(j);println()
     #end
 
@@ -266,13 +268,8 @@ function constraint_power_balance_dcne_dcne_hm(pm::_PM.AbstractPowerModel, is::S
 #        println("pd_ne")
 #        println(pd_ne)
 
-    if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
-        #cost=constraint_power_balance_acne_dcne_strg_hm_admm(pm, nw, is, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
-        return cost
-    else
-        if (length(pd_ne)>0)
+    if (length(pd_ne)>0)
             constraint_power_balance_dcne_dcne_hm(pm, nw, is, bus_arcs_dcgrid_ne, bus_ne_convs_dc_ne, pd_ne);end
-    end
 end
 
 

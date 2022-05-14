@@ -30,6 +30,7 @@ include("core/variables.jl")
 include("io/profile_data.jl")
 include("io/functions.jl")
 include("io/print_m_file.jl")
+include("io/post_process.jl")
 
 ##################################################### NOTE ####################################
 #economics is an external package under development

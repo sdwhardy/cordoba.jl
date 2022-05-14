@@ -25,7 +25,7 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
             end
         end
     end
-
+    
     report && _IM.sol_component_value(pm, nw, :gen, :wf_pacmax, intersect(_PM.ids(pm, nw, :gen),first.(pm.setting["wfz"])), wf_pacmax)
     return (nw,wf_pacmax)
 end
@@ -367,7 +367,7 @@ function variable_dcbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
     if bounded
         for (s, branchdc) in _PM.ref(pm, nw, :branchdc)
             #######################################
-            if (pm.setting["rebalancing"]==true)
+            if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
                 JuMP.set_lower_bound(p_rateA[s],  pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw])
             else
                 JuMP.set_lower_bound(p_rateA[s],  0)
@@ -410,7 +410,7 @@ function variable_acbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
     if bounded
         for (s, branch) in _PM.ref(pm, nw, :branch)
             ########################################
-            if (pm.setting["rebalancing"]==true)
+            if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
                 JuMP.set_lower_bound(p_rateAC[s],  pm.setting["xd"]["branch"][string(s)]["rateA"][nw])
             else
                 JuMP.set_lower_bound(p_rateAC[s],  0)

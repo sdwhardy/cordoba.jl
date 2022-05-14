@@ -93,6 +93,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                 for i in _PM.ids(pm, n, :bus)
                     if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0                        
                         if !(is_intra_zonal(i,i,pm.setting["home_market"]))
+                            #println("full power balnce "*string(i))
                             constraint_power_balance_acne_dcne_strg(pm, i; nw = n)
                         end
                     else
@@ -103,6 +104,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
                 for zm in pm.setting["home_market"]
                     is=intersect(_PM.ids(pm, n, :bus),zm)
+                   # println("acne_dcne zonal power balnce "*string(is))
                     constraint_power_balance_acne_dcne_strg_hm(pm, is; nw = n)
                 end
             end
@@ -130,6 +132,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             for i in _PM.ids(pm, n, :busdc)
                if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
                     if !(is_intra_zonal(i,i,pm.setting["home_market"]))
+                        #println("full power balnce "*string(i))
                         _PMACDC.constraint_power_balance_dc_dcne(pm, i; nw = n)
                     end
                 else
@@ -139,7 +142,9 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
 
             if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
                 for zm in pm.setting["home_market"]
+                  
                     is=intersect(_PM.ids(pm, n, :busdc),zm)
+                   # println("dc_dcne zonal power balnce "*string(is))
                     constraint_power_balance_dc_dcne_hm(pm, is; nw = n)
                 end
             end
@@ -147,6 +152,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             for i in _PM.ids(pm, n, :busdc_ne)
                if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
                     if !(is_intra_zonal(i,i,pm.setting["home_market"]))
+                        #println("full power balnce "*string(i))
                         _PMACDC.constraint_power_balance_dcne_dcne(pm, i; nw = n)
                     end
                 else
@@ -156,7 +162,9 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
 
             if haskey(pm.setting, "home_market") && length(pm.setting["home_market"]) > 0
                 for zm in pm.setting["home_market"]
+                    
                     is=intersect(_PM.ids(pm, n, :busdc_ne),zm)
+                   # println("dcne_dcne zonal power balnce "*string(is))
                     constraint_power_balance_dcne_dcne_hm(pm, is; nw = n)
                 end
             end
@@ -223,30 +231,13 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             end
         end
         max_investment_per_year(pm)
-        #undo_relax=JuMP.relax_integrality(pm.model)
-        if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
+        if (haskey(pm.setting,"relax_problem") && pm.setting["relax_problem"]==true)
+            objective_min_cost_acdc_convex_convcble_strg_npv(pm)
             fix_dc_ne_lines2zero(pm)
             fix_ac_ne_lines2zero(pm)
-            fix_variables(pm)
-            objective_min_cost_acdc_convexcble_strg_npv_admm(pm)
+            undo_relax=JuMP.relax_integrality(pm.model)
         else
-            if (haskey(pm.setting,"relax_problem") && pm.setting["relax_problem"]==true)
-                objective_min_cost_acdc_convex_convcble_strg_npv(pm)
-                fix_dc_ne_lines2zero(pm)
-                fix_ac_ne_lines2zero(pm)
-                undo_relax=JuMP.relax_integrality(pm.model)
-            else
-                objective_min_cost_acdc_convex_conv_strg_npv(pm)
-            end
+            objective_min_cost_acdc_convex_conv_strg_npv(pm)
         end
-        #OBJECTIVE see objective.jl
-
-        #OBJECTIVE see objective.jl
-        #objective_min_cost_acdc_convex_conv_strg_npv(pm)
-        #CONSTRAINTS: defined within PowerModels(ACDC) can directly be used, other constraints need to be defined in the according sections of the code: flexible_demand.jl
-        #=for v in JuMP.all_variables(pm.model)
-            println(v)
-        end=#
-        #println(pm.model)
 end
 

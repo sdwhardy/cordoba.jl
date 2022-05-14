@@ -33,59 +33,30 @@ s = Dict(
 "conv_losses_mp" => true,
 "process_data_internally" => false,
 "corridor_limit" => true)
-########################################################################
-#0.0066 - branch
-##################################### HM market 
+
 ################## Run MIP Formulation ###################
 #NOTE only very basic intuitive check passed on functions wgen_type
 s["home_market"]=[]
 result_mip, data, mn_data, s = _CBD.nodal_market_main(s)
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_results.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_UKBEDEDK.jld2",results)
 
 
-s["home_market"]=[[2,4],[3,5],[4,6]]
+s["home_market"]=[[2,5],[3,6],[4,7]]
 result_mip, data, mn_data, s = _CBD.zonal_market_main(s);
-_CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
-results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_ALLinHM.jld2",results)
+s["cost_summary"]=_CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
+#results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
+#FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_allhmB.jld2",results)
 
 
-#result_mip=deepcopy(result_mip_001)
-gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data,s)#print solution
-#####################################
 
-country="DK"#,"DE","DK"]
-scenario="1"
-con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
-gen=gen_consume_summary["onshore_generation"][scenario][country]#[121:144,:]
-_CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
-
-country="DE"#,"DE","DK"]
-scenario="1"
-con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
-gen=gen_consume_summary["offshore_generation"][scenario][country]#[121:144,:]
-con=select!(con,:ts)
-_CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
-
-hourly_income_wf=_CBD.owpp_profit_obz(s, result_mip, keys(mn_data["scenario"][scenario]), "4", "163");
-_CBD.plot_cumulative_income(hourly_income_wf, s["hours_length"])
-sum(hourly_income_wf["power"])#3262.67155
-sum(hourly_income_wf["income"])#3262.67155
-
-hourly_income_tl=_CBD.transmission_line_profits(s, result_mip, keys(mn_data["scenario"][scenario]), data);
-_CBD.plot_cumulative_income_tl(hourly_income_tl, s["hours_length"])
-sum(hourly_income_tl["dc"])#3262.67155
-
-result_mip=_CBD.undo_marginal_price_scaling(s,argz,result_mip)
-_CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (1,"UK"))
-_CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (3,"DK"))
-_CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (2,"DE"))
-_CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (4,"WF"))
-
-social_welfare = SocialWelfare(s, result_mip, mn_data, data)
-social_welfare["totals"]
+#Check balanced
+all_gens=[];all_strg=[]
+for (n,nw) in result_mip["solution"]["nw"]
+push!(all_gens,sum(gen["pg"] for (g,gen) in nw["gen"]));
+push!(all_strg,sum(stg["ps"] for (s,stg) in nw["storage"]));end
+minimum(all_strg)
 
 
 
@@ -110,3 +81,62 @@ push!(scenario_data["Demand"]["DE"],"2030"=>sdgs["DE2030"])
 push!(scenario_data["Demand"]["NT"],"2040"=>sdgs["NT2040"])
 push!(scenario_data["Demand"]["GA"],"2040"=>sdgs["GA2040"])
 push!(scenario_data["Demand"]["DE"],"2040"=>sdgs["DE2040"])
+
+
+
+
+
+
+#=function global_optimal_dispatch(s)
+    #s["relax_problem"]=true
+    data, s = _CBD.get_topology_data(s)#topology.m file
+    scenario_data = _CBD.get_scenario_data(s)#scenario time series
+	###########################################################################
+	all_gens,s = _CBD.gen_types(data,scenario_data,s)
+    #################### Calculates cable options for AC lines
+    data = _CBD.AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
+    #################### Calculates cable options for DC lines
+    data = _CBD.DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
+    if (haskey(s, "home_market") && length(s["home_market"])>0);data = _CBD.keep_only_hm_cables(s,data);end#if home market reduce to only those in 
+    _CBD.additional_params_PMACDC(data)
+    _CBD.print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
+    _CBD.print_topology_data_DC(data,s["map_gen_types"]["markets"])#print to verify
+    ##################### load time series data ##############################
+    scenario_data = _CBD.load_time_series_gentypes(s, scenario_data)
+    ##################### multi period setup #################################
+	s = _CBD.update_settings_wgenz(s, data)
+    mn_data, s  = _CBD.multi_period_setup_wgen_type(scenario_data, data, all_gens, s);
+	push!(s,"max_invest_per_year"=>_CBD.max_invest_per_year(s))
+    return  mn_data, data, s
+end
+
+function zonal_market_main(s)
+    hm=deepcopy(s["home_market"]);
+    #s["relax_problem"]=true
+    #mn_data, data, s = global_optimal_dispatch(s);#Build data structure for given options
+    mn_data, data, s = _CBD.data_setup_zonal(s);#Build data structure for given options    
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1);#select solver
+    result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);#Solve problem
+    _CBD.print_solution_wcost_data(result_mip, s, data);
+    mn_data, data, s = data_setup_nodal(s);#Build data structure for given options
+    mn_data, s = set_inter_zonal_grid(result_mip,mn_data,s);
+    s["home_market"]=[]    
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 0)#select solver
+    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    #print_solution_wcost_data(result_mip, s, data)
+    s["home_market"]=hm
+    s["rebalancing"]=true
+    s["relax_problem"]=true
+    s["output"]["duals"]=true
+    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
+    s, mn_data= remove_integers(result_mip,mn_data,data,s);
+    result_mip_hm_prices = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    s["home_market"]=[]
+    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
+    s, mn_data= remove_integers(result_mip,mn_data,data,s);
+    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
+    return result_mip, data, mn_data, s
+end=#
