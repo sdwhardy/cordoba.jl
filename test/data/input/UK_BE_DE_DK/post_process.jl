@@ -14,7 +14,8 @@ gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data,s)#p
 social_welfare = _CBD.SocialWelfare(s, result_mip, mn_data, data)
 social_welfare["totals"]
 _CBD.topology_map(s,"tinf")
-   
+#nodal "gross_consumer_surplus"=>-1.30748e6
+#hm   
 _CBD.plot_cumulative_wf_income_all_scenarios(s, mn_data, "DE")
 
 _CBD.plot_cumulative_wf_income_all_scenarios(s, mn_data, "DK")
