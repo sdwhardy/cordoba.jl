@@ -214,7 +214,7 @@ function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario
 end
 
 #multi period problem setup
-function multi_period_setup_wgen_type(scenario_data,data, all_gens, s)
+#=function multi_period_setup_wgen_type(scenario_data,data, all_gens, s)
     #################### Multi-period input parameters #######################
     data, s = multi_period_stoch_year_setup_wgen_type(s,data);
     extradata, data = create_profile_sets_mesh_wgen_type(data, all_gens, scenario_data, s)
@@ -234,7 +234,7 @@ function multi_period_setup_wgen_type(scenario_data,data, all_gens, s)
     for (g,gen) in mn_data["nw"]
 		gen["gen"]=Dict(gen["gen"]);end
     return mn_data, s
-end
+end=#
 
 #Organizes nw numbers per scenario-year
 function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
