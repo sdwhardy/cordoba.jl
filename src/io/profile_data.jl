@@ -20,6 +20,7 @@ function load_time_series(rt_ex, argz)
 end
 
 
+#=
 #load Time series data
 function load_time_series_gentypes(rt_ex, argz, scenario_data,markets)
 	ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4UKBEDEDK.jld2")
@@ -77,9 +78,8 @@ function load_time_series_gentypes(rt_ex, argz, scenario_data,markets)
 	end;end
 	push!(argz,"ls"=>ls)
     return scenario_data
-end
+end=#
 
-#
 #load Time series data
 function load_time_series_gentypes(s, scenario_data)
 	ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4UKBEDEDK.jld2")
