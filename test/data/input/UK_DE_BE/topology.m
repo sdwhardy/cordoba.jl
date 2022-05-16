@@ -100,7 +100,7 @@ mpc.baseMVA = 100;
 	%% candidate dc bus data
 	%column_names%   busdc_i grid    Pdc     Vdc     basekVdc    Vdcmax  Vdcmin  Cdc
 	mpc.busdc_ne = [
-	5              4       0       1       300         1.1     0.9     0;
+	8              4       0       1       300         1.1     0.9     0;
 	];
 %% existing dc branches
 	%column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB rateC cost status

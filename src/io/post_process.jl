@@ -279,49 +279,6 @@ end
 
 ####################################### Print solution ################################
 
-function SocialWelfare(s, result_mip, mn_data, data)
-    sl=s["scenarios_length"]
-    social_welfare=Dict();
-    for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("consumed"=>Dict(),"revenue"=>Dict(),"produced"=>Dict()));end 
-    for (k_sc,sc) in social_welfare;
-        for n in s["onshore_nodes"];
-            push!(sc["produced"],string(n)=>0.0);
-            push!(sc["revenue"],string(n)=>0.0);
-            push!(sc["consumed"],string(n)=>0.0);end;
-        for n in s["offshore_nodes"];
-            push!(sc["produced"],string(n)=>0.0);
-            push!(sc["revenue"],string(n)=>0.0);
-            push!(sc["consumed"],string(n)=>0.0);end;end
-    for (k_sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x));
-        for (k_ts,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x));
-            ts_str=string(ts)
-            for (g,gen) in result_mip["solution"]["nw"][ts_str]["gen"];
-                gen_bus=string(data["gen"][g]["gen_bus"])
-                social_welfare[k_sc]["revenue"][gen_bus]=social_welfare[k_sc]["revenue"][gen_bus]+gen["pg"]*result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"]*sl
-                if (gen["pg"]<=0)
-                    social_welfare[k_sc]["consumed"][gen_bus]=social_welfare[k_sc]["consumed"][gen_bus]+gen["pg"]
-                else
-                    social_welfare[k_sc]["produced"][gen_bus]=social_welfare[k_sc]["produced"][gen_bus]+gen["pg"]
-                end
-            end
-        end
-    end
-    totals=Dict();totals["all"]=Dict();
-    for (k_sc,sc) in social_welfare;
-        if !(haskey(totals,k_sc));push!(totals,k_sc=>Dict());end
-        for (k_type, type) in sc
-            if !(haskey(totals[k_sc],k_type));push!(totals[k_sc],k_type=>0.0);end
-            if !(haskey(totals["all"],k_type));push!(totals["all"],k_type=>0.0);end
-            for (b_k,b) in type
-                totals["all"][k_type]=totals["all"][k_type]+b 
-                totals[k_sc][k_type]=totals[k_sc][k_type]+b
-            end    
-        end
-    end
-    push!(social_welfare,"totals"=>totals)
-    return social_welfare
-end
-
 
 function generation_color_map()
         color_dict=Dict("Offshore Wind"=>"darkgreen",
@@ -357,18 +314,19 @@ end
 
 function owpps_profit_obz(s, result_mip, mn_data)
     for (scenario_num,scenario) in mn_data["scenario"]
-        tss=keys(scenario)
+        tss=string.(values(scenario))#is this the problem? why keys?
         for (wf_num,wf_node) in enumerate(s["offshore_nodes"])
             s=owpp_profit_obz(s, result_mip, scenario_num, tss, string(wf_node), string(first(s["wfz"][wf_num])))
         end
     end
     return s
 end
+
 function owpp_profit_obz(s, result_mip, scenario, tss, bus, gen)
     if !haskey(s,"income_summary");s["income_summary"]=Dict();end
     if !haskey(s["income_summary"],"owpp");s["income_summary"]["owpp"]=Dict();end
     if !haskey(s["income_summary"]["owpp"],scenario);s["income_summary"]["owpp"][scenario]=Dict();end
-    
+   
     hl=1#s["hours_length"]
     yl=1#s["years_length"]
     sl=s["scenarios_length"]
@@ -378,6 +336,7 @@ function owpp_profit_obz(s, result_mip, scenario, tss, bus, gen)
         if (issubset([string(n)],tss))
             b=nw["bus"][bus];
             g=nw["gen"][gen];
+            
             push!(hourly_income["power"],g["pg"]);
             push!(hourly_income["price"],b["lam_kcl_r"]);
             push!(hourly_income["income"],g["pg"]*b["lam_kcl_r"]*-hl*yl*sl*me2e);
@@ -387,6 +346,68 @@ function owpp_profit_obz(s, result_mip, scenario, tss, bus, gen)
     hourly_income["life_power"]=sum(hourly_income["power"])
     s["income_summary"]["owpp"][scenario][bus]=hourly_income
     return s
+end
+
+function SocialWelfare(s, result_mip, mn_data, data)
+    sl=s["scenarios_length"]
+    social_welfare=Dict();
+    for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("gross_consumer_surplus"=>Dict(),"available_demand"=>Dict(),"consumed"=>Dict(),"gen_revenue"=>Dict(),"con_expenditure"=>Dict(),"produced"=>Dict()));end 
+    for (k_sc,sc) in social_welfare;
+        for n in s["onshore_nodes"];
+            push!(sc["produced"],string(n)=>0.0);
+            push!(sc["gross_consumer_surplus"],string(n)=>0.0);
+            push!(sc["available_demand"],string(n)=>0.0);
+            push!(sc["gen_revenue"],string(n)=>0.0);
+            push!(sc["con_expenditure"],string(n)=>0.0);
+            push!(sc["consumed"],string(n)=>0.0);end;
+        for n in s["offshore_nodes"];
+            push!(sc["produced"],string(n)=>0.0);
+            push!(sc["gross_consumer_surplus"],string(n)=>0.0);
+            push!(sc["available_demand"],string(n)=>0.0);
+            push!(sc["gen_revenue"],string(n)=>0.0);
+            push!(sc["con_expenditure"],string(n)=>0.0);
+            push!(sc["consumed"],string(n)=>0.0);end;end
+    for (k_sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x));
+        for (k_ts,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x));
+            ts_str=string(ts)
+            for (g,gen) in result_mip["solution"]["nw"][ts_str]["gen"];
+                gen_bus=string(data["gen"][g]["gen_bus"])
+                if (gen["pg"]<=0)
+                    #println(string(s["xd"]["gen"][gen_bus]["cost"][ts][1])*" - "*string(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"]))
+                    social_welfare[k_sc]["con_expenditure"][gen_bus]=social_welfare[k_sc]["con_expenditure"][gen_bus]+gen["pg"]*result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"]*sl
+                    social_welfare[k_sc]["available_demand"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]+gen["pg"]*s["xd"]["gen"][gen_bus]["cost"][ts][1]*-1
+                    social_welfare[k_sc]["consumed"][gen_bus]=social_welfare[k_sc]["consumed"][gen_bus]+gen["pg"]
+                    social_welfare[k_sc]["gross_consumer_surplus"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]-social_welfare[k_sc]["con_expenditure"][gen_bus]
+                else
+                    social_welfare[k_sc]["gen_revenue"][gen_bus]=social_welfare[k_sc]["gen_revenue"][gen_bus]+gen["pg"]*result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"]*-1*sl
+                    social_welfare[k_sc]["produced"][gen_bus]=social_welfare[k_sc]["produced"][gen_bus]+gen["pg"]
+                end
+            end
+            #=for (b,strg) in result_mip["solution"]["nw"][ts_str]["storage"];
+                storage_bus=string(data["storage"][b]["storage_bus"])
+                social_welfare[k_sc]["gen_revenue"][storage_bus]=social_welfare[k_sc]["gen_revenue"][storage_bus]+strg["ps"]*result_mip["solution"]["nw"][ts_str]["bus"][storage_bus]["lam_kcl_r"]*sl
+                if (strg["ps"]<=0)
+                    social_welfare[k_sc]["consumed"][storage_bus]=social_welfare[k_sc]["consumed"][storage_bus]+strg["ps"]
+                else
+                    social_welfare[k_sc]["produced"][storage_bus]=social_welfare[k_sc]["produced"][storage_bus]+strg["ps"]
+                end
+            end=#
+        end
+    end
+    totals=Dict();totals["all"]=Dict();
+    for (k_sc,sc) in social_welfare;
+        if !(haskey(totals,k_sc));push!(totals,k_sc=>Dict());end
+        for (k_type, type) in sc
+            if !(haskey(totals[k_sc],k_type));push!(totals[k_sc],k_type=>0.0);end
+            if !(haskey(totals["all"],k_type));push!(totals["all"],k_type=>0.0);end
+            for (b_k,b) in type
+                totals["all"][k_type]=totals["all"][k_type]+b 
+                totals[k_sc][k_type]=totals[k_sc][k_type]+b
+            end    
+        end
+    end
+    push!(social_welfare,"totals"=>totals)
+    return social_welfare
 end
 
 #=
@@ -427,7 +448,7 @@ end
 
 function transmission_lines_profits(s, result_mip, mn_data, data)
     for (scenario_num,scenario) in mn_data["scenario"]
-        tss=keys(scenario)
+        tss=string.(values(scenario))
         s=transmission_line_profits(s, result_mip, scenario_num, tss, data)
     end
     return s
@@ -465,7 +486,7 @@ function transmission_line_profits(s, result_mip,scenario, tss, data)
                 end;end
     end;end
     if !(haskey(s["income_summary"],"tso"));push!(s["income_summary"],"tso"=>Dict());end
-    println(scenario)
+    #println(scenario)
     push!(s["income_summary"]["tso"],scenario=>hourly_income)
     return s
 end
