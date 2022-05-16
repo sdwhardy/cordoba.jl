@@ -160,7 +160,8 @@ end
 function update_settings(s, argz, data)
     s["genz"]=argz["genz"]
     s["wfz"]=argz["wfz"]
-    s["ic_lim"]=argz["conv_lim"]/data["baseMVA"]
+    s["ic_lim_onshore"]=argz["conv_lim_onshore"]/data["baseMVA"]
+    s["ic_lim_offshore"]=argz["conv_lim_offshore"]/data["baseMVA"]
     s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]])
     s["scenarios_length"] = length(argz["scenario_names"])
     s["years_length"] = length(argz["scenario_years"])
@@ -170,7 +171,8 @@ end
 
 
 function update_settings_wgenz(s, argz, data)
-    s["ic_lim"]=argz["conv_lim"]/data["baseMVA"]
+    s["ic_lim_onshore"]=argz["conv_lim_onshore"]/data["baseMVA"]
+    s["ic_lim_offshore"]=argz["conv_lim_offshore"]/data["baseMVA"]
     s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]])
     s["scenarios_length"] = length(argz["scenario_names"])*length(argz["res_years"])
     s["years_length"] = length(argz["scenario_years"])
@@ -180,7 +182,8 @@ end
 
 #
 function update_settings_wgenz(s, data)
-    s["ic_lim"]=s["conv_lim"]/data["baseMVA"]
+    s["ic_lim_onshore"]=s["conv_lim_onshore"]/data["baseMVA"]
+    s["ic_lim_offshore"]=s["conv_lim_offshore"]/data["baseMVA"]
     s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]])
     s["scenarios_length"] = length(s["scenario_names"])*length(s["res_years"])
     s["years_length"] = length(s["scenario_years"])

@@ -5,14 +5,14 @@ import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 using OrderedCollections
 
-results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_UKBEDEDK.jld2")
+results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results.jld2")
 s=results["s"];result_mip=results["result_mip"];data=results["data"];mn_data=results["mn_data"]
 #_CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846
 s=_CBD.owpps_profit_obz(s, result_mip, mn_data)
 s=_CBD.transmission_lines_profits(s, result_mip, mn_data, data);
 gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data,s)#print solution
 social_welfare = _CBD.SocialWelfare(s, result_mip, mn_data, data)
-
+social_welfare["totals"]
 _CBD.topology_map(s,"tinf")
    
 _CBD.plot_cumulative_wf_income_all_scenarios(s, mn_data, "DE")
