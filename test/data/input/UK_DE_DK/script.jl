@@ -9,7 +9,7 @@ s = Dict(
 "rt_ex"=>pwd()*"\\test\\data\\input\\UK_DE_DK\\",#folder path
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
 ################# temperal parameters #################
-"test"=>true,#if true smallest (2 hour) problem variation is built for testing
+"test"=>false,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
 "scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
 "k"=>6,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
@@ -20,11 +20,12 @@ s = Dict(
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
 "owpp_mva"=>[4000],#mva of wf in MVA
-"conv_lim"=>3000,#Max Converter size in MVA
+"conv_lim_onshore"=>3000,#Max Converter size in MVA
+"conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,
 "strg_lim_onshore"=>10,
-"candidate_ics_ac"=>[1,3/5,2/5],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[1,3/5,2/5],#DC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_ac"=>[1,4/5,3/5,2/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1,4/5,3/5,2/5],#DC Candidate Cable sizes (fraction of full MVA)
 ################## optimization/solver setup options ###################
 "output" => Dict("branch_flows" => false),
 "eps"=>0.0001,#admm residual (100kW)

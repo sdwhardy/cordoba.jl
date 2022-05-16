@@ -1263,8 +1263,12 @@ function create_profile_sets_rest_wgen_type(extradata, data_orig, s)
     for d in 1:s["dim"]
         for (c, cnv) in data["convdc"]
                 extradata["convdc"][c]["cost"][1, d] = cnv["cost"]
-                extradata["convdc"][c]["Pacmax"][1, d] = s["conv_lim"]/pu
                 extradata["convdc"][c]["Pacmin"][1, d] = 0.0
+                if issubset([c],s["onshore_nodes"])
+                    extradata["convdc"][c]["Pacmax"][1, d] = s["conv_lim_onshore"]/pu
+                else
+                    extradata["convdc"][c]["Pacmax"][1, d] = s["conv_lim_offshore"]/pu
+                end
         end
     end
 
@@ -1384,7 +1388,7 @@ function create_profile_sets_rest_wgen_type(extradata, data_orig, s)
     return extradata
 end
 
-
+#=
 function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_orig, argz)
     pu=data_orig["baseMVA"]
     e2me=1000000/pu#into ME/PU
@@ -1517,7 +1521,7 @@ function create_profile_sets_rest_wgen_type(number_of_hours, extradata, data_ori
         end
     end
     return extradata
-end
+end=#
 
 function costs_datas_wREZ(extradata, s)
     function npv_yearly(x,current_yr)
