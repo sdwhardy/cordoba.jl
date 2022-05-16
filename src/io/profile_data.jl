@@ -1264,9 +1264,11 @@ function create_profile_sets_rest_wgen_type(extradata, data_orig, s)
         for (c, cnv) in data["convdc"]
                 extradata["convdc"][c]["cost"][1, d] = cnv["cost"]
                 extradata["convdc"][c]["Pacmin"][1, d] = 0.0
-                if issubset([c],s["onshore_nodes"])
+                if issubset([parse(Int64,c)],s["onshore_nodes"])
+                    #println(c*" onshore node")
                     extradata["convdc"][c]["Pacmax"][1, d] = s["conv_lim_onshore"]/pu
                 else
+                    #println(c*" offshore node")
                     extradata["convdc"][c]["Pacmax"][1, d] = s["conv_lim_offshore"]/pu
                 end
         end

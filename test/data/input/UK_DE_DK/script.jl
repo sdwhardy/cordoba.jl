@@ -46,11 +46,11 @@ results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results.jld2",results)
 
 
-s["home_market"]=[[3,4]]
+s["home_market"]=[[2,4]]
 result_mip, data, mn_data, s = _CBD.zonal_market_main(s);
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm24.jld2",results)
 
 
 #result_mip=deepcopy(result_mip_001)
