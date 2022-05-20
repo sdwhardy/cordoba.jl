@@ -28,10 +28,9 @@ function zonal_market_main(s)
     return result_mip, data, mn_data, s
 end
 
-
 function nodal_market_main(s)
     mn_data, data, s = data_setup_nodal(s);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap" => 1e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     s["rebalancing"]=true
@@ -253,7 +252,6 @@ function filter_AClines(data,edges,nodes)
     end
     return data, ics_ac
 end
-
 
 function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
     z_base_ac=(data["bus"]["1"]["base_kv"])^2/pu
@@ -1028,23 +1026,6 @@ function data_update(s,result_mip)
     return  mn_data, data, s
 end
 
-#Checking clusters best for maintaining mean/max is k=6 2014, 2015
-#=stats=Dict()
-for _yr in ["2012","2013","2014","2015","2016"]
-for cunt in ["DE","BE","DK"]
-    ts=scenario_data["Generation"]["RES"]["Offshore Wind"][cunt][_yr][!,cunt*"_MWh"]
-    if !(haskey(stats,_yr));push!(stats,_yr=>Dict());end
-    if !(haskey(stats[_yr],cunt));push!(stats[_yr],cunt=>Dict("mean"=>0.0,"max"=>0.0));end
-    stats[_yr][cunt]["mean"]=sum(ts)/length(ts)
-    stats[_yr][cunt]["max"]=maximum(ts)
-end;end
-
-
-  "2014" => Dict{Any,Any}("BE"=>Dict("max"=>0.95,"mean"=>0.405346),"DE"=>Dict("max"=>0.95,"mean"=>0.452253),"DK"=>Dict("max"=>0.95,"mean"=>0.456345))
-  "2015" => Dict{Any,Any}("BE"=>Dict("max"=>0.95,"mean"=>0.458092),"DE"=>Dict("max"=>0.95,"mean"=>0.453836),"DK"=>Dict("max"=>0.95,"mean"=>0.473598))
-  "2012" => Dict{Any,Any}("BE"=>Dict("max"=>0.95,"mean"=>0.420451),"DE"=>Dict("max"=>0.95,"mean"=>0.435667),"DK"=>Dict("max"=>0.95,"mean"=>0.440202))
-  "2016" => Dict{Any,Any}("BE"=>Dict("max"=>0.95,"mean"=>0.396189),"DE"=>Dict("max"=>0.95,"mean"=>0.400774),"DK"=>Dict("max"=>0.95,"mean"=>0.411505))
-  "2013" => Dict{Any,Any}("BE"=>Dict("max"=>0.95,"mean"=>0.434529),"DE"=>Dict("max"=>0.95,"mean"=>0.420787),"DK"=>Dict("max"=>0.95,"mean"=>0.416178))=#
 #seperates wfs from genz and defines markets/wfs zones
 function data_setup_nodal(s)
     data, s = get_topology_data(s)#topology.m file

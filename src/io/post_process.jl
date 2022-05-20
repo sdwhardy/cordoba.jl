@@ -13,12 +13,12 @@ function topology_map(s, time_step)
      #                   marker=marker)
     
 
-    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textposition="top center",text=row[:country]*"-"*string(row[:node]),
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=15),textposition="top center",text=row[:country]*"-"*string(row[:node]),
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
 
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textposition="top center",text=row[:country]*"-"*string(row[:node]), 
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=15),textposition="top center",text=row[:country]*"-"*string(row[:node]), 
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["wf"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
@@ -39,10 +39,11 @@ function topology_map(s, time_step)
             filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:long][1]],line=lineAC
             ) for row in eachrow(s["topology"][time_step]["ac"])]
     trace=vcat(traceCNT,traceWF,traceDC,traceAC)
+   #trace=vcat(traceCNT,traceWF)
 
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
 
-    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000*3/5, height=1100*3/5, legend = PlotlyJS.attr(x=0,y = 0.95), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000*3/5, height=1100*3/5, legend = PlotlyJS.attr(x=-1,y = 0.95), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
     PlotlyJS.plot(trace, layout)
 end
 
