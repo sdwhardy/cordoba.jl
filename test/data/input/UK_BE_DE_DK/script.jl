@@ -19,7 +19,8 @@ s = Dict(
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
 "owpp_mva"=>[2000,4000,4000],#mva of wf in MVA
-"conv_lim"=>3000,#Max Converter size in MVA
+"conv_lim_onshore"=>3000,#Max Converter size in MVA
+"conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,
 "strg_lim_onshore"=>10,
 "candidate_ics_ac"=>[1,4/5,3/5,2/5],#AC Candidate Cable sizes (fraction of full MVA)
