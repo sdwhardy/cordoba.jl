@@ -8,7 +8,7 @@ s = Dict(
 "rt_ex"=>pwd()*"\\test\\data\\input\\UK_BE_DE_DK\\",#folder path
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
 ################# temperal parameters #################
-"test"=>false,#if true smallest (2 hour) problem variation is built for testing
+"test"=>true,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
 "scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
 "k"=>6,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
@@ -41,13 +41,13 @@ result_mip, data, mn_data, s = _CBD.nodal_market_main(s)
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_k6.jld2",results)
-
+social_welfare = _CBD.SocialWelfare(s, result_mip, mn_data, data)
 
 s["home_market"]=[[5,6,7]]
 result_mip, data, mn_data, s = _CBD.zonal_market_main(s);
 s["cost_summary"]=_CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_567.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_allhm_k6.jld2",results)
 
 
 

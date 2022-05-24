@@ -1,4 +1,18 @@
 ############################ figures ##################################
+function basic_bar_chart(xvalues,yvalues,xlabel,ylabel)
+    y_min=minimum(yvalues)-minimum(yvalues)*0.0005
+    y_max=maximum(yvalues)+maximum(yvalues)*0.0005
+    data =PlotlyJS.bar(
+      x=xvalues,
+      y=yvalues,
+      text=string.(round.(yvalues)),
+      textposition="auto",
+      textfont=PlotlyJS.attr(size=30))
+
+    layout=PlotlyJS.Layout(yaxis_range=(y_min,y_max), yaxis_title=ylabel,xaxis_title=xlabel, width=1000, height=550,font_size=35)
+    PlotlyJS.plot(data,layout)
+end
+
 function topology_map(s, time_step)
     markerWF = PlotlyJS.attr(size=[10],
                   color="blue",
@@ -13,17 +27,18 @@ function topology_map(s, time_step)
      #                   marker=marker)
     
 
-    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textposition="top center",text=row[:country]*"-"*string(row[:node]),
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=row[:country]*"-"*string(row[:node]),
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
 
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textposition="top center",text=row[:country]*"-"*string(row[:node]), 
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=row[:country]*"-"*string(row[:node]), 
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["wf"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
     traceDC=[
-        PlotlyJS.scattergeo(;mode="lines",name=string(Int64(row[:from]))*"-"*string(Int64(row[:to]))*": "*string(round(row[:mva])/10)*" GW",
+        PlotlyJS.scattergeo(;mode="lines",
+        name=string(Int64(row[:from]))*"-"*string(Int64(row[:to]))*": "*string(round(row[:mva])/10)*" GW",
         lat=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:lat][1],
         filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:lat][1]],
         lon=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:long][1],
@@ -42,7 +57,7 @@ function topology_map(s, time_step)
 
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
 
-    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000*3/5, height=1100*3/5, legend = PlotlyJS.attr(x=0,y = 0.95), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=27),size=10,bgcolor= "#1C00ff00"), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
     PlotlyJS.plot(trace, layout)
 end
 
@@ -169,54 +184,225 @@ function plot_cumulative_wf_income_all_scenarios(s, mn_data, wf_country)
     gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
     node=string(bus) 
     hrs=s["hours_length"]
-    hours2days=(8760*10/hrs)/24
+    hours2lifetime=(8760*10/hrs)
     wf_price=s["cost_summary"]["owpp"]["totals"][gen]
     scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
-    cum_incomes=[];powers=[];hours=[]
+    cum_incomes=[];prices=[];hours=[]
     for (scenario, tss) in scenarios
         hourly_income=s["income_summary"]["owpp"][scenario][node]
         push!(cum_incomes,[sum(hourly_income["income"][1:i]) for (i,ic) in enumerate(hourly_income["income"])])
-        push!(powers,hourly_income["power"])
+        push!(prices,hourly_income["price_not_npv"])
         if (scenario=="1")
             hours=hourly_income["hour"];end
     end
     cum_income=cum_incomes[1]
-    power=powers[1]
+    price=prices[1]
     
     if (length(cum_incomes)>1)
         for ci in cum_incomes[2:end]
         cum_income=cum_income.+ci;end
         cum_income=cum_income/length(cum_incomes)
         end
-    if (length(powers)>1)
-        for p in powers[2:end]
-        power=power.+p;end
-        power=power/length(powers)
+    if (length(prices)>1)
+        for p in prices[2:end]
+            price=price.+p;end
+            price=price/length(prices)
         end
 
-    data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2days,
+    data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2lifetime,
                 name="Cumulative Revenue (NPV)", 
-                y=cum_income, text=string.(round.(cum_income)),
-                textposition="auto",textfont=PlotlyJS.attr(font_size=8)),
-                PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2days,
+                y=cum_income),
+                PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
                 y=ones(length(hours))*wf_price,
                 name="Investment (CAPEX+OPEX)", 
                 line=PlotlyJS.attr(width=2, color="red")),
-                PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2days,
-                    y=power*100,name="Energy Production", line=PlotlyJS.attr(width=2, color="black"), yaxis="y2")]
+                PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
+                y=price,name="Energy Price", line=PlotlyJS.attr(width=2, color="black"), yaxis="y2")]
 
-        PlotlyJS.plot(data, PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_income)),font_size=35,yaxis_range=(0,maximum(cum_income)), yaxis_title="M€",xaxis_title="Days",yaxis2=PlotlyJS.attr(
-        title="MWh",
+        PlotlyJS.plot(data, PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_income)), width=1000, height=550,font_size=35,yaxis_range=(0,maximum(cum_income)), yaxis_title="M€",xaxis_title="Hours",yaxis2=PlotlyJS.attr(
+        title="€/MWh",
         overlaying="y",
         side="right"
     )))
 end
 
 
+function plot_cumulative_income_all_scenarios_allWF(s, mn_data)
+    kolors=generation_color_map()
+    hrs=s["hours_length"]
+    hours2lifetime=(8760*10/hrs)
+    data_dict=Dict()
+    wf_cost=0
+    hours=[]
+    for bus in s["offshore_nodes"]
+        if !(haskey(data_dict,string(bus)));push!(data_dict,string(bus)=>Dict());end
+        gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
+        wf_cost=wf_cost+s["cost_summary"]["owpp"]["totals"][gen]
+        node=string(bus) 
+        scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+        cum_incomes=[];powers=[];hours=[]
+        for (scenario, tss) in scenarios
+            hourly_income=s["income_summary"]["owpp"][scenario][node]
+            push!(cum_incomes,[sum(hourly_income["income"][1:i]) for (i,ic) in enumerate(hourly_income["income"])])
+            if (scenario=="1")
+                hours=hourly_income["hour"];end
+        end
+        cum_income=cum_incomes[1]
+        
+        if (length(cum_incomes)>1)
+            for ci in cum_incomes[2:end]
+                cum_income=cum_income.+ci;end
+                cum_income=cum_income/length(cum_incomes)
+            end
+            data_dict[string(bus)]["cum_income"]=cum_income
+            data_dict[string(bus)]["hours"]=hours
+        end
+        println(wf_cost)
+        data1=[PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
+            y=dic["cum_income"],
+            name="WF "*string(wf),
+            stackgroup="one", mode="lines", hoverinfo="x+y",
+            line=PlotlyJS.attr(width=0.5, color=kolors[string(wf)])
+        ) for (wf,dic) in data_dict]
+
+        data2=PlotlyJS.scatter(x=parse.(Int64,hours)*hours2lifetime,
+        y=ones(length(hours))* wf_cost,name="OWPPs Investment (NPV)", line=PlotlyJS.attr(width=3, color="black"))
+        
+data=vcat(data1,data2)
+PlotlyJS.plot(data, PlotlyJS.Layout(; width=1000, height=550,font_size=27,  yaxis_title="M€",xaxis_title="Hours",legend = PlotlyJS.attr(x = 0., y= 1,bgcolor= "#1C00ff00")))
+end
+
+function plot_cumulative_all_wf_production_all_scenarios(s, mn_data)
+    hrs=s["hours_length"];hours2lifetime=(8760*10/hrs);cum_generation=[];power=[]
+    cum_generations=zeros(hrs*s["years_length"]);powers=zeros(hrs*s["years_length"]);hours=zeros(hrs*s["years_length"])
+    for bus in s["offshore_nodes"]
+        gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
+        node=string(bus) 
+        scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+        for (scenario, tss) in scenarios
+            hourly_income=s["income_summary"]["owpp"][scenario][node]
+            cum_generations=cum_generations.+[sum(hourly_income["power"][1:i]./10) for (i,ic) in enumerate(hourly_income["power"])]
+            powers=powers.+hourly_income["power"]/10
+            if (scenario=="1")
+                hours=hourly_income["hour"];end
+        end
+      
+        
+        if (length(cum_generations)>1)
+            cum_generation=cum_generations/length(mn_data["scenario"])
+            end
+        if (length(powers)>1) 
+            power=powers/length(mn_data["scenario"])
+        end
+    end
+    data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2lifetime,
+                name="Cumulative Generation", marker=PlotlyJS.attr(width=2, color="green"), 
+                y=cum_generation*hours2lifetime), 
+                PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
+                y=power,name="Hourly Generation", line=PlotlyJS.attr(width=2, color="red"), yaxis="y2")]
+
+        PlotlyJS.plot(data, PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_generation*hours2lifetime)), width=1000, height=550,font_size=35,yaxis_range=(0,maximum(cum_generation*hours2lifetime)), yaxis_title="GWh",xaxis_title="Hours",yaxis2=PlotlyJS.attr(
+        title="GWh",
+        overlaying="y",
+        side="right"
+    )))
+end
+
+ 
+function plot_cumulative_wf_production_all_scenarios(s, mn_data, wf_country)
+    bus=filter(:country=>x->x==wf_country,filter(:type=>x->x==0,s["nodes"]))[!,:node][1]
+    gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
+    node=string(bus) 
+    hrs=s["hours_length"]
+    hours2lifetime=(8760*10/hrs)
+    scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+    cum_generations=[];powers=[];hours=[]
+    for (scenario, tss) in scenarios
+        hourly_income=s["income_summary"]["owpp"][scenario][node]
+        push!(cum_generations,[sum(hourly_income["power"][1:i]./10) for (i,ic) in enumerate(hourly_income["power"])])
+        push!(powers,hourly_income["power"]/10)
+        if (scenario=="1")
+            hours=hourly_income["hour"];end
+    end
+    cum_generation=cum_generations[1]
+    power=powers[1]
+    
+    if (length(cum_generations)>1)
+        for ci in cum_generations[2:end]
+        cum_generation=cum_generation.+ci;end
+        cum_generation=cum_generation/length(cum_generations)
+        end
+    if (length(powers)>1)
+        for p in powers[2:end]
+            power=power.+p;end
+            power=power/length(powers)
+        end
+
+    data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2lifetime,
+                name="Cumulative Generation", marker=PlotlyJS.attr(width=2, color="green"), 
+                y=cum_generation*hours2lifetime), 
+                PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
+                y=power,name="Hourly Generation", line=PlotlyJS.attr(width=2, color="red"), yaxis="y2")]
+
+        PlotlyJS.plot(data, PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_generation*hours2lifetime)), width=1000, height=550,font_size=35,yaxis_range=(0,maximum(cum_generation*hours2lifetime)), yaxis_title="GWh",xaxis_title="Hours",yaxis2=PlotlyJS.attr(
+        title="GWh",
+        overlaying="y",
+        side="right"
+    )))
+end
+
+function plot_cumulative_production_all_scenarios_allWF(s, mn_data)
+    kolors=generation_color_map()
+    hrs=s["hours_length"]
+    hours2lifetime=(8760*10/hrs)
+    data_dict=Dict()
+    for bus in s["offshore_nodes"]
+        if !(haskey(data_dict,string(bus)));push!(data_dict,string(bus)=>Dict());end
+        gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
+        node=string(bus) 
+        scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+        cum_generations=[];powers=[];hours=[]
+        for (scenario, tss) in scenarios
+            hourly_income=s["income_summary"]["owpp"][scenario][node]
+            push!(cum_generations,[sum(hourly_income["power"][1:i]./10) for (i,ic) in enumerate(hourly_income["power"])])
+            push!(powers,hourly_income["power"]/10)
+            if (scenario=="1")
+                hours=hourly_income["hour"];end
+        end
+        cum_generation=cum_generations[1]
+        power=powers[1]
+        
+        if (length(cum_generations)>1)
+            for ci in cum_generations[2:end]
+            cum_generation=cum_generation.+ci;end
+            cum_generation=cum_generation/length(cum_generations)
+            end
+        if (length(powers)>1)
+            for p in powers[2:end]
+                power=power.+p;end
+                power=power/length(powers)
+            end
+            data_dict[string(bus)]["power"]=power
+            data_dict[string(bus)]["cum_generation"]=cum_generation
+            data_dict[string(bus)]["hours"]=hours
+        end
+
+        data1=[PlotlyJS.bar(;x=parse.(Int64,dic["hours"])*hours2lifetime,
+            y=dic["cum_generation"]*hours2lifetime,
+            name="WF "*string(wf),
+            marker=PlotlyJS.attr(width=2, color=kolors[string(wf)])
+        ) for (wf,dic) in data_dict]
+     
+            
+    data=vcat(data1)
+    PlotlyJS.plot(data, PlotlyJS.Layout(;barmode="stack", width=1000, height=550,font_size=25, yaxis_title="GWh",xaxis_title="Hours",legend = PlotlyJS.attr(x = 0., y= 1)))
+end
+
+
 function plot_cumulative_income_tl_all_scenarios(s,data)
     hrs=s["hours_length"]
     hourly_income_tl_all_scenarios=s["income_summary"]["tso"]
-    hours2days=(8760*10/hrs)/24
+    hours2days=(8760*10/hrs)
     tl_price=s["cost_summary"]["transmission"]#6205.14#only true if 4GW all in year one
     cum_incomes=Dict()
     for (sc,hourly_income_tl) in hourly_income_tl_all_scenarios
@@ -245,17 +431,17 @@ function plot_cumulative_income_tl_all_scenarios(s,data)
         end
     end
 
-        data1=[PlotlyJS.bar(
+    data2=PlotlyJS.scatter(x=parse.(Int64,s["income_summary"]["tso"]["1"]["hour"])*hours2days,
+    y=ones(length(s["income_summary"]["tso"]["1"]["hour"]))*tl_price,name="TLs Investment (NPV)", line=PlotlyJS.attr(width=3, color="red"))
+    
+        data1=[PlotlyJS.scatter(
                 x=parse.(Int64,s["income_summary"]["tso"]["1"]["hour"])*hours2days, y=inc/length(cum_incomes),
-                name=kv*" branch "*string(nm),
-                line=PlotlyJS.attr(width=2)
+                name=kv*" branch "*string(nm),stackgroup="one", mode="lines", hoverinfo="x+y",
+                line=PlotlyJS.attr(width=0.5)
             ) for (kv,voltage) in cum_income for (nm,inc) in voltage]
 
-        data2=PlotlyJS.scatter(x=parse.(Int64,s["income_summary"]["tso"]["1"]["hour"])*hours2days,
-                y=ones(length(s["income_summary"]["tso"]["1"]["hour"]))*tl_price,name="Investment", line=PlotlyJS.attr(width=2, color="black"))
-                
         data=vcat(data1,data2)
-        PlotlyJS.plot(data, PlotlyJS.Layout(;barmode="stack",font_size=35, yaxis_title="M€",xaxis_title="Days"))
+        PlotlyJS.plot(data,  PlotlyJS.Layout(;width=1000, height=550,font_size=27, yaxis_title="M€",xaxis_title="Hours",legend = PlotlyJS.attr(x = 0., y= 1,bgcolor= "#1C00ff00")))
 end
 
     
@@ -267,7 +453,9 @@ function plot_cumulative_income(s,scenario, node, gen)
     cum_income=[sum(hourly_income["income"][1:i]) for (i,ic) in enumerate(hourly_income["income"])]
     data = [PlotlyJS.bar(;x=parse.(Int64,hourly_income["hour"])*hours2days,
                 name="Cumulative Revenue (NPV)", y=cum_income),PlotlyJS.scatter(;x=parse.(Int64,hourly_income["hour"])*hours2days,
-                y=ones(length(hourly_income["hour"]))*wf_price,name="Investment (CAPEX+OPEX)", line=PlotlyJS.attr(width=2, color="red")),
+                y=ones(length(hourly_income["hour"]))*wf_price,
+                name="Investment (CAPEX+OPEX)", 
+                line=PlotlyJS.attr(width=2, color="red")),
                 PlotlyJS.scatter(;x=parse.(Int64,hourly_income["hour"])*hours2days,
                	y=hourly_income["power"]*100,name="Energy Production", line=PlotlyJS.attr(width=2, color="black"), yaxis="y2")]
         PlotlyJS.plot(data, PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_income)),font_size=35,yaxis_range=(0,maximum(cum_income)), yaxis_title="M€",xaxis_title="Days",yaxis2=PlotlyJS.attr(
@@ -286,6 +474,9 @@ function generation_color_map()
         "WF"=>"navy",
         "DE"=>"red",
         "DK"=>"black",
+        "5"=>"darkgreen",
+        "6"=>"navy",
+        "7"=>"red",
         "Onshore Wind"=>"forestgreen",
         "Solar PV"=>"yellow",
         "Solar Thermal"=>"orange",
@@ -317,8 +508,13 @@ function owpps_profit_obz(s, result_mip, mn_data)
         tss=string.(values(scenario))#is this the problem? why keys?
         for (wf_num,wf_node) in enumerate(s["offshore_nodes"])
             s=owpp_profit_obz(s, result_mip, scenario_num, tss, string(wf_node), string(first(s["wfz"][wf_num])))
+            if !(haskey(s["income_summary"]["owpp"],"all"));push!(s["income_summary"]["owpp"],"all"=>Dict("power"=>0.0,"income"=>0.0));end
+            s["income_summary"]["owpp"]["all"]["power"]= s["income_summary"]["owpp"]["all"]["power"]+s["income_summary"]["owpp"][scenario_num][string(wf_node)]["life_power"]
+            s["income_summary"]["owpp"]["all"]["income"]= s["income_summary"]["owpp"]["all"]["income"]+s["income_summary"]["owpp"][scenario_num][string(wf_node)]["life_income"]
         end
     end
+    s["income_summary"]["owpp"]["all"]["power"]= s["income_summary"]["owpp"]["all"]["power"]/s["scenarios_length"]
+    s["income_summary"]["owpp"]["all"]["income"]= s["income_summary"]["owpp"]["all"]["income"]/s["scenarios_length"]
     return s
 end
 
@@ -510,11 +706,23 @@ function undo_marginal_price_scaling(s,result_mip)
         for (b,bs) in nw["bus"];
             _sc=floor(Int64,(parse(Int64,n)-1)/(yl*hl))
             _yr=ceil(Int64,(parse(Int64,n)-_sc*(yl*hl))/(hl))
-            bs["lam_kcl_r"]=undo_npv_hourly(bs["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
-            bs["lam_kcl_r"]=undo_hourly_scaling(bs["lam_kcl_r"])*-1*sl
+            #bs["lam_kcl_r"]=undo_npv_hourly(bs["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
+            #bs["lam_kcl_r"]=undo_hourly_scaling(bs["lam_kcl_r"])*-1*sl
+            if (issubset([parse(Int64,b)],s["offshore_nodes"]))
+                if !(haskey(s["income_summary"]["owpp"][string(_sc+1)][b],"price_not_npv"));push!(s["income_summary"]["owpp"][string(_sc+1)][b],"price_not_npv"=>[]);end
+                lam_kcl_r=undo_npv_hourly(bs["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
+                push!(s["income_summary"]["owpp"][string(_sc+1)][b]["price_not_npv"],undo_hourly_scaling(lam_kcl_r)*-1*sl)
+            elseif (issubset([parse(Int64,b)],s["onshore_nodes"]))
+                if !(haskey(s["income_summary"],"onshore"));push!(s["income_summary"],"onshore"=>Dict());end
+                if !(haskey(s["income_summary"]["onshore"],string(_sc+1)));push!(s["income_summary"]["onshore"],string(_sc+1)=>Dict());end
+                if !(haskey(s["income_summary"]["onshore"][string(_sc+1)],b));push!(s["income_summary"]["onshore"][string(_sc+1)],b=>Dict());end
+                if !(haskey(s["income_summary"]["onshore"][string(_sc+1)][b],"price_not_npv"));push!(s["income_summary"]["onshore"][string(_sc+1)][b],"price_not_npv"=>[]);end
+                lam_kcl_r=undo_npv_hourly(bs["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
+                push!(s["income_summary"]["onshore"][string(_sc+1)][b]["price_not_npv"],undo_hourly_scaling(lam_kcl_r)*-1*sl)
+            end
         end
     end
-    return result_mip
+    return s
 end
 
 
