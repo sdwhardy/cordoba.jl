@@ -30,7 +30,7 @@ end
 
 function nodal_market_main(s)
     mn_data, data, s = data_setup_nodal(s);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap" => 1e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     s["rebalancing"]=true
@@ -252,7 +252,6 @@ function filter_AClines(data,edges,nodes)
     end
     return data, ics_ac
 end
-
 
 function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
     z_base_ac=(data["bus"]["1"]["base_kv"])^2/pu

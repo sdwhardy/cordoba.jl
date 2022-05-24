@@ -37,7 +37,7 @@ s["income_summary"]["owpp"]
 social_welfare["totals"]
 _CBD.topology_map(s,"tinf")
 #nodal "gross_consumer_surplus"=>-1.30748e6
-#hm   
+#hm
 _CBD.plot_cumulative_production_all_scenarios_allWF(s, mn_data)
 _CBD.plot_cumulative_income_all_scenarios_allWF(s, mn_data)
 _CBD.plot_cumulative_income_tl_all_scenarios(s,data)
@@ -100,6 +100,3 @@ _CBD.plot_dual_marginal_price(result_mip, string.(values(mn_data["scenario"][sce
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (2,"BE"))
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (4,"BE"))
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (4,"DK"))
-
-
-

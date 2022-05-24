@@ -22,17 +22,17 @@ function topology_map(s, time_step)
     line_color="green")
     lineDC = PlotlyJS.attr(width=2,color="black")
     lineAC = PlotlyJS.attr(width=3,color="red",dash="dash")
-    #trace1 = scattergeo(;mode="markers+text",textposition="top center",text=s["nodes"][!,:country].*"-".*string.(s["nodes"][!,:node]), 
+    #trace1 = scattergeo(;mode="markers+text",textposition="top center",text=s["nodes"][!,:country].*"-".*string.(s["nodes"][!,:node]),
     #lat=s["nodes"][!,:lat],lon=s["nodes"][!,:long],
      #                   marker=marker)
-    
+
 
     traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=row[:country]*"-"*string(row[:node]),
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
 
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=row[:country]*"-"*string(row[:node]), 
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=row[:country]*"-"*string(row[:node]),
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["wf"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
@@ -44,7 +44,7 @@ function topology_map(s, time_step)
         lon=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:long][1],
         filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:long][1]],line=lineDC
         ) for row in eachrow(s["topology"][time_step]["dc"])]
-    
+
         traceAC=[
             PlotlyJS.scattergeo(;mode="lines",
             name=string(Int64(row[:from]))*"-"*string(Int64(row[:to]))*": "*string(round(row[:mva])/10)*" GW",
@@ -54,6 +54,7 @@ function topology_map(s, time_step)
             filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:long][1]],line=lineAC
             ) for row in eachrow(s["topology"][time_step]["ac"])]
     trace=vcat(traceCNT,traceWF,traceDC,traceAC)
+   #trace=vcat(traceCNT,traceWF)
 
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
 
@@ -154,7 +155,7 @@ function plot_generation_profile(gen, con, country)
             scatter_vec, PlotlyJS.Layout(font_size=25,yaxis_range=(-1*rng_con, rng_gen),yaxis_title="GW",xaxis_title="time steps"))
 end
 function plot_dual_marginal_price(result_mip, tss, cuntree)
-    
+
     clrs=generation_color_map()
     marg_price=Dict();push!(marg_price,"cuntrees"=>Dict());if !(haskey(marg_price,"ts"));push!(marg_price,"ts"=>[]);end
     for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
@@ -178,11 +179,11 @@ function plot_dual_marginal_price(result_mip, tss, cuntree)
         PlotlyJS.plot(
             scatter_vec_gen, PlotlyJS.Layout(font_size=35,yaxis_range=(minimum(last.(lims)), maximum(first.(lims))),yaxis_title="€/MWh",xaxis_title="time steps"))
     end
-    
+
 function plot_cumulative_wf_income_all_scenarios(s, mn_data, wf_country)
     bus=filter(:country=>x->x==wf_country,filter(:type=>x->x==0,s["nodes"]))[!,:node][1]
     gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
-    node=string(bus) 
+    node=string(bus)
     hrs=s["hours_length"]
     hours2lifetime=(8760*10/hrs)
     wf_price=s["cost_summary"]["owpp"]["totals"][gen]
@@ -197,7 +198,7 @@ function plot_cumulative_wf_income_all_scenarios(s, mn_data, wf_country)
     end
     cum_income=cum_incomes[1]
     price=prices[1]
-    
+
     if (length(cum_incomes)>1)
         for ci in cum_incomes[2:end]
         cum_income=cum_income.+ci;end
@@ -210,11 +211,11 @@ function plot_cumulative_wf_income_all_scenarios(s, mn_data, wf_country)
         end
 
     data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2lifetime,
-                name="Cumulative Revenue (NPV)", 
+                name="Cumulative Revenue (NPV)",
                 y=cum_income),
                 PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
                 y=ones(length(hours))*wf_price,
-                name="Investment (CAPEX+OPEX)", 
+                name="Investment (CAPEX+OPEX)",
                 line=PlotlyJS.attr(width=2, color="red")),
                 PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
                 y=price,name="Energy Price", line=PlotlyJS.attr(width=2, color="black"), yaxis="y2")]
@@ -238,7 +239,7 @@ function plot_cumulative_income_all_scenarios_allWF(s, mn_data)
         if !(haskey(data_dict,string(bus)));push!(data_dict,string(bus)=>Dict());end
         gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
         wf_cost=wf_cost+s["cost_summary"]["owpp"]["totals"][gen]
-        node=string(bus) 
+        node=string(bus)
         scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         cum_incomes=[];powers=[];hours=[]
         for (scenario, tss) in scenarios
@@ -248,7 +249,7 @@ function plot_cumulative_income_all_scenarios_allWF(s, mn_data)
                 hours=hourly_income["hour"];end
         end
         cum_income=cum_incomes[1]
-        
+
         if (length(cum_incomes)>1)
             for ci in cum_incomes[2:end]
                 cum_income=cum_income.+ci;end
@@ -267,7 +268,7 @@ function plot_cumulative_income_all_scenarios_allWF(s, mn_data)
 
         data2=PlotlyJS.scatter(x=parse.(Int64,hours)*hours2lifetime,
         y=ones(length(hours))* wf_cost,name="OWPPs Investment (NPV)", line=PlotlyJS.attr(width=3, color="black"))
-        
+
 data=vcat(data1,data2)
 PlotlyJS.plot(data, PlotlyJS.Layout(; width=1000, height=550,font_size=27,  yaxis_title="M€",xaxis_title="Hours",legend = PlotlyJS.attr(x = 0., y= 1,bgcolor= "#1C00ff00")))
 end
@@ -277,7 +278,7 @@ function plot_cumulative_all_wf_production_all_scenarios(s, mn_data)
     cum_generations=zeros(hrs*s["years_length"]);powers=zeros(hrs*s["years_length"]);hours=zeros(hrs*s["years_length"])
     for bus in s["offshore_nodes"]
         gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
-        node=string(bus) 
+        node=string(bus)
         scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         for (scenario, tss) in scenarios
             hourly_income=s["income_summary"]["owpp"][scenario][node]
@@ -286,18 +287,18 @@ function plot_cumulative_all_wf_production_all_scenarios(s, mn_data)
             if (scenario=="1")
                 hours=hourly_income["hour"];end
         end
-      
-        
+
+
         if (length(cum_generations)>1)
             cum_generation=cum_generations/length(mn_data["scenario"])
             end
-        if (length(powers)>1) 
+        if (length(powers)>1)
             power=powers/length(mn_data["scenario"])
         end
     end
     data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2lifetime,
-                name="Cumulative Generation", marker=PlotlyJS.attr(width=2, color="green"), 
-                y=cum_generation*hours2lifetime), 
+                name="Cumulative Generation", marker=PlotlyJS.attr(width=2, color="green"),
+                y=cum_generation*hours2lifetime),
                 PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
                 y=power,name="Hourly Generation", line=PlotlyJS.attr(width=2, color="red"), yaxis="y2")]
 
@@ -308,11 +309,11 @@ function plot_cumulative_all_wf_production_all_scenarios(s, mn_data)
     )))
 end
 
- 
+
 function plot_cumulative_wf_production_all_scenarios(s, mn_data, wf_country)
     bus=filter(:country=>x->x==wf_country,filter(:type=>x->x==0,s["nodes"]))[!,:node][1]
     gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
-    node=string(bus) 
+    node=string(bus)
     hrs=s["hours_length"]
     hours2lifetime=(8760*10/hrs)
     scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
@@ -326,7 +327,7 @@ function plot_cumulative_wf_production_all_scenarios(s, mn_data, wf_country)
     end
     cum_generation=cum_generations[1]
     power=powers[1]
-    
+
     if (length(cum_generations)>1)
         for ci in cum_generations[2:end]
         cum_generation=cum_generation.+ci;end
@@ -339,8 +340,8 @@ function plot_cumulative_wf_production_all_scenarios(s, mn_data, wf_country)
         end
 
     data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2lifetime,
-                name="Cumulative Generation", marker=PlotlyJS.attr(width=2, color="green"), 
-                y=cum_generation*hours2lifetime), 
+                name="Cumulative Generation", marker=PlotlyJS.attr(width=2, color="green"),
+                y=cum_generation*hours2lifetime),
                 PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
                 y=power,name="Hourly Generation", line=PlotlyJS.attr(width=2, color="red"), yaxis="y2")]
 
@@ -359,7 +360,7 @@ function plot_cumulative_production_all_scenarios_allWF(s, mn_data)
     for bus in s["offshore_nodes"]
         if !(haskey(data_dict,string(bus)));push!(data_dict,string(bus)=>Dict());end
         gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
-        node=string(bus) 
+        node=string(bus)
         scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         cum_generations=[];powers=[];hours=[]
         for (scenario, tss) in scenarios
@@ -371,7 +372,7 @@ function plot_cumulative_production_all_scenarios_allWF(s, mn_data)
         end
         cum_generation=cum_generations[1]
         power=powers[1]
-        
+
         if (length(cum_generations)>1)
             for ci in cum_generations[2:end]
             cum_generation=cum_generation.+ci;end
@@ -392,8 +393,8 @@ function plot_cumulative_production_all_scenarios_allWF(s, mn_data)
             name="WF "*string(wf),
             marker=PlotlyJS.attr(width=2, color=kolors[string(wf)])
         ) for (wf,dic) in data_dict]
-     
-            
+
+
     data=vcat(data1)
     PlotlyJS.plot(data, PlotlyJS.Layout(;barmode="stack", width=1000, height=550,font_size=25, yaxis_title="GWh",xaxis_title="Hours",legend = PlotlyJS.attr(x = 0., y= 1)))
 end
@@ -407,10 +408,10 @@ function plot_cumulative_income_tl_all_scenarios(s,data)
     cum_incomes=Dict()
     for (sc,hourly_income_tl) in hourly_income_tl_all_scenarios
         if !(haskey(cum_incomes, sc));push!(cum_incomes,sc=>Dict("dc"=>Dict(),"ac"=>Dict()));end
-    for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["dc"]), by=x->parse(Int64,x)) 
+    for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["dc"]), by=x->parse(Int64,x))
         push!(cum_incomes[sc]["dc"],string(data["branchdc"][k_br]["fbusdc"])*"-"*string(data["branchdc"][k_br]["tbusdc"])=>[sum(br["rent"][1:i]) for (i,ic) in enumerate(br["rent"])]);
     end;
-    for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["ac"]), by=x->parse(Int64,x)) 
+    for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["ac"]), by=x->parse(Int64,x))
         push!(cum_incomes[sc]["ac"],string(data["branch"][k_br]["f_bus"])*"-"*string(data["branch"][k_br]["t_bus"])=>[sum(br["rent"][1:i]) for (i,ic) in enumerate(br["rent"])]);
     end;end
     cum_income=Dict("DC"=>Dict(),"AC"=>Dict())
@@ -433,7 +434,7 @@ function plot_cumulative_income_tl_all_scenarios(s,data)
 
     data2=PlotlyJS.scatter(x=parse.(Int64,s["income_summary"]["tso"]["1"]["hour"])*hours2days,
     y=ones(length(s["income_summary"]["tso"]["1"]["hour"]))*tl_price,name="TLs Investment (NPV)", line=PlotlyJS.attr(width=3, color="red"))
-    
+
         data1=[PlotlyJS.scatter(
                 x=parse.(Int64,s["income_summary"]["tso"]["1"]["hour"])*hours2days, y=inc/length(cum_incomes),
                 name=kv*" branch "*string(nm),stackgroup="one", mode="lines", hoverinfo="x+y",
@@ -444,7 +445,7 @@ function plot_cumulative_income_tl_all_scenarios(s,data)
         PlotlyJS.plot(data,  PlotlyJS.Layout(;width=1000, height=550,font_size=27, yaxis_title="M€",xaxis_title="Hours",legend = PlotlyJS.attr(x = 0., y= 1,bgcolor= "#1C00ff00")))
 end
 
-    
+
 function plot_cumulative_income(s,scenario, node, gen)
     hrs=s["hours_length"]
     hourly_income=s["income_summary"]["owpp"][scenario][node]
@@ -454,7 +455,7 @@ function plot_cumulative_income(s,scenario, node, gen)
     data = [PlotlyJS.bar(;x=parse.(Int64,hourly_income["hour"])*hours2days,
                 name="Cumulative Revenue (NPV)", y=cum_income),PlotlyJS.scatter(;x=parse.(Int64,hourly_income["hour"])*hours2days,
                 y=ones(length(hourly_income["hour"]))*wf_price,
-                name="Investment (CAPEX+OPEX)", 
+                name="Investment (CAPEX+OPEX)",
                 line=PlotlyJS.attr(width=2, color="red")),
                 PlotlyJS.scatter(;x=parse.(Int64,hourly_income["hour"])*hours2days,
                	y=hourly_income["power"]*100,name="Energy Production", line=PlotlyJS.attr(width=2, color="black"), yaxis="y2")]
@@ -522,7 +523,7 @@ function owpp_profit_obz(s, result_mip, scenario, tss, bus, gen)
     if !haskey(s,"income_summary");s["income_summary"]=Dict();end
     if !haskey(s["income_summary"],"owpp");s["income_summary"]["owpp"]=Dict();end
     if !haskey(s["income_summary"]["owpp"],scenario);s["income_summary"]["owpp"][scenario]=Dict();end
-   
+
     hl=1#s["hours_length"]
     yl=1#s["years_length"]
     sl=s["scenarios_length"]
@@ -532,7 +533,7 @@ function owpp_profit_obz(s, result_mip, scenario, tss, bus, gen)
         if (issubset([string(n)],tss))
             b=nw["bus"][bus];
             g=nw["gen"][gen];
-            
+
             push!(hourly_income["power"],g["pg"]);
             push!(hourly_income["price"],b["lam_kcl_r"]);
             push!(hourly_income["income"],g["pg"]*b["lam_kcl_r"]*-hl*yl*sl*me2e);
@@ -547,7 +548,7 @@ end
 function SocialWelfare(s, result_mip, mn_data, data)
     sl=s["scenarios_length"]
     social_welfare=Dict();
-    for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("gross_consumer_surplus"=>Dict(),"available_demand"=>Dict(),"consumed"=>Dict(),"gen_revenue"=>Dict(),"con_expenditure"=>Dict(),"produced"=>Dict()));end 
+    for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("gross_consumer_surplus"=>Dict(),"available_demand"=>Dict(),"consumed"=>Dict(),"gen_revenue"=>Dict(),"con_expenditure"=>Dict(),"produced"=>Dict()));end
     for (k_sc,sc) in social_welfare;
         for n in s["onshore_nodes"];
             push!(sc["produced"],string(n)=>0.0);
@@ -597,9 +598,9 @@ function SocialWelfare(s, result_mip, mn_data, data)
             if !(haskey(totals[k_sc],k_type));push!(totals[k_sc],k_type=>0.0);end
             if !(haskey(totals["all"],k_type));push!(totals["all"],k_type=>0.0);end
             for (b_k,b) in type
-                totals["all"][k_type]=totals["all"][k_type]+b 
+                totals["all"][k_type]=totals["all"][k_type]+b
                 totals[k_sc][k_type]=totals[k_sc][k_type]+b
-            end    
+            end
         end
     end
     push!(social_welfare,"totals"=>totals)
@@ -623,7 +624,7 @@ function transmission_line_profits(s, result_mip, tss, data)
                 if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branchdc"][k_br]["p_rateA"]>0)
                 if !(haskey(hourly_income["dc"],k_br));
                     push!(hourly_income["dc"],k_br=>Dict());push!(hourly_income["dc"][k_br],"delta_price"=>[]);push!(hourly_income["dc"][k_br],"rent"=>[]);push!(hourly_income["dc"][k_br],"power"=>[]);end
-                    
+
             push!(hourly_income["dc"][k_br]["power"],br_dc["pt"]);
             push!(hourly_income["dc"][k_br]["delta_price"],(bs[string(data["branchdc"][k_br]["fbusdc"])]["lam_kcl_r"]-bs[string(data["branchdc"][k_br]["tbusdc"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
             push!(hourly_income["dc"][k_br]["rent"],hourly_income["dc"][k_br]["power"][end]*hourly_income["dc"][k_br]["delta_price"][end]);
@@ -632,7 +633,7 @@ function transmission_line_profits(s, result_mip, tss, data)
                 if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branch"][k_br]["p_rateAC"]>0)
                 if !(haskey(hourly_income["ac"],k_br));
                     push!(hourly_income["ac"],k_br=>Dict());push!(hourly_income["ac"][k_br],"delta_price"=>[]);push!(hourly_income["ac"][k_br],"rent"=>[]);push!(hourly_income["ac"][k_br],"power"=>[]);end
-                    
+
             push!(hourly_income["ac"][k_br]["power"],br_ac["pt"]);
             push!(hourly_income["ac"][k_br]["delta_price"],(bs[string(data["branch"][k_br]["f_bus"])]["lam_kcl_r"]-bs[string(data["branch"][k_br]["t_bus"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
             push!(hourly_income["ac"][k_br]["rent"],hourly_income["ac"][k_br]["power"][end]*hourly_income["ac"][k_br]["delta_price"][end]);
@@ -666,7 +667,7 @@ function transmission_line_profits(s, result_mip,scenario, tss, data)
                 if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branchdc"][k_br]["p_rateA"]>0)
                 if !(haskey(hourly_income["dc"],k_br));
                     push!(hourly_income["dc"],k_br=>Dict());push!(hourly_income["dc"][k_br],"delta_price"=>[]);push!(hourly_income["dc"][k_br],"rent"=>[]);push!(hourly_income["dc"][k_br],"power"=>[]);end
-                    
+
             push!(hourly_income["dc"][k_br]["power"],br_dc["pt"]);
             push!(hourly_income["dc"][k_br]["delta_price"],(bs[string(data["branchdc"][k_br]["fbusdc"])]["lam_kcl_r"]-bs[string(data["branchdc"][k_br]["tbusdc"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
             push!(hourly_income["dc"][k_br]["rent"],hourly_income["dc"][k_br]["power"][end]*hourly_income["dc"][k_br]["delta_price"][end]);
@@ -675,7 +676,7 @@ function transmission_line_profits(s, result_mip,scenario, tss, data)
                 if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branch"][k_br]["p_rateAC"]>0)
                 if !(haskey(hourly_income["ac"],k_br));
                     push!(hourly_income["ac"],k_br=>Dict());push!(hourly_income["ac"][k_br],"delta_price"=>[]);push!(hourly_income["ac"][k_br],"rent"=>[]);push!(hourly_income["ac"][k_br],"power"=>[]);end
-                    
+
             push!(hourly_income["ac"][k_br]["power"],br_ac["pt"]);
             push!(hourly_income["ac"][k_br]["delta_price"],(bs[string(data["branch"][k_br]["f_bus"])]["lam_kcl_r"]-bs[string(data["branch"][k_br]["t_bus"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
             push!(hourly_income["ac"][k_br]["rent"],hourly_income["ac"][k_br]["power"][end]*hourly_income["ac"][k_br]["delta_price"][end]);
@@ -973,7 +974,7 @@ function print_converters(result_mip,argz,data)
                 cv_bus=string(data["convdc"][string(i)]["busdc_i"])
                 if !(haskey(argz["topology"]["t2"],cv_bus));push!(argz["topology"]["t2"],cv_bus=>Dict());end
                 if !(haskey(argz["topology"]["t2"][cv_bus],"conv"));push!(argz["topology"]["t2"][cv_bus],"conv"=>cv["p_pacmax"]);end
-#Cost tabulation    
+#Cost tabulation
                 cst=(cv["p_pacmax"]-result_mip["solution"]["nw"]["1"]["convdc"][i]["p_pacmax"])*data["convdc"][i]["cost"]*2/3*(1/((1+argz["dr"])^(10)))
                 if !(haskey(converter_cost["t2"],string(i)));push!(converter_cost["t2"],string(i)=>cst);end
                 if !(haskey(converter_cost["t2"],"all"));push!(converter_cost["t2"],"all"=>cst);else;converter_cost["t2"]["all"]=converter_cost["t2"]["all"]+cst;end
@@ -986,7 +987,7 @@ function print_converters(result_mip,argz,data)
                 cv_bus=string(data["convdc"][string(i)]["busdc_i"])
                 if !(haskey(argz["topology"]["tinf"],cv_bus));push!(argz["topology"]["tinf"],cv_bus=>Dict());end
                 if !(haskey(argz["topology"]["tinf"][cv_bus],"conv"));push!(argz["topology"]["tinf"][cv_bus],"conv"=>cv["p_pacmax"]);end
-#Cost tabulation    
+#Cost tabulation
                 cst=(cv["p_pacmax"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["convdc"][i]["p_pacmax"])*data["convdc"][i]["cost"]*1/3*(1/((1+argz["dr"])^(20)))
                 if !(haskey(converter_cost["tinf"],string(i)));push!(converter_cost["tinf"],string(i)=>cst);end
                 if !(haskey(converter_cost["tinf"],"all"));push!(converter_cost["tinf"],"all"=>cst);else;converter_cost["tinf"]["all"]=converter_cost["tinf"]["all"]+cst;end
@@ -1054,7 +1055,7 @@ function print_branch(result_mip,argz,data)
     if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
         println("%%%% Cables HVAC t0 %%%%")
         for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branch"]), by=x->parse(Int64,x))
-            if (br["p_rateAC"]>0)    
+            if (br["p_rateAC"]>0)
             cst=br["p_rateAC"]*data["branch"][i]["cost"]
                 if !(haskey(branch_cost["t0"],string(i)));push!(branch_cost["t0"],string(i)=>cst);end
                 if !(haskey(branch_cost["t0"],"all"));push!(branch_cost["t0"],"all"=>cst);else;branch_cost["t0"]["all"]=branch_cost["t0"]["all"]+cst;end
@@ -1068,9 +1069,9 @@ function print_branch(result_mip,argz,data)
             cst=((br["p_rateAC"]-result_mip["solution"]["nw"]["1"]["branch"][i]["p_rateAC"])*data["branch"][i]["cost"])*2/3*(1/((1+argz["dr"])^(10)))
                 if !(haskey(branch_cost["t2"],string(i)));push!(branch_cost["t2"],string(i)=>cst);end
                 if !(haskey(branch_cost["t2"],"all"));push!(branch_cost["t2"],"all"=>cst);else;branch_cost["t2"]["all"]=branch_cost["t2"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst    
+                branch_cost["all"]=branch_cost["all"]+cst
             println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
-            push!(argz["topology"]["t2"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])    
+            push!(argz["topology"]["t2"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
         end;end
         println("%%%% Cables HVAC tinf %%%%")
         for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branch"]), by=x->parse(Int64,x))
@@ -1078,7 +1079,7 @@ function print_branch(result_mip,argz,data)
             cst=((br["p_rateAC"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branch"][i]["p_rateAC"])*data["branch"][i]["cost"])*1/3*(1/((1+argz["dr"])^(20)))
                 if !(haskey(branch_cost["tinf"],string(i)));push!(branch_cost["tinf"],string(i)=>cst);end
                 if !(haskey(branch_cost["tinf"],"all"));push!(branch_cost["tinf"],"all"=>cst);else;branch_cost["tinf"]["all"]=branch_cost["tinf"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst    
+                branch_cost["all"]=branch_cost["all"]+cst
             println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
             push!(argz["topology"]["tinf"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
         end;end
@@ -1097,7 +1098,7 @@ function print_branchdc(result_mip,argz,data)
             cst=br["p_rateA"]*data["branchdc"][i]["cost"]
                 if !(haskey(branch_cost["t0"],string(i)));push!(branch_cost["t0"],string(i)=>cst);end
                 if !(haskey(branch_cost["t0"],"all"));push!(branch_cost["t0"],"all"=>cst);else;branch_cost["t0"]["all"]=branch_cost["t0"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst    
+                branch_cost["all"]=branch_cost["all"]+cst
             println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
             push!(argz["topology"]["t0"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
         end;end
@@ -1107,7 +1108,7 @@ function print_branchdc(result_mip,argz,data)
             cst=((br["p_rateA"]-result_mip["solution"]["nw"]["1"]["branchdc"][i]["p_rateA"])*data["branchdc"][i]["cost"])*2/3*(1/((1+argz["dr"])^(10)))
                 if !(haskey(branch_cost["t2"],string(i)));push!(branch_cost["t2"],string(i)=>cst);end
                 if !(haskey(branch_cost["t2"],"all"));push!(branch_cost["t2"],"all"=>cst);else;branch_cost["t2"]["all"]=branch_cost["t2"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst    
+                branch_cost["all"]=branch_cost["all"]+cst
             println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
             push!(argz["topology"]["t2"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
         end;end
@@ -1117,11 +1118,10 @@ function print_branchdc(result_mip,argz,data)
             cst=((br["p_rateA"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branchdc"][i]["p_rateA"])*data["branchdc"][i]["cost"])*1/3*(1/((1+argz["dr"])^(20)))
                 if !(haskey(branch_cost["tinf"],string(i)));push!(branch_cost["tinf"],string(i)=>cst);end
                 if !(haskey(branch_cost["tinf"],"all"));push!(branch_cost["tinf"],"all"=>cst);else;branch_cost["tinf"]["all"]=branch_cost["tinf"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst    
+                branch_cost["all"]=branch_cost["all"]+cst
             println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
             push!(argz["topology"]["tinf"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
         end;end
     end
     return branch_cost
 end
-
