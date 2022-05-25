@@ -2,13 +2,13 @@
 function zonal_market_main(s)
     hm=deepcopy(s["home_market"]);
     mn_data, data, s = data_setup_zonal(s);#Build data structure for given options    
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 0);#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1);#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);#Solve problem
     #print_solution_wcost_data(result_mip, s, data);
     mn_data, data, s = data_setup_nodal(s);#Build data structure for given options
     mn_data, s = set_inter_zonal_grid(result_mip,mn_data,s);
     s["home_market"]=[]    
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 0)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     s["home_market"]=hm
@@ -30,7 +30,7 @@ end
 
 function nodal_market_main(s)
     mn_data, data, s = data_setup_nodal(s);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap" => 1e-3)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap" => 1e-4)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     s["rebalancing"]=true
@@ -85,7 +85,14 @@ function get_scenario_data(s)
 	scenario_data=FileIO.load(s["scenario_data_file"])
     ######## Batteries are removed and modeled seperately time series #########
     for (k_sc,sc) in scenario_data["Generation"]["Scenarios"];for (k_yr,yr) in sc; for (k_cunt,cuntree) in yr;
-        filter!(:Generation_Type=>x->x!="Battery", cuntree);end;end;end
+        filter!(:Generation_Type=>x->x!="Battery", cuntree);
+        filter!(:Generation_Type=>x->x!="VOLL", cuntree);
+        push!(cuntree,["SLACK",1000000])
+    end;end;end
+        push!(scenario_data["Generation"]["keys"],"SLACK")
+        delete!(scenario_data["Generation"]["costs"],"VOLL");
+        push!(scenario_data["Generation"]["costs"],"SLACK"=>maximum(values(scenario_data["Generation"]["costs"])))
+
     ####################### Freeze offshore expansion of data #################
     scenario_data=freeze_offshore_expansion(s["nodes"], scenario_data)
     return scenario_data

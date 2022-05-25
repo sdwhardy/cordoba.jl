@@ -16,7 +16,7 @@ s = Dict(
 "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
 "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
 "dr"=>0.04,#discount rate
-"yearly_investment"=>100000,
+"yearly_investment"=>1000000,
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
 "owpp_mva"=>[4000],#mva of wf in MVA
@@ -40,21 +40,20 @@ s = Dict(
 ################## Run MIP Formulation ###################
 #NOTE only very basic intuitive check passed on functions wgen_type
 s["home_market"]=[]
-result_mip, data, mn_data, s = _CBD.nodal_market_main(s)
+@time result_mip, data, mn_data, s = _CBD.nodal_market_main(s);
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results.jld2",results)
 
-
-s["home_market"]=[[3,4]]
-result_mip, data, mn_data, s = _CBD.zonal_market_main(s);
+s["home_market"]=[[1,4]]
+@time result_mip, data, mn_data, s = _CBD.zonal_market_main(s);
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14.jld2",results)
 
 
 #result_mip=deepcopy(result_mip_001)
-gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data,s)#print solution
+@time gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data,s)#print solution
 #####################################
 
 country="DK"#,"DE","DK"]
