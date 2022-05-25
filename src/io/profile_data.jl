@@ -162,29 +162,6 @@ function multi_period_setup(ls,scenario_data,data, markets, infinite_grid, argz,
     return mn_data, extradata
 end
 
-#=
-function multi_period_setup_wgen_type(scenario_data,data, all_gens, markets, argz, s, map_gen_types)
-    #################### Multi-period input parameters #######################
-    data,scenario, dim = multi_period_stoch_year_setup_wgen_type(argz["ls"],argz["res_years"],argz["scenario_years"],argz["scenario_names"],data);
-    scenario["planning_horizon"] = argz["scenario_planning_horizon"]; # in years, to scale generation cost
-
-    extradata,data,map_gen_types =create_profile_sets_mesh_wgen_type(dim, scenario, data, all_gens, scenario_data, markets, s, argz, map_gen_types)
-    extradata = create_profile_sets_rest_wgen_type(dim, extradata, data, argz)
-    #########################################################################
-    #################### Scale cost data
-    scale_cost_data_hourly!(extradata, scenario)
-    extradata=costs_datas_wREZ(extradata, s, argz)
-
-    ######################################################
-    xtradata = Dict{String,Any}()
-    xtradata["dim"] = Dict{String,Any}()
-    xtradata["dim"] = dim
-    ######################################################
-    # Create data dictionary where time series data is included at the right place
-    mn_data = _PMACDC.multinetwork_data(data, xtradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
-    return mn_data, extradata,map_gen_types
-end=#
-
 #Organizes nw numbers per scenario-year
 function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario_data,data)
     scenario = Dict{String, Any}("hours" => ls,"years" => length(scenario_years), "sc_names" => Dict{String, Any}())
