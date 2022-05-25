@@ -298,7 +298,7 @@ function multi_period_stoch_year_setup_wgen_type(ls,res_years,scenario_years,sce
 end
 
 #loads generator cost and profile time series In multi-period simulation
-function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_grid, owpp_mva)
+#=function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_grid, owpp_mva)
     pu=data_orig["baseMVA"]
     e2me=1000000/pu#into ME/PU
     extradata = Dict{String,Any}()
@@ -373,8 +373,7 @@ function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_g
         gen["type"]=0
     end
     return extradata,data_orig
-end
-
+end=#
 function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, s)
 	genz=[];wfz=[]
     pu=data_orig["baseMVA"]
@@ -500,8 +499,9 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 	        load["source_id"][2]=num_of_gens+1
 	        load["pmin"]=deepcopy(row[:generation])*-1
             load["pmax"]=deepcopy(row[:generation])*-1
-	       # load["pmax"]=0
+	        #load["pmax"]=0
 			load["cost"]=[deepcopy(row[:fuel_cost]),0]
+            #load["cost"]=[160,0]
 	        push!(loads[cuntree],string(num_of_gens+1)=>deepcopy(load))
 	        num_of_gens=num_of_gens+1
 
@@ -528,8 +528,9 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 			        for (l, load) in sort!(OrderedCollections.OrderedDict(dic), by=x->parse(Int64,x))
 						ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
 						S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd][k_yr])[!,Symbol(cuntree*"_MWh")]
-		                extradata["gen"][string(l)]["pmax"][1, d] = 0
+		                extradata["gen"][string(l)]["pmax"][1, d] = load["pmax"]*S_row[1]/pu
 		                extradata["gen"][string(l)]["pmin"][1, d] = load["pmin"]*S_row[1]/pu
+                        #println(string(extradata["gen"][string(l)]["pmax"][1, d])*" "*string(extradata["gen"][string(l)]["pmin"][1, d]))
 		                extradata["gen"][string(l)]["cost"][d] = load["cost"]
 		                push!(data["gen"],string(l)=>load)
 						push!(genz,(parse(Int64,l),S_row[1]/pu))
@@ -544,7 +545,7 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
     return extradata, data_orig
 end
 
-function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig, all_gens, scenario_data, markets, s, argz, map_gen_types)
+#=function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig, all_gens, scenario_data, markets, s, argz, map_gen_types)
 	genz=[];wfz=[]
 
     pu=data_orig["baseMVA"]
@@ -669,7 +670,7 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
 	        load["index"]=num_of_gens+1
 	        load["source_id"][2]=num_of_gens+1
 	        load["pmin"]=deepcopy(row[:generation])*-1
-	        load["pmax"]=0
+	        load["pmax"]=deepcopy(row[:generation])*-1
 			load["cost"]=[deepcopy(row[:fuel_cost]),0]
 	        push!(loads[cuntree],string(num_of_gens+1)=>deepcopy(load))
 	        num_of_gens=num_of_gens+1
@@ -711,7 +712,7 @@ function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig
     push!(s,"wfz"=>wfz)
 	data_orig["gen"]=data["gen"]
     return extradata, data_orig, map_gen_types
-end
+end=#
 #=
 function create_profile_sets_mesh_wgen_type(number_of_hours, scenario, data_orig, all_gens, scenario_data, markets, s, argz, map_gen_types)
 	genz=[];wfz=[]
