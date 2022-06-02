@@ -137,10 +137,10 @@ mpc.baseMVA = 100;
 	 %% storage additional data
 	 %column_names% max_energy_absorption stationary_energy_inflow stationary_energy_outflow self_discharge_rate cost
 	 mpc.storage_extra = [
-0 0 0 0.0001 18.3;
-0 0 0 0.0001 18.3;
-0 0 0 0.0001 18.3;
-0 0 0 0.0001 18.3;
+0 0 0 0.0001 39;
+0 0 0 0.0001 39;
+0 0 0 0.0001 39;
+0 0 0 0.0001 39;
 ];
 %% storage data
 	 %column_names%   storage_bus ps 	qs 	energy  energy_rating charge_rating  discharge_rating  charge_efficiency  discharge_efficiency  thermal_rating  qmin  	qmax  	r  		x  p_loss  	q_loss  status eq_cost inst_cost co2_cost 	max_energy_absorption 	stationary_energy_inflow 	stationary_energy_outflow 	self_discharge_rate	 	cost_abs 	cost_inj on_off
