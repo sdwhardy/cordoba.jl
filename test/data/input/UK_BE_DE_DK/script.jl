@@ -47,7 +47,7 @@ s["home_market"]=[[2,5],[3,6],[4,7]]
 @time result_mip, data, mn_data, s = _CBD.zonal_market_main(s);
 s["cost_summary"]=_CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_allhm_k6.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_567_k6.jld2",results)
 
 
 
