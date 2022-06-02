@@ -30,9 +30,9 @@ end
 
 function nodal_market_main(s)
     mn_data, data, s = data_setup_nodal(s);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap" => 1e-4)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-    #print_solution_wcost_data(result_mip, s, data)
+    print_solution_wcost_data(result_mip, s, data)
     s["rebalancing"]=true
     s["relax_problem"]=true
     s["output"]["duals"]=true
