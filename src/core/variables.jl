@@ -206,8 +206,7 @@ function variable_absorbed_energy(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bo
 
     for (s, strg) in _PM.ref(pm, nw, :storage)
         e_absmax = _PM.var(pm, nw, :e_absmax, s)
-        #println("Updated!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-       # JuMP.@constraint(pm.model, e_abs[s]-5000*e_absmax  <= 0)
+        JuMP.@constraint(pm.model, e_abs[s]-5000*e_absmax  <= 0)
         JuMP.@constraint(pm.model, e_abs[s]  >= 0)
     end
 
