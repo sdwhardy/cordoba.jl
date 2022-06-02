@@ -69,7 +69,7 @@ gen=gen_consume_summary["offshore_generation"][scenario][country]#[121:144,:]
 con=select!(con,:ts)
 _CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
 
-hourly_income_wf=_CBD.owpp_profit_obz(s, result_mip, keys(mn_data["scenario"][scenario]), "4", "163");
+#hourly_income_wf=_CBD.owpp_profit_obz(s, result_mip, keys(mn_data["scenario"][scenario]), "4", "163");
 _CBD.plot_cumulative_income(hourly_income_wf, s["hours_length"])
 
 sum(hourly_income_wf["power"])#3262.67155

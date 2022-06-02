@@ -9,6 +9,15 @@ results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_inp
 results_allhm=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_allhm_k6.jld2")
 results_567=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_567_k6.jld2")
 
+s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=_CBD.summarize_in_s(results_nodal);
+s_allhm, result_mip_allhm, data_allhm, mn_data_allhm=_CBD.summarize_in_s(results_allhm);
+s_567, result_mip_567, data_567, mn_data_567=_CBD.summarize_in_s(results_567);
+sum(s_567["income_summary"]["strg"]["all"]["sum"][1:end-5])
+
+_CBD.print_table_summary(s_nodal)
+_CBD.print_table_summary(s_allhm)
+_CBD.print_table_summary(s_567)
+
 s_nodal=results_nodal["s"];result_mip_nodal=results_nodal["result_mip"];data_nodal=results_nodal["data"];mn_data_nodal=results_nodal["mn_data"]
 s_allhm=results_allhm["s"];result_mip_allhm=results_allhm["result_mip"];data_allhm=results_allhm["data"];mn_data_allhm=results_allhm["mn_data"]
 s_567=results_567["s"];result_mip_567=results_567["result_mip"];data_567=results_567["data"];mn_data_567=results_567["mn_data"]
@@ -39,8 +48,8 @@ _CBD.topology_map(s,"tinf")
 #nodal "gross_consumer_surplus"=>-1.30748e6
 #hm
 _CBD.plot_cumulative_production_all_scenarios_allWF(s, mn_data)
-_CBD.plot_cumulative_income_all_scenarios_allWF(s, mn_data)
-_CBD.plot_cumulative_income_tl_all_scenarios(s,data)
+_CBD.plot_cumulative_income_all_scenarios_allWF(s_567, mn_data_567)
+_CBD.plot_cumulative_income_tl_all_scenarios(s_allhm,data_allhm)
 
 _CBD.plot_cumulative_wf_production_all_scenarios(s, mn_data, "DE")
 

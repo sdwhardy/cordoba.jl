@@ -27,12 +27,12 @@ function topology_map(s, time_step)
      #                   marker=marker)
 
 
-    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=row[:country]*"-"*string(row[:node]),
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=35),textposition="top center",text=string(row[:node])*": "*row[:country],
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
 
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=row[:country]*"-"*string(row[:node]),
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=35),textposition="top center",text=string(row[:node])*": "*row[:country]*"(WF)",
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["wf"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
@@ -58,7 +58,7 @@ function topology_map(s, time_step)
 
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
 
-    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=27),size=10,bgcolor= "#1C00ff00"), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=35),size=10,bgcolor= "#1C00ff00"), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
     PlotlyJS.plot(trace, layout)
 end
 
@@ -408,12 +408,13 @@ function plot_cumulative_income_tl_all_scenarios(s,data)
     cum_incomes=Dict()
     for (sc,hourly_income_tl) in hourly_income_tl_all_scenarios
         if !(haskey(cum_incomes, sc));push!(cum_incomes,sc=>Dict("dc"=>Dict(),"ac"=>Dict()));end
-    for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["dc"]), by=x->parse(Int64,x))
-        push!(cum_incomes[sc]["dc"],string(data["branchdc"][k_br]["fbusdc"])*"-"*string(data["branchdc"][k_br]["tbusdc"])=>[sum(br["rent"][1:i]) for (i,ic) in enumerate(br["rent"])]);
-    end;
-    for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["ac"]), by=x->parse(Int64,x))
-        push!(cum_incomes[sc]["ac"],string(data["branch"][k_br]["f_bus"])*"-"*string(data["branch"][k_br]["t_bus"])=>[sum(br["rent"][1:i]) for (i,ic) in enumerate(br["rent"])]);
-    end;end
+        if (sc!="totals")
+            for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["dc"]), by=x->parse(Int64,x))
+                push!(cum_incomes[sc]["dc"],string(data["branchdc"][k_br]["fbusdc"])*"-"*string(data["branchdc"][k_br]["tbusdc"])=>[sum(br["rent"][1:i]) for (i,ic) in enumerate(br["rent"])]);
+            end;
+            for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["ac"]), by=x->parse(Int64,x))
+                push!(cum_incomes[sc]["ac"],string(data["branch"][k_br]["f_bus"])*"-"*string(data["branch"][k_br]["t_bus"])=>[sum(br["rent"][1:i]) for (i,ic) in enumerate(br["rent"])]);
+            end;end;end
     cum_income=Dict("DC"=>Dict(),"AC"=>Dict())
     for (sc,cum_inc) in cum_incomes
         for (br_k,ci_dc) in cum_inc["dc"]
@@ -468,6 +469,37 @@ end
 
 ####################################### Print solution ################################
 
+function tl_totals(s_nodal,data_nodal)
+    hrs=s_nodal["hours_length"]
+    hourly_income_tl_all_scenarios=s_nodal["income_summary"]["tso"]
+    hours2days=(8760*10/hrs)
+    tl_price=s_nodal["cost_summary"]["transmission"]#6205.14#only true if 4GW all in year one
+    cum_incomes=Dict("all"=>Dict("dc"=>Dict(),"ac"=>Dict(),"total"=>0.0))
+    for (sc,hourly_income_tl) in hourly_income_tl_all_scenarios
+        if !(haskey(cum_incomes, sc));push!(cum_incomes,sc=>Dict("dc"=>Dict(),"ac"=>Dict()));end
+        if (sc!="totals")
+            for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["dc"]), by=x->parse(Int64,x))
+                push!(cum_incomes[sc]["dc"],string(data_nodal["branchdc"][k_br]["fbusdc"])*"-"*string(data_nodal["branchdc"][k_br]["tbusdc"])=>[sum(br["rent"][1:i]) for (i,ic) in enumerate(br["rent"])]);
+                if !(haskey(cum_incomes["all"]["dc"],string(data_nodal["branchdc"][k_br]["fbusdc"])*"-"*string(data_nodal["branchdc"][k_br]["tbusdc"])));push!(cum_incomes["all"]["dc"],string(data_nodal["branchdc"][k_br]["fbusdc"])*"-"*string(data_nodal["branchdc"][k_br]["tbusdc"])=>0.0);end
+                cum_incomes["all"]["dc"][string(data_nodal["branchdc"][k_br]["fbusdc"])*"-"*string(data_nodal["branchdc"][k_br]["tbusdc"])]+=sum(br["rent"])
+            end
+            for (k_br,br) in sort!(OrderedCollections.OrderedDict(hourly_income_tl["ac"]), by=x->parse(Int64,x))
+                push!(cum_incomes[sc]["ac"],string(data_nodal["branch"][k_br]["f_bus"])*"-"*string(data_nodal["branch"][k_br]["t_bus"])=>[sum(br["rent"][1:i]) for (i,ic) in enumerate(br["rent"])]);
+                if !(haskey(cum_incomes["all"]["ac"],string(data_nodal["branch"][k_br]["f_bus"])*"-"*string(data_nodal["branch"][k_br]["t_bus"])));push!(cum_incomes["all"]["ac"],string(data_nodal["branch"][k_br]["f_bus"])*"-"*string(data_nodal["branch"][k_br]["t_bus"])=>0.0);end
+                cum_incomes["all"]["ac"][string(data_nodal["branch"][k_br]["f_bus"])*"-"*string(data_nodal["branch"][k_br]["t_bus"])]+=sum(br["rent"])
+            end;end;end
+    
+    for (k_br,br) in cum_incomes["all"]["dc"]
+        cum_incomes["all"]["dc"][k_br]=br/length(hourly_income_tl_all_scenarios)
+        cum_incomes["all"]["total"]=cum_incomes["all"]["total"]+br/length(hourly_income_tl_all_scenarios)
+    end
+    for (k_br,br) in cum_incomes["all"]["ac"]
+        cum_incomes["all"]["ac"][k_br]=br/length(hourly_income_tl_all_scenarios)
+        cum_incomes["all"]["total"]=cum_incomes["all"]["total"]+br/length(hourly_income_tl_all_scenarios)
+    end
+    push!(s_nodal["income_summary"]["tso"],"totals"=>cum_incomes["all"])
+    return s_nodal
+end 
 
 function generation_color_map()
         color_dict=Dict("Offshore Wind"=>"darkgreen",
@@ -475,6 +507,7 @@ function generation_color_map()
         "WF"=>"navy",
         "DE"=>"red",
         "DK"=>"black",
+        "4"=>"darkgreen",
         "5"=>"darkgreen",
         "6"=>"navy",
         "7"=>"red",
@@ -545,8 +578,77 @@ function owpp_profit_obz(s, result_mip, scenario, tss, bus, gen)
     return s
 end
 
-function SocialWelfare(s, result_mip, mn_data, data)
+function strg_profit_obzs(s, result_mip, mn_data)
+    for (scenario_num,scenario) in mn_data["scenario"]
+        tss=string.(values(scenario))
+        for (strg_num,strg_node) in enumerate(vcat(s["offshore_nodes"],s["onshore_nodes"]))
+            s=strg_profit_obz(s, result_mip, scenario_num, tss, string(strg_node))
+            if !(haskey(s["income_summary"]["strg"],"all"));push!(s["income_summary"]["strg"],"all"=>Dict());end
+            if !(haskey(s["income_summary"]["strg"]["all"],"power"));push!(s["income_summary"]["strg"]["all"],"power"=>0.0);end
+            if !(haskey(s["income_summary"]["strg"]["all"],"income"));push!(s["income_summary"]["strg"]["all"],"income"=>0.0);end
+            if !(haskey(s["income_summary"]["strg"]["all"],string(strg_node)));
+                push!(s["income_summary"]["strg"]["all"],string(strg_node)=>s["income_summary"]["strg"][scenario_num][string(strg_node)]["income"]./s["scenarios_length"]);
+            else
+                s["income_summary"]["strg"]["all"][string(strg_node)]=s["income_summary"]["strg"]["all"][string(strg_node)].+s["income_summary"]["strg"][scenario_num][string(strg_node)]["income"]/s["scenarios_length"]
+            end
+            if !(haskey(s["income_summary"]["strg"]["all"],"sum"));
+                push!(s["income_summary"]["strg"]["all"],"sum"=>s["income_summary"]["strg"][scenario_num][string(strg_node)]["income"]./s["scenarios_length"]);
+            else
+                s["income_summary"]["strg"]["all"]["sum"]=s["income_summary"]["strg"]["all"]["sum"].+s["income_summary"]["strg"][scenario_num][string(strg_node)]["income"]/s["scenarios_length"]
+            end
+            s["income_summary"]["strg"]["all"]["power"]= s["income_summary"]["strg"]["all"]["power"]+s["income_summary"]["strg"][scenario_num][string(strg_node)]["life_power"]
+            s["income_summary"]["strg"]["all"]["income"]= s["income_summary"]["strg"]["all"]["income"]+s["income_summary"]["strg"][scenario_num][string(strg_node)]["life_income"]
+        end
+    end
+    s["income_summary"]["strg"]["all"]["power"]= s["income_summary"]["strg"]["all"]["power"]/s["scenarios_length"]
+    s["income_summary"]["strg"]["all"]["income"]= s["income_summary"]["strg"]["all"]["income"]/s["scenarios_length"]
+    return s
+end
+
+function strg_profit_obz(s, result_mip, scenario, tss, bus)
+    if !haskey(s,"income_summary");s["income_summary"]=Dict();end
+    if !haskey(s["income_summary"],"strg");s["income_summary"]["strg"]=Dict();end
+    if !haskey(s["income_summary"]["strg"],scenario);s["income_summary"]["strg"][scenario]=Dict();end
+
+    hl=1#s["hours_length"]
+    yl=1#s["years_length"]
     sl=s["scenarios_length"]
+    me2e=1#1000000
+    hourly_income=Dict();push!(hourly_income,"price"=>[]);push!(hourly_income,"income"=>[]);push!(hourly_income,"power"=>[]);push!(hourly_income,"hour"=>[]);
+    for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
+        if (issubset([string(n)],tss))
+            b=nw["bus"][bus];
+            strg=nw["storage"][bus];
+
+            push!(hourly_income["power"],strg["ps"]);
+            push!(hourly_income["price"],b["lam_kcl_r"]);
+            push!(hourly_income["income"],strg["ps"]*b["lam_kcl_r"]*hl*yl*sl*me2e);
+            push!(hourly_income["hour"],n);
+    end;end
+    hourly_income["life_income"]=sum(hourly_income["income"])
+    hourly_income["life_power"]=sum(hourly_income["power"])
+    s["income_summary"]["strg"][scenario][bus]=hourly_income
+    return s
+end
+      
+
+#=function SocialWelfare(s, result_mip, mn_data, data)
+    
+    function undo_npv_hourly(x,current_yr)
+        cost = (1+s["dr"])^(current_yr-base_year) * x# npv
+        return deepcopy(cost)
+    end
+
+    function undo_hourly_scaling(cost0)
+        cost=cost0*((hl*yl)/(8760*s["scenario_planning_horizon"]))*e2me
+        return deepcopy(cost)
+    end
+    e2me=1000000/result_mip["solution"]["nw"]["1"]["baseMVA"]
+    base_year=parse(Int64,s["scenario_years"][1])
+    sl=s["scenarios_length"]
+    yl=s["years_length"]
+    hl=s["hours_length"]
+
     social_welfare=Dict();
     for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("gross_consumer_surplus"=>Dict(),"available_demand"=>Dict(),"consumed"=>Dict(),"gen_revenue"=>Dict(),"con_expenditure"=>Dict(),"produced"=>Dict()));end
     for (k_sc,sc) in social_welfare;
@@ -569,14 +671,18 @@ function SocialWelfare(s, result_mip, mn_data, data)
             ts_str=string(ts)
             for (g,gen) in result_mip["solution"]["nw"][ts_str]["gen"];
                 gen_bus=string(data["gen"][g]["gen_bus"])
+                _sc=floor(Int64,(ts-1)/(yl*hl))
+                _yr=ceil(Int64,(ts-_sc*(yl*hl))/(hl))
                 if (gen["pg"]<=0)
-                    #println(string(s["xd"]["gen"][gen_bus]["cost"][ts][1])*" - "*string(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"]))
-                    social_welfare[k_sc]["con_expenditure"][gen_bus]=social_welfare[k_sc]["con_expenditure"][gen_bus]+gen["pg"]*result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"]*sl
-                    social_welfare[k_sc]["available_demand"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]+gen["pg"]*s["xd"]["gen"][gen_bus]["cost"][ts][1]*-1
+                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
+                    social_welfare[k_sc]["con_expenditure"][gen_bus]=social_welfare[k_sc]["con_expenditure"][gen_bus]+gen["pg"]*undo_hourly_scaling(lam_kcl_r)*sl
+                    demand_base_cost=undo_npv_hourly(s["xd"]["gen"][g]["cost"][ts][1],parse(Int64,s["scenario_years"][_yr]))
+                    social_welfare[k_sc]["available_demand"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]+gen["pg"]*undo_hourly_scaling(demand_base_cost)*-1
                     social_welfare[k_sc]["consumed"][gen_bus]=social_welfare[k_sc]["consumed"][gen_bus]+gen["pg"]
                     social_welfare[k_sc]["gross_consumer_surplus"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]-social_welfare[k_sc]["con_expenditure"][gen_bus]
                 else
-                    social_welfare[k_sc]["gen_revenue"][gen_bus]=social_welfare[k_sc]["gen_revenue"][gen_bus]+gen["pg"]*result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"]*-1*sl
+                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
+                    social_welfare[k_sc]["gen_revenue"][gen_bus]=social_welfare[k_sc]["gen_revenue"][gen_bus]+gen["pg"]*undo_hourly_scaling(lam_kcl_r)*-1*sl
                     social_welfare[k_sc]["produced"][gen_bus]=social_welfare[k_sc]["produced"][gen_bus]+gen["pg"]
                 end
             end
@@ -605,6 +711,102 @@ function SocialWelfare(s, result_mip, mn_data, data)
     end
     push!(social_welfare,"totals"=>totals)
     return social_welfare
+end=#
+
+
+function SocialWelfare(s, result_mip, mn_data, data)
+    
+    function undo_npv_hourly(x,current_yr)
+        cost = x#*(1+s["dr"])^(current_yr-base_year)# npv
+        return deepcopy(cost)
+    end
+
+    function undo_hourly_scaling(cost0)
+        cost=cost0#*((hl*yl)/(8760*s["scenario_planning_horizon"]))*e2me
+        return deepcopy(cost)
+    end
+    e2me=1000000/result_mip["solution"]["nw"]["1"]["baseMVA"]
+    base_year=parse(Int64,s["scenario_years"][1])
+    sl=s["scenarios_length"]
+    yl=s["years_length"]
+    hl=s["hours_length"]
+
+    social_welfare=Dict();
+    for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("gross_consumer_surplus"=>Dict(),"available_demand"=>Dict(),"consumed"=>Dict(),"gen_revenue"=>Dict(),"con_expenditure"=>Dict(),"produced"=>Dict()));end
+    for (k_sc,sc) in social_welfare;
+        for n in s["onshore_nodes"];
+            push!(sc["produced"],string(n)=>0.0);
+            push!(sc["gross_consumer_surplus"],string(n)=>0.0);
+            push!(sc["available_demand"],string(n)=>0.0);
+            push!(sc["gen_revenue"],string(n)=>0.0);
+            push!(sc["con_expenditure"],string(n)=>0.0);
+            push!(sc["consumed"],string(n)=>0.0);end;
+        for n in s["offshore_nodes"];
+            push!(sc["produced"],string(n)=>0.0);
+            push!(sc["gross_consumer_surplus"],string(n)=>0.0);
+            push!(sc["available_demand"],string(n)=>0.0);
+            push!(sc["gen_revenue"],string(n)=>0.0);
+            push!(sc["con_expenditure"],string(n)=>0.0);
+            push!(sc["consumed"],string(n)=>0.0);end;end
+    for (k_sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x));
+        for (k_ts,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x));
+            ts_str=string(ts)
+            for (g,gen) in result_mip["solution"]["nw"][ts_str]["gen"];
+                gen_bus=string(data["gen"][g]["gen_bus"])
+                _sc=floor(Int64,(ts-1)/(yl*hl))
+                _yr=ceil(Int64,(ts-_sc*(yl*hl))/(hl))
+                if (gen["pg"]<0)
+                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
+                    cst=undo_hourly_scaling(lam_kcl_r)*sl
+                    social_welfare[k_sc]["con_expenditure"][gen_bus]=social_welfare[k_sc]["con_expenditure"][gen_bus]+gen["pg"]*cst
+                    demand_base_cost=undo_npv_hourly(s["xd"]["gen"][g]["cost"][ts][1],parse(Int64,s["scenario_years"][_yr]))
+                    cst=undo_hourly_scaling(demand_base_cost)*-1
+                    social_welfare[k_sc]["available_demand"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]+gen["pg"]*cst
+                    social_welfare[k_sc]["consumed"][gen_bus]=social_welfare[k_sc]["consumed"][gen_bus]+gen["pg"]
+                    social_welfare[k_sc]["gross_consumer_surplus"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]-social_welfare[k_sc]["con_expenditure"][gen_bus]
+                else
+                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
+                    social_welfare[k_sc]["gen_revenue"][gen_bus]=social_welfare[k_sc]["gen_revenue"][gen_bus]+gen["pg"]*undo_hourly_scaling(lam_kcl_r)*-1*sl
+                    social_welfare[k_sc]["produced"][gen_bus]=social_welfare[k_sc]["produced"][gen_bus]+gen["pg"]
+                end
+            end
+        end
+    end
+    totals=Dict();totals["all"]=Dict();
+    for (k_sc,sc) in social_welfare;
+        if !(haskey(totals,k_sc));push!(totals,k_sc=>Dict());end
+        for (k_type, type) in sc
+            if !(haskey(totals[k_sc],k_type));push!(totals[k_sc],k_type=>0.0);end
+            if !(haskey(totals["all"],k_type));push!(totals["all"],k_type=>0.0);end
+            for (b_k,b) in type
+                totals["all"][k_type]=totals["all"][k_type]+(b)/sl
+                totals[k_sc][k_type]=totals[k_sc][k_type]+b
+            end
+        end
+    end
+    push!(social_welfare,"totals"=>totals)
+    return social_welfare
+end
+
+
+function print_table_summary(s)
+    println("transmission CAPEX: "*string(s["cost_summary"]["transmission"])*", Revenue: "*string(s["income_summary"]["tso"]["totals"]["total"]))
+    println("OWPP CAPEX: "*string(s["cost_summary"]["owpp"]["all"])*", Revenue: "*string(s["income_summary"]["owpp"]["all"]["income"]))
+    println("Strg CAPEX: "*string(s["cost_summary"]["storage"]["all"])*", Revenue: "*string(s["income_summary"]["strg"]["all"]["income"]))
+    println("Gross consumer surplus: "*string(s["social_welfare"]["totals"]["all"]["gross_consumer_surplus"]))
+    println("OWPP Power: "*string(s["income_summary"]["owpp"]["all"]["power"]*(8760/s["hours_length"])))
+end
+
+function summarize_in_s(results)
+    s=results["s"];result_mip=results["result_mip"];data=results["data"];mn_data=results["mn_data"]
+    s= owpps_profit_obz(s, result_mip, mn_data)
+    s= transmission_lines_profits(s, result_mip, mn_data, data);
+    s= undo_marginal_price_scaling(s,result_mip)
+    s["gen_consume_summary"]= summarize_generator_solution_data(result_mip, data,s)#print solution
+    s["social_welfare"] = SocialWelfare(s, result_mip, mn_data, data)
+    s=tl_totals(s,data)
+    s=strg_profit_obzs(s, result_mip, mn_data)
+    return s, result_mip, data, mn_data
 end
 
 #=

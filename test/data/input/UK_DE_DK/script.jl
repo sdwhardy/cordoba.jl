@@ -50,7 +50,7 @@ s["home_market"]=[[1,4]]
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14.jld2",results)
-
+result_mip["solution"]["nw"]["2592"]["storage"]["3"]
 
 #result_mip=deepcopy(result_mip_001)
 @time gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data,s)#print solution
@@ -69,7 +69,7 @@ gen=gen_consume_summary["offshore_generation"][scenario][country]#[121:144,:]
 con=select!(con,:ts)
 _CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
 
-hourly_income_wf=_CBD.owpp_profit_obz(s, result_mip, keys(mn_data["scenario"][scenario]), "4", "163");
+#hourly_income_wf=_CBD.owpp_profit_obz(s, result_mip, keys(mn_data["scenario"][scenario]), "4", "163");
 _CBD.plot_cumulative_income(hourly_income_wf, s["hours_length"])
 sum(hourly_income_wf["power"])#3262.67155
 sum(hourly_income_wf["income"])#3262.67155
