@@ -500,8 +500,9 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 	        load["pmin"]=deepcopy(row[:generation])*-1
             load["pmax"]=deepcopy(row[:generation])*-1
 	        #load["pmax"]=0
+            #println(deepcopy(row[:fuel_cost]))
 			#load["cost"]=[deepcopy(row[:fuel_cost]),0]
-            load["cost"]=[100,0]
+            load["cost"]=[0.01,0]
 	        push!(loads[cuntree],string(num_of_gens+1)=>deepcopy(load))
 	        num_of_gens=num_of_gens+1
 
