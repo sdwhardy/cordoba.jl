@@ -11,7 +11,7 @@ s = Dict(
 ################# temperal parameters #################
 "test"=>false,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
-"scenario_names"=>["DE","GA","NT"],#["NT","DE","GA"]
+"scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
 "k"=>6,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
 "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
 "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
