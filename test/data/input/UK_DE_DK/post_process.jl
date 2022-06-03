@@ -15,14 +15,15 @@ s_14, result_mip_14, data_14, mn_data_14=_CBD.summarize_in_s(results_14);
 s_24, result_mip_24, data_24, mn_data_24=_CBD.summarize_in_s(results_24);
 s_34, result_mip_34, data_34, mn_data_34=_CBD.summarize_in_s(results_34);
 
-_CBD.print_solution_wcost_data(result_mip_nodal, s_nodal, data_nodal)#-856896.0245340846
+_CBD.print_solution_wcost_data(result_mip_14, s_14, data_14)#-856896.0245340846
 _CBD.print_table_summary(s_nodal)
 _CBD.print_table_summary(s_14)
 _CBD.print_table_summary(s_24)
 _CBD.print_table_summary(s_34)
-for i=1:1:length(s_14["income_summary"]["strg"]["all"]["sum"])
-println(string(i)*" "*string(s_14["income_summary"]["strg"]["all"]["sum"][i])*" "*string(sum(s_14["income_summary"]["strg"]["all"]["sum"][1:i])))
-end
+
+
+_CBD.topology_map(s_nodal,"tinf")
+
 _CBD.plot_cumulative_production_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_tl_all_scenarios(s_nodal,data_nodal)

@@ -27,13 +27,13 @@ function topology_map(s, time_step)
      #                   marker=marker)
 
 
-    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=35),textposition="top center",text=string(row[:node])*": "*row[:country],
-    name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=40),textposition="top center",text=string(row[:node])*": "*row[:country],
+    name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW",#*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
 
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=35),textposition="top center",text=string(row[:node])*": "*row[:country]*"(WF)",
-    name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["wf"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=40),textposition="top center",text=string(row[:node])*": "*row[:country]*"(WF)",
+    name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["wf"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW",#*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
     traceDC=[
@@ -58,7 +58,7 @@ function topology_map(s, time_step)
 
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
 
-    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=35),size=10,bgcolor= "#1C00ff00"), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=40),bgcolor= "#1C00ff00"), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
     PlotlyJS.plot(trace, layout)
 end
 
@@ -717,12 +717,12 @@ end=#
 function SocialWelfare(s, result_mip, mn_data, data)
     
     function undo_npv_hourly(x,current_yr)
-        cost = x#*(1+s["dr"])^(current_yr-base_year)# npv
+        cost = x*(1+s["dr"])^(current_yr-base_year)# npv
         return deepcopy(cost)
     end
 
     function undo_hourly_scaling(cost0)
-        cost=cost0#*((hl*yl)/(8760*s["scenario_planning_horizon"]))*e2me
+        cost=cost0*((hl*yl)/(8760*s["scenario_planning_horizon"]))*e2me
         return deepcopy(cost)
     end
     e2me=1000000/result_mip["solution"]["nw"]["1"]["baseMVA"]
@@ -732,7 +732,7 @@ function SocialWelfare(s, result_mip, mn_data, data)
     hl=s["hours_length"]
 
     social_welfare=Dict();
-    for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("gross_consumer_surplus"=>Dict(),"available_demand"=>Dict(),"consumed"=>Dict(),"gen_revenue"=>Dict(),"con_expenditure"=>Dict(),"produced"=>Dict()));end
+    for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("gross_consumer_surplus"=>Dict(),"available_demand"=>Dict(),"consumed"=>Dict(),"gen_revenue"=>Dict(),"con_expenditure"=>Dict(),"produced"=>Dict(),"price"=>Dict()));end
     for (k_sc,sc) in social_welfare;
         for n in s["onshore_nodes"];
             push!(sc["produced"],string(n)=>0.0);
@@ -740,35 +740,43 @@ function SocialWelfare(s, result_mip, mn_data, data)
             push!(sc["available_demand"],string(n)=>0.0);
             push!(sc["gen_revenue"],string(n)=>0.0);
             push!(sc["con_expenditure"],string(n)=>0.0);
-            push!(sc["consumed"],string(n)=>0.0);end;
+            push!(sc["consumed"],string(n)=>0.0);
+            push!(sc["price"],string(n)=>0.0);end;
+            
         for n in s["offshore_nodes"];
             push!(sc["produced"],string(n)=>0.0);
             push!(sc["gross_consumer_surplus"],string(n)=>0.0);
             push!(sc["available_demand"],string(n)=>0.0);
             push!(sc["gen_revenue"],string(n)=>0.0);
             push!(sc["con_expenditure"],string(n)=>0.0);
-            push!(sc["consumed"],string(n)=>0.0);end;end
+            push!(sc["consumed"],string(n)=>0.0);
+            push!(sc["price"],string(n)=>0.0);end;end
     for (k_sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x));
         for (k_ts,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x));
             ts_str=string(ts)
             for (g,gen) in result_mip["solution"]["nw"][ts_str]["gen"];
                 gen_bus=string(data["gen"][g]["gen_bus"])
-                _sc=floor(Int64,(ts-1)/(yl*hl))
-                _yr=ceil(Int64,(ts-_sc*(yl*hl))/(hl))
                 if (gen["pg"]<0)
-                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
-                    cst=undo_hourly_scaling(lam_kcl_r)*sl
-                    social_welfare[k_sc]["con_expenditure"][gen_bus]=social_welfare[k_sc]["con_expenditure"][gen_bus]+gen["pg"]*cst
-                    demand_base_cost=undo_npv_hourly(s["xd"]["gen"][g]["cost"][ts][1],parse(Int64,s["scenario_years"][_yr]))
-                    cst=undo_hourly_scaling(demand_base_cost)*-1
-                    social_welfare[k_sc]["available_demand"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]+gen["pg"]*cst
+                    cost_npv=deepcopy(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"])*sl
+                    social_welfare[k_sc]["con_expenditure"][gen_bus]=social_welfare[k_sc]["con_expenditure"][gen_bus]+gen["pg"]*cost_npv
+                    demand_cost_npv=deepcopy(s["xd"]["gen"][g]["cost"][ts][1])*-1
+                    social_welfare[k_sc]["available_demand"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]+gen["pg"]*demand_cost_npv
                     social_welfare[k_sc]["consumed"][gen_bus]=social_welfare[k_sc]["consumed"][gen_bus]+gen["pg"]
                     social_welfare[k_sc]["gross_consumer_surplus"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]-social_welfare[k_sc]["con_expenditure"][gen_bus]
                 else
-                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
-                    social_welfare[k_sc]["gen_revenue"][gen_bus]=social_welfare[k_sc]["gen_revenue"][gen_bus]+gen["pg"]*undo_hourly_scaling(lam_kcl_r)*-1*sl
+                    cost_npv=deepcopy(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"])*-1*sl
+                    social_welfare[k_sc]["gen_revenue"][gen_bus]=social_welfare[k_sc]["gen_revenue"][gen_bus]+gen["pg"]*cost_npv
                     social_welfare[k_sc]["produced"][gen_bus]=social_welfare[k_sc]["produced"][gen_bus]+gen["pg"]
                 end
+            end
+
+            for (gen_bus,bus) in result_mip["solution"]["nw"][ts_str]["bus"];
+                _sc=floor(Int64,(ts-1)/(yl*hl))
+                _yr=ceil(Int64,(ts-_sc*(yl*hl))/(hl))
+                cost_npv=bus["lam_kcl_r"]*sl
+                cost_base=undo_npv_hourly(cost_npv,parse(Int64,s["scenario_years"][_yr]))
+                cost_base=undo_hourly_scaling(cost_base)*-1
+                social_welfare[k_sc]["price"][gen_bus]=social_welfare[k_sc]["price"][gen_bus]+cost_base/(yl*hl)
             end
         end
     end
@@ -779,7 +787,10 @@ function SocialWelfare(s, result_mip, mn_data, data)
             if !(haskey(totals[k_sc],k_type));push!(totals[k_sc],k_type=>0.0);end
             if !(haskey(totals["all"],k_type));push!(totals["all"],k_type=>0.0);end
             for (b_k,b) in type
+                if !(haskey(totals["all"],b_k));push!(totals["all"],b_k=>Dict());end
+                if !(haskey(totals["all"][b_k],k_type));push!(totals["all"][b_k],k_type=>0.0);end
                 totals["all"][k_type]=totals["all"][k_type]+(b)/sl
+                totals["all"][b_k][k_type]=totals["all"][b_k][k_type]+(b)/sl
                 totals[k_sc][k_type]=totals[k_sc][k_type]+b
             end
         end
@@ -794,7 +805,13 @@ function print_table_summary(s)
     println("OWPP CAPEX: "*string(s["cost_summary"]["owpp"]["all"])*", Revenue: "*string(s["income_summary"]["owpp"]["all"]["income"]))
     println("Strg CAPEX: "*string(s["cost_summary"]["storage"]["all"])*", Revenue: "*string(s["income_summary"]["strg"]["all"]["income"]))
     println("Gross consumer surplus: "*string(s["social_welfare"]["totals"]["all"]["gross_consumer_surplus"]))
+    println("Average Energy Price: "*string(s["social_welfare"]["totals"]["all"]["price"]))
     println("OWPP Power: "*string(s["income_summary"]["owpp"]["all"]["power"]*(8760/s["hours_length"])))
+    for (n,dic) in s["social_welfare"]["totals"]["all"]
+        if (typeof(dic)==typeof(Dict()))
+            println("Average Energy Price "*n*": "*string(dic["price"]))
+        end
+    end
 end
 
 function summarize_in_s(results)
