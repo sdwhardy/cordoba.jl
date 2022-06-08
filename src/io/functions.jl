@@ -33,6 +33,7 @@ function nodal_market_main(s)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>7e-4)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     print_solution_wcost_data(result_mip, s, data)
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     s["rebalancing"]=true
     s["relax_problem"]=true
     s["output"]["duals"]=true
@@ -42,6 +43,25 @@ function nodal_market_main(s)
     result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem=#
     return result_mip, data, mn_data, s
 end
+#=
+function nodal_market_mainA(s)
+    mn_data, data, s = data_setup_nodal(s);
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>0.7e-3)#select solver
+    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    print_solution_wcost_data(result_mip, s, data)
+    return result_mip, data, mn_data, s
+end
+function nodal_market_mainB(result_mip, s)
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+    s["rebalancing"]=true
+    s["relax_problem"]=true
+    s["output"]["duals"]=true
+    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
+    s, mn_data= remove_integers(result_mip,mn_data,data,s);
+    result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    return result_mip, data, mn_data, s
+end=#
 ########################## 
 
 ##################### Topology input data ############################
@@ -91,7 +111,8 @@ function get_scenario_data(s)
     end;end;end
         push!(scenario_data["Generation"]["keys"],"SLACK")
         delete!(scenario_data["Generation"]["costs"],"VOLL");
-        push!(scenario_data["Generation"]["costs"],"SLACK"=>maximum(values(scenario_data["Generation"]["costs"])))
+        #push!(scenario_data["Generation"]["costs"],"SLACK"=>maximum(values(scenario_data["Generation"]["costs"])))
+        push!(scenario_data["Generation"]["costs"],"SLACK"=>10000)
 
     ####################### Freeze offshore expansion of data #################
     scenario_data=freeze_offshore_expansion(s["nodes"], scenario_data)
@@ -938,8 +959,8 @@ function set_rebalancing_grid(result_mip,mn_data,s)
             if (haskey(result_mip["solution"]["nw"][string(ts)],"convdc"))
                 for (c,cnv) in result_mip["solution"]["nw"][string(ts)]["convdc"];
                     if (cnv["p_pacmax"]>0)
-                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=cnv["p_pacmax"];
-                            s["xd"]["convdc"][c]["Pacmax"][1,ts]=cnv["p_pacmax"];
+                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=round(cnv["p_pacmax"]);
+                            s["xd"]["convdc"][c]["Pacmax"][1,ts]=round(cnv["p_pacmax"]);
                     else
                             s["xd"]["convdc"][c]["Pacmin"][1,ts]=0;
                             s["xd"]["convdc"][c]["Pacmax"][1,ts]=0;
@@ -948,14 +969,15 @@ function set_rebalancing_grid(result_mip,mn_data,s)
             if (haskey(result_mip["solution"]["nw"][string(ts)],"storage"))
                 for (b,strg) in result_mip["solution"]["nw"][string(ts)]["storage"];
                     if (strg["e_absmax"]>0)
-                            s["xd"]["storage"][b]["pmin"][1,ts]=strg["e_absmax"];
-                            s["xd"]["storage"][b]["pmax"][1,ts]=strg["e_absmax"];
+                            s["xd"]["storage"][b]["pmin"][1,ts]=round(strg["e_absmax"]);
+                            s["xd"]["storage"][b]["pmax"][1,ts]=round(strg["e_absmax"]);
                     else
                             s["xd"]["storage"][b]["pmin"][1,ts]=0;
                             s["xd"]["storage"][b]["pmax"][1,ts]=0;
                     end;end;end
             for wf in s["wfz"]
-                s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=result_mip["solution"]["nw"][string(ts)]["gen"][string(first(wf))]["wf_pacmax"];end;
+                s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=round(result_mip["solution"]["nw"][string(ts)]["gen"][string(first(wf))]["wf_pacmax"]);end;
+                #s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=result_mip["solution"]["nw"][string(1)]["gen"][string(first(wf))]["wf_pacmax"];end;
     end;end
     return mn_data, s
 end
@@ -1009,6 +1031,7 @@ function set_cable_impedance(data,result_mip)
     end;end
     return data
 end
+
 #seperates wfs from genz and defines markets/wfs zones
 function data_update(s,result_mip)
     data, s = get_topology_data(s)#topology.m file
@@ -1022,8 +1045,8 @@ function data_update(s,result_mip)
     ############# Sets convex able impedance to the MIP solution ############## 
     data = set_cable_impedance(data, result_mip)
     additional_params_PMACDC(data)
-    #print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
-    #print_topology_data_DC(data,s["map_gen_types"]["markets"])#print to verify
+    print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
+    print_topology_data_DC(data,s["map_gen_types"]["markets"])#print to verify
     ##################### load time series data ##############################
     scenario_data = load_time_series_gentypes(s, scenario_data)
     ##################### multi period setup #################################
