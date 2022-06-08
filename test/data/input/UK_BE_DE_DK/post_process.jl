@@ -12,12 +12,38 @@ results_567=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input
 s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=_CBD.summarize_in_s(results_nodal);
 s_allhm, result_mip_allhm, data_allhm, mn_data_allhm=_CBD.summarize_in_s(results_allhm);
 s_567, result_mip_567, data_567, mn_data_567=_CBD.summarize_in_s(results_567);
-sum(s_567["income_summary"]["strg"]["all"]["sum"][1:end-5])
 
 _CBD.print_table_summary(s_nodal)
 _CBD.print_table_summary(s_allhm)
 _CBD.print_table_summary(s_567)
 
+
+_CBD.topology_map(s_567,"tinf")
+
+_CBD.plot_cumulative_production_all_scenarios_allWF(s_nodal, mn_data_nodal)
+_CBD.plot_cumulative_income_all_scenarios_allWF(s_nodal, mn_data_nodal)
+_CBD.plot_cumulative_income_tl_all_scenarios(s_nodal,data_nodal)
+
+
+_CBD.print_solution_wcost_data(result_mip_allhm, s_allhm, data_allhm)
+
+for (k,c) in s_nodal["income_summary"]["tso"]["totals"]["ac"];println("AC("*k*"):"*string(c));end
+
+for (k,c) in s_nodal["income_summary"]["tso"]["totals"]["dc"];println("DC("*k*"):"*string(c));end
+
+for (n,e) in result_mip_allhm["solution"]["nw"]
+    dif=e["bus"]["1"]["lam_kcl_r"]*-1-e["bus"]["5"]["lam_kcl_r"]*-1
+    if (e["branchdc"]["7"]["pf"]<0 && dif!=0)
+    println(string(e["branchdc"]["7"]["pf"])*" "*string(dif))
+end;end
+
+country="UK"#,"DE","DK"]
+scenario="3"
+con=s_allhm["gen_consume_summary"]["onshore_demand"][scenario][country]#[121:144,:]
+gen=s_allhm["gen_consume_summary"]["onshore_generation"][scenario][country]#[121:144,:]
+_CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
+
+######################################################################
 s_nodal=results_nodal["s"];result_mip_nodal=results_nodal["result_mip"];data_nodal=results_nodal["data"];mn_data_nodal=results_nodal["mn_data"]
 s_allhm=results_allhm["s"];result_mip_allhm=results_allhm["result_mip"];data_allhm=results_allhm["data"];mn_data_allhm=results_allhm["mn_data"]
 s_567=results_567["s"];result_mip_567=results_567["result_mip"];data_567=results_567["data"];mn_data_567=results_567["mn_data"]
@@ -88,7 +114,7 @@ gen=gen_consume_summary["onshore_generation"][scenario][country]#[121:144,:]
 #result_mip=deepcopy(result_mip_001)
 #####################################
 
-country="DE"#,"DE","DK"]
+country="UK"#,"DE","DK"]
 scenario="1"
 con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
 gen=gen_consume_summary["onshore_generation"][scenario][country]#[121:144,:]

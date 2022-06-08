@@ -11,9 +11,9 @@ s = Dict(
 ################# temperal parameters #################
 "test"=>false,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
-"scenario_names"=>["NT"],#["NT","DE","GA"]
+"scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
 "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
-"res_years"=>["2014"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+"res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
 "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
 "dr"=>0.04,#discount rate
 "yearly_investment"=>1000000,
@@ -43,7 +43,7 @@ s["home_market"]=[]
 @time result_mip, data, mn_data, s = _CBD.nodal_market_main(s);
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL.jld2",results)
 
 s["home_market"]=[[1,4]]
 @time result_mip, data, mn_data, s = _CBD.zonal_market_main(s);

@@ -13,6 +13,17 @@ function basic_bar_chart(xvalues,yvalues,xlabel,ylabel)
     PlotlyJS.plot(data,layout)
 end
 
+function plot_demand(xy)
+    traceUK = [PlotlyJS.scatter(;mode="line",name="UK",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:UK_MWh])]
+    traceBE = [PlotlyJS.scatter(;mode="line",name="BE",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:BE_MWh])]
+    traceDE = [PlotlyJS.scatter(;mode="line",name="DE",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:DE_MWh])]
+    traceDK = [PlotlyJS.scatter(;mode="line",name="DK",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:DK_MWh])]    
+    trace=vcat(traceUK,traceBE,traceDE,traceDK)
+
+    layout = PlotlyJS.Layout(title="Demand",width=1000, height=550, yaxis_title="MWh",xaxis_title="Time",font_size=25,legend = PlotlyJS.attr(orientation="h",x=0.1,y = 1,font=PlotlyJS.attr(size=25),bgcolor= "#1C00ff00"))
+    PlotlyJS.plot(trace, layout)
+end
+
 function topology_map(s, time_step)
     markerWF = PlotlyJS.attr(size=[10],
                   color="blue",
@@ -27,12 +38,12 @@ function topology_map(s, time_step)
      #                   marker=marker)
 
 
-    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=40),textposition="top center",text=string(row[:node])*": "*row[:country],
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=string(row[:node])*": "*row[:country],
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW",#*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
 
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=40),textposition="top center",text=string(row[:node])*": "*row[:country]*"(WF)",
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=string(row[:node])*": "*row[:country]*"(WF)",
     name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["wf"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW",#*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
@@ -58,10 +69,9 @@ function topology_map(s, time_step)
 
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
 
-    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=40),bgcolor= "#1C00ff00"), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=30),bgcolor= "#1C00ff00"), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
     PlotlyJS.plot(trace, layout)
 end
-
 
 ######################### plotting generation types ###################################
 function plot_marginal_price(gen,map_gen_types, country)
@@ -503,6 +513,7 @@ end
 
 function generation_color_map()
         color_dict=Dict("Offshore Wind"=>"darkgreen",
+        "DSR"=>"azure",
         "UK"=>"darkgreen",
         "WF"=>"navy",
         "DE"=>"red",
@@ -515,21 +526,23 @@ function generation_color_map()
         "Solar PV"=>"yellow",
         "Solar Thermal"=>"orange",
         "Gas CCGT new"=>"chocolate",
-		"Gas OCGT new"=>"orange",
-        "Gas CCGT old 1"=>"brown",
-        "Gas CCGT old 2"=>"darkorange",
-        "Gas CCGT present 1"=>"tan2",
-        "Gas CCGT present 2"=>"sienna",
+		"Gas OCGT new"=>"chocolate",
+        "Gas CCGT old 1"=>"chocolate",
+        "Gas CCGT old 2"=>"chocolate",
+        "Gas CCGT present 1"=>"chocolate",
+        "Gas CCGT present 2"=>"chocolate",
         "Reservoir"=>"blue",
         "Run-of-River"=>"navy",
         "Nuclear"=>"gray69",
         "Other RES"=>"yellowgreen",
-        "Gas CCGT new CCS"=>"sienna1",
-        "Gas CCGT present 1 CCS"=>"sienna2",
-        "Gas CCGT present 2 CCS"=>"sienna3",
+        "Gas CCGT new CCS"=>"chocolate",
+        "Gas CCGT present 1 CCS"=>"chocolate",
+        "Gas CCGT present 2 CCS"=>"chocolate",
         "Battery Discharge"=>"azure",
 		"Battery Charge"=>"white",
-        "Gas CCGT CCS"=>"sienna4",
+        "Gas CCGT CCS"=>"chocolate",
+        "PS Closed"=>"blue",
+        "Demand"=>"grey",
         "Demand"=>"grey",
         "Import"=>"red",
         "Export"=>"black")
