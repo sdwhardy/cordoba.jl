@@ -112,10 +112,10 @@ function get_scenario_data(s)
         push!(scenario_data["Generation"]["keys"],"SLACK")
         delete!(scenario_data["Generation"]["costs"],"VOLL");
         #push!(scenario_data["Generation"]["costs"],"SLACK"=>maximum(values(scenario_data["Generation"]["costs"])))
-        push!(scenario_data["Generation"]["costs"],"SLACK"=>10000)
+        push!(scenario_data["Generation"]["costs"],"SLACK"=>5000)
 
     ####################### Freeze offshore expansion of data #################
-    scenario_data=freeze_offshore_expansion(s["nodes"], scenario_data)
+    #scenario_data=freeze_offshore_expansion(s["nodes"], scenario_data)
     return scenario_data
 end
 

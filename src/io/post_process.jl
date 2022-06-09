@@ -39,12 +39,12 @@ function topology_map(s, time_step)
 
 
     traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=string(row[:node])*": "*row[:country],
-    name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW",#*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
+    name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
 
     traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=30),textposition="top center",text=string(row[:node])*": "*row[:country]*"(WF)",
-    name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["wf"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW",#*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
+    name=string(row[:node])*": "*string(round(s["topology"][time_step][string(row[:node][1])]["wf"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["conv"])/10)*"GW/"*string(round(s["topology"][time_step][string(row[:node][1])]["strg"]*100))*"MWh",
     lat=[row[:lat]],lon=[row[:long]],
                         marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
     traceDC=[
