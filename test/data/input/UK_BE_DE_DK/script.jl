@@ -40,7 +40,7 @@ s["home_market"]=[]
 @time result_mip, data, mn_data, s = _CBD.nodal_market_main(s)
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)#primal: -565150.39, dual: -565819.65
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_k6.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_k6_VOLL.jld2",results)
 social_welfare = _CBD.SocialWelfare(s, result_mip, mn_data, data)
 
 s["home_market"]=[[5,6,7]]
