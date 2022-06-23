@@ -25,12 +25,13 @@ function zonal_market_main(s)
     s, mn_data= remove_integers(result_mip,mn_data,data,s);
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
-    return result_mip, data, mn_data, s
+    return result_mip, data, mn_data, s, result_mip_hm_prices
 end
+
 
 function nodal_market_main(s)
     mn_data, data, s = data_setup_nodal(s);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>7e-4)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>6e-4)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     print_solution_wcost_data(result_mip, s, data)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
@@ -41,6 +42,25 @@ function nodal_market_main(s)
     mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
     s, mn_data= remove_integers(result_mip,mn_data,data,s);
     result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem=#
+    return result_mip, data, mn_data, s
+end
+
+function nodal2zonal(s,result_mip,zones)
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+    s["home_market"]=zones
+    s["rebalancing"]=true
+    s["relax_problem"]=true
+    s["output"]["duals"]=true
+    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
+    s, mn_data= remove_integers(result_mip,mn_data,data,s);
+    result_mip_hm_prices = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    s["home_market"]=[]
+    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
+    s, mn_data= remove_integers(result_mip,mn_data,data,s);
+    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
     return result_mip, data, mn_data, s
 end
 #=
@@ -1020,6 +1040,7 @@ function set_cable_impedance(data,result_mip)
             end
     end;end
     #AC cables
+    #NOTE uncomment AC cables!!!!!!!!!!!!!!!!! 1043 post_process.jl
     for (b_ne,br_ne) in last_step["ne_branch"]
         if (br_ne["built"]==1)
             for (b,br) in data["branch"]

@@ -5,31 +5,64 @@ import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 using OrderedCollections
 
-results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_k6.jld2")
-results_allhm=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_allhm_k6.jld2")
-results_567=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_567_k6.jld2")
+results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_k6_VOLL5000b.jld2")
+results_allhm=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_allhm_k6_VOLL5000b_rc.jld2")
+results_567=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_567_k6_VOLL5000b_rc.jld2")
+
+
+###########################################
+#NOTE uncomment AC cables!!!!!!!!!!!!!!!!! 1043 post_process.jl
+s=results_nodal["s"]
+result_mip=results_nodal["result_mip"]
+
+mn_data=results_nodal["mn_data"]
+
+data=results_nodal["data"]
+zones=[[2,5],[3,6],[4,7]]
+gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+s["home_market"]=zones
+s["rebalancing"]=true
+s["relax_problem"]=true
+s["output"]["duals"]=true
+result_mip_hm_prices = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+_CBD.print_solution_wcost_data(result_mip_hm_prices, s, data)#-856896.0245340846 
+
+s["home_market"]=[]
+result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+result_mip= _CBD.hm_market_prices(result_mip, result_mip_hm_prices)
+_CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
+results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s, "result_mip_hm_prices"=>result_mip_hm_prices)
+
+s, result_mip, data, mn_data=_CBD.summarize_zonal_in_s(results);
+
+results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
+
+s, result_mip, data, mn_data=_CBD.summarize_in_s(results);
+
+_CBD.print_table_summary(s)
+###########################################
 
 s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=_CBD.summarize_in_s(results_nodal);
-s_allhm, result_mip_allhm, data_allhm, mn_data_allhm=_CBD.summarize_in_s(results_allhm);
-s_567, result_mip_567, data_567, mn_data_567=_CBD.summarize_in_s(results_567);
+s_allhm, result_mip_allhm, data_allhm, mn_data_allhm=_CBD.summarize_zonal_in_s(results_allhm);
+s_567, result_mip_567, data_567, mn_data_567=_CBD.summarize_zonal_in_s(results_567);
 
 _CBD.print_table_summary(s_nodal)
 _CBD.print_table_summary(s_allhm)
 _CBD.print_table_summary(s_567)
 
 
-_CBD.topology_map(s_567,"tinf")
+_CBD.topology_map(s_567)
 
 _CBD.plot_cumulative_production_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_tl_all_scenarios(s_nodal,data_nodal)
 
 
-_CBD.print_solution_wcost_data(result_mip_allhm, s_allhm, data_allhm)
+_CBD.print_solution_wcost_data(result_mip_567, s_567, data_567)
 
-for (k,c) in s_nodal["income_summary"]["tso"]["totals"]["ac"];println("AC("*k*"):"*string(c));end
+for (k,c) in s["income_summary"]["tso"]["totals"]["ac"];println("AC("*k*"):"*string(c));end
 
-for (k,c) in s_nodal["income_summary"]["tso"]["totals"]["dc"];println("DC("*k*"):"*string(c));end
+for (k,c) in s["income_summary"]["tso"]["totals"]["dc"];println("DC("*k*"):"*string(c));end
 
 for (n,e) in result_mip_allhm["solution"]["nw"]
     dif=e["bus"]["1"]["lam_kcl_r"]*-1-e["bus"]["5"]["lam_kcl_r"]*-1
@@ -56,7 +89,7 @@ s_nodal=_CBD.transmission_lines_profits(s_nodal, result_mip_nodal, mn_data_nodal
 s_allhm=_CBD.transmission_lines_profits(s_allhm, result_mip_allhm, mn_data_allhm, data_allhm);
 s_567=_CBD.transmission_lines_profits(s_567, result_mip_567, mn_data_567, data_567);
 
-s_nodal=_CBD.undo_marginal_price_scaling(s_nodal,result_mip_nodal)
+s_nodal=_CBD.undo_marginal_price_scaling(s_nodal, result_mip_nodal)
 s_allhm=_CBD.undo_marginal_price_scaling(s_allhm,result_mip_allhm)
 s_567=_CBD.undo_marginal_price_scaling(s_567,result_mip_567)
 
@@ -135,3 +168,29 @@ _CBD.plot_dual_marginal_price(result_mip, string.(values(mn_data["scenario"][sce
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (2,"BE"))
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (4,"BE"))
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (4,"DK"))
+
+
+#################### printong 2 at once #############################
+node="3";scenario="1"
+time_series_nodal=s_nodal["income_summary"]["onshore"][scenario][node]["price_not_npv"]
+time_series_hmd=s_allhm["income_summary"]["onshore"][scenario][node]["price_not_npv"]
+function plot_clearing_price(time_series)
+    
+    clrs=generation_color_map()
+    
+
+        #low_rng=minimum(marginal_prices)
+        #high_rng=maximum(marginal_prices)
+        scatter_vec_gen=[
+            PlotlyJS.scatter(
+                y=time_series_nodal,
+                mode="lines", name="nOBZ",
+                line=PlotlyJS.attr(width=2, color="red")
+            ),PlotlyJS.scatter(
+                y=time_series_hmd,
+                mode="lines", name="HMD",
+                line=PlotlyJS.attr(width=2, color="blue")
+            ) ]
+        PlotlyJS.plot(
+            scatter_vec_gen, PlotlyJS.Layout(font_size=35,xaxis_range=(100, 300),yaxis_title="€/MWh",xaxis_title="time steps"))
+    end

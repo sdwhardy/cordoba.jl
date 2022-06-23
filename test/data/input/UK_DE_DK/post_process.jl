@@ -5,24 +5,27 @@ import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 using OrderedCollections
 
-results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000.jld2")
-results_14=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000.jld2")
-results_24=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm24_VOLL5000.jld2")
-results_34=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34_VOLL5000.jld2")
+results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_rc.jld2")
+results_14=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000_rc.jld2")
+results_24=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm24_VOLL5000_rc.jld2")
+results_34=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34_VOLL5000_rc.jld2")
+
+
+
 
 s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=_CBD.summarize_in_s(results_nodal);
-s_14, result_mip_14, data_14, mn_data_14=_CBD.summarize_in_s(results_14);
-s_24, result_mip_24, data_24, mn_data_24=_CBD.summarize_in_s(results_24);
-s_34, result_mip_34, data_34, mn_data_34=_CBD.summarize_in_s(results_34);
+s_14, result_mip_14, data_14, mn_data_14=_CBD.summarize_zonal_in_s(results_14);
+s_24, result_mip_24, data_24, mn_data_24=_CBD.summarize_zonal_in_s(results_24);
+s_34, result_mip_34, data_34, mn_data_34=_CBD.summarize_zonal_in_s(results_34);
 
-_CBD.print_solution_wcost_data(result_mip_14, s_14, data_14)#-856896.0245340846
+_CBD.print_solution_wcost_data(result_mip_34, s_34, data_34)#-856896.0245340846
 _CBD.print_table_summary(s_nodal)
 _CBD.print_table_summary(s_14)
 _CBD.print_table_summary(s_24)
 _CBD.print_table_summary(s_34)
 
 
-_CBD.topology_map(s_34,"tinf")
+_CBD.topology_map(s_34)
 
 _CBD.plot_cumulative_production_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_all_scenarios_allWF(s_nodal, mn_data_nodal)
@@ -34,6 +37,32 @@ _CBD.print_solution_wcost_data(result_mip_34, s_34, data_34)#-856896.0245340846
 
 
 
+###########################################
+#NOTE uncomment AC cables!!!!!!!!!!!!!!!!! 1043 post_process.jl
+s=results_14["s"]
+result_mip=results_14["result_mip"]
+
+mn_data=results_14["mn_data"]
+
+data=results_14["data"]
+zones=[[1,4]]
+gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+s["home_market"]=zones
+s["rebalancing"]=true
+s["relax_problem"]=true
+s["output"]["duals"]=true
+result_mip_hm_prices = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+_CBD.print_solution_wcost_data(result_mip_hm_prices, s, data)#-856896.0245340846 
+
+s["home_market"]=[]
+result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+result_mip= _CBD.hm_market_prices(result_mip, result_mip_hm_prices)
+_CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
+results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
+
+s, result_mip, data, mn_data=_CBD.summarize_in_s(results);
+_CBD.print_table_summary(s)
+###########################################
 
 
 
@@ -125,16 +154,16 @@ for (n,nw) in enumerate(s["xd"]["gen"]["218"]["pmax"]); if (issubset([n],values(
 maximum(wf)
 
 
-country="BE"#,"DE","DK"]
+country="WF"#,"DE","DK"]
 scenario="1"
-con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
-gen=gen_consume_summary["onshore_generation"][scenario][country]#[121:144,:]
-
+con=gen_consume_summary_nodal["onshore_demand"][scenario][country]#[121:144,:]
+gen=gen_consume_summary_nodal["onshore_generation"][scenario][country]#[121:144,:]
+_CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
 
 #result_mip=deepcopy(result_mip_001)
 #####################################
 
-country="DE"#,"DE","DK"]
+country="DK"#,"DE","DK"]
 scenario="1"
 con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
 gen=gen_consume_summary["onshore_generation"][scenario][country]#[121:144,:]
@@ -145,8 +174,8 @@ s["income_summary"]=Dict()
 
 country="DE"#,"DE","DK"]
 scenario="1"
-con=gen_consume_summary["onshore_demand"][scenario][country]#[121:144,:]
-gen=gen_consume_summary["offshore_generation"][scenario][country]#[121:144,:]
+con=gen_consume_summary_nodal["onshore_demand"][scenario][country]#[121:144,:]
+gen=gen_consume_summary_nodal["offshore_generation"][scenario][country]#[121:144,:]
 con=select!(con,:ts)
 _CBD.plot_generation_profile(deepcopy(gen),deepcopy(con),country*" "*scenario)
 
