@@ -1,13 +1,13 @@
 ################################ zonal/nodal market models main function #####################################
 function zonal_market_main(s)
     hm=deepcopy(s["home_market"]);
-    mn_data, data, s = data_setup_zonal(s);#Build data structure for given options    
+    mn_data, data, s = data_setup_zonal(s);#Build data structure for given options
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1);#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);#Solve problem
     #print_solution_wcost_data(result_mip, s, data);
     mn_data, data, s = data_setup_nodal(s);#Build data structure for given options
     mn_data, s = set_inter_zonal_grid(result_mip,mn_data,s);
-    s["home_market"]=[]    
+    s["home_market"]=[]
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
@@ -31,7 +31,7 @@ end
 
 function nodal_market_main(s)
     mn_data, data, s = data_setup_nodal(s);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>6e-4)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>0.9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     print_solution_wcost_data(result_mip, s, data)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
@@ -82,7 +82,7 @@ function nodal_market_mainB(result_mip, s)
     result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     return result_mip, data, mn_data, s
 end=#
-########################## 
+##########################
 
 ##################### Topology input data ############################
 #ACDC problem with storage main logic
@@ -150,7 +150,7 @@ function main_ACDC_wgen_types(rt_ex,argz, s)
     data=AC_cable_options(data,argz["candidate_ics_ac"],ics_ac,data["baseMVA"])
     #################### Calculates cable options for DC lines
     data=DC_cable_options(data,argz["candidate_ics_dc"],ics_dc,data["baseMVA"])
-    #if (haskey(s, "wf_circuit") && length(s["wf_circuit"])>0);data=keep_only_hm_cables(s,data);end#if home market reduce to only those in 
+    #if (haskey(s, "wf_circuit") && length(s["wf_circuit"])>0);data=keep_only_hm_cables(s,data);end#if home market reduce to only those in
     additional_params_PMACDC(data)
     print_topology_data_AC(data,markets)#print to verify
     print_topology_data_DC(data,markets)#print to verify
@@ -871,10 +871,10 @@ function remove_integers(result_mip,mn_data,data,s)
                     end;end;end
 
             #ac cables
-            for (bc,brc) in data["branch"] 
+            for (bc,brc) in data["branch"]
                 if (haskey(result_mip["solution"]["nw"][string(ts)],"ne_branch"))
                 for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
-                        if (brc["f_bus"]==data["ne_branch"][b]["f_bus"] && brc["t_bus"]==data["ne_branch"][b]["t_bus"])                      
+                        if (brc["f_bus"]==data["ne_branch"][b]["f_bus"] && brc["t_bus"]==data["ne_branch"][b]["t_bus"])
                                 if (br["built"]>0)
                                     s["xd"]["branch"][bc]["rateA"][1,ts]=data["ne_branch"][b]["rate_a"]
                                     s["xd"]["branch"][bc]["br_r"][1,ts]=data["ne_branch"][b]["br_r"]
@@ -884,7 +884,7 @@ function remove_integers(result_mip,mn_data,data,s)
                                     s["xd"]["branch"][bc]["rateA"][1,ts]=0
                                     s["xd"]["branch"][bc]["cost"][1,ts]=0.0;
                                 end
-                        
+
                     end;end;end;end
     end;end
     return s, mn_data
@@ -1017,7 +1017,7 @@ function combine_solutions(result_mip_hm,result_mip_wf)
         end
     end
     return result_mip_hm
-end   
+end
 
 function hm_market_prices(result_mip, result_mip_hm_prices)
     for (n,nw) in result_mip_hm_prices["solution"]["nw"]
@@ -1063,7 +1063,7 @@ function data_update(s,result_mip)
     data = AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
     #################### Calculates cable options for DC lines
     data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
-    ############# Sets convex able impedance to the MIP solution ############## 
+    ############# Sets convex able impedance to the MIP solution ##############
     data = set_cable_impedance(data, result_mip)
     additional_params_PMACDC(data)
     print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
@@ -1087,7 +1087,7 @@ function data_setup_nodal(s)
     data = AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
     #################### Calculates cable options for DC lines
     data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
-    #if (haskey(s, "wf_circuit") && length(s["wf_circuit"])>0);data=keep_only_hm_cables(s,data);end#if home market reduce to only those in 
+    #if (haskey(s, "wf_circuit") && length(s["wf_circuit"])>0);data=keep_only_hm_cables(s,data);end#if home market reduce to only those in
     additional_params_PMACDC(data)
     print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
     print_topology_data_DC(data,s["map_gen_types"]["markets"])#print to verify
@@ -1109,7 +1109,7 @@ function data_setup_zonal(s)
     data = AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
     #################### Calculates cable options for DC lines
     data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
-    if (haskey(s, "home_market") && length(s["home_market"])>0);data = keep_only_hm_cables(s,data);end#if home market reduce to only those in 
+    if (haskey(s, "home_market") && length(s["home_market"])>0);data = keep_only_hm_cables(s,data);end#if home market reduce to only those in
     additional_params_PMACDC(data)
     print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
     print_topology_data_DC(data,s["map_gen_types"]["markets"])#print to verify

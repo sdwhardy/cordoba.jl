@@ -38,7 +38,7 @@ s = Dict(
 #NOTE only very basic intuitive check passed on functions wgen_type
 s["home_market"]=[]
 @time result_mip, data, mn_data, s= _CBD.nodal_market_main(s)
-_CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
+_CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)#primal: -565150.39, dual: -565819.65
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_k6_VOLL5000b.jld2",results)
 social_welfare = _CBD.SocialWelfare(s, result_mip, mn_data, data)
@@ -98,7 +98,7 @@ push!(scenario_data["Demand"]["DE"],"2040"=>sdgs["DE2040"])
     data = _CBD.AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
     #################### Calculates cable options for DC lines
     data = _CBD.DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
-    if (haskey(s, "home_market") && length(s["home_market"])>0);data = _CBD.keep_only_hm_cables(s,data);end#if home market reduce to only those in 
+    if (haskey(s, "home_market") && length(s["home_market"])>0);data = _CBD.keep_only_hm_cables(s,data);end#if home market reduce to only those in
     _CBD.additional_params_PMACDC(data)
     _CBD.print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
     _CBD.print_topology_data_DC(data,s["map_gen_types"]["markets"])#print to verify
@@ -115,13 +115,13 @@ function zonal_market_main(s)
     hm=deepcopy(s["home_market"]);
     #s["relax_problem"]=true
     #mn_data, data, s = global_optimal_dispatch(s);#Build data structure for given options
-    mn_data, data, s = _CBD.data_setup_zonal(s);#Build data structure for given options    
+    mn_data, data, s = _CBD.data_setup_zonal(s);#Build data structure for given options
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1);#select solver
     result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);#Solve problem
     _CBD.print_solution_wcost_data(result_mip, s, data);
     mn_data, data, s = data_setup_nodal(s);#Build data structure for given options
     mn_data, s = set_inter_zonal_grid(result_mip,mn_data,s);
-    s["home_market"]=[]    
+    s["home_market"]=[]
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 0)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
