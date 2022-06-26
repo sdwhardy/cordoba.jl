@@ -10,37 +10,7 @@ results_allhm=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_inp
 results_567=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_567_k6_VOLL5000b_rc.jld2")
 
 
-###########################################
-#NOTE uncomment AC cables!!!!!!!!!!!!!!!!! 1043 post_process.jl
-s=results_nodal["s"]
-result_mip=results_nodal["result_mip"]
 
-mn_data=results_nodal["mn_data"]
-
-data=results_nodal["data"]
-zones=[[2,5],[3,6],[4,7]]
-gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
-s["home_market"]=zones
-s["rebalancing"]=true
-s["relax_problem"]=true
-s["output"]["duals"]=true
-result_mip_hm_prices = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-_CBD.print_solution_wcost_data(result_mip_hm_prices, s, data)#-856896.0245340846 
-
-s["home_market"]=[]
-result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-result_mip= _CBD.hm_market_prices(result_mip, result_mip_hm_prices)
-_CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
-results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s, "result_mip_hm_prices"=>result_mip_hm_prices)
-
-s, result_mip, data, mn_data=_CBD.summarize_zonal_in_s(results);
-
-results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-
-s, result_mip, data, mn_data=_CBD.summarize_in_s(results);
-
-_CBD.print_table_summary(s)
-###########################################
 
 s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=_CBD.summarize_in_s(results_nodal);
 s_allhm, result_mip_allhm, data_allhm, mn_data_allhm=_CBD.summarize_zonal_in_s(results_allhm);
@@ -58,11 +28,11 @@ _CBD.plot_cumulative_income_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_tl_all_scenarios(s_nodal,data_nodal)
 
 
-_CBD.print_solution_wcost_data(result_mip_567, s_567, data_567)
+_CBD.print_solution_wcost_data(result_mip_allhm, s_allhm, data_allhm)
 
 for (k,c) in s["income_summary"]["tso"]["totals"]["ac"];println("AC("*k*"):"*string(c));end
 
-for (k,c) in s["income_summary"]["tso"]["totals"]["dc"];println("DC("*k*"):"*string(c));end
+for (k,c) in s_allhm["income_summary"]["tso"]["totals"]["dc"];println("DC("*k*"):"*string(c));end
 
 for (n,e) in result_mip_allhm["solution"]["nw"]
     dif=e["bus"]["1"]["lam_kcl_r"]*-1-e["bus"]["5"]["lam_kcl_r"]*-1
@@ -169,11 +139,53 @@ _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (4,"BE"))
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (4,"DK"))
 
+##################### nOBZ in zonal config
+###########################################
+#NOTE uncomment AC cables!!!!!!!!!!!!!!!!! 1043 post_process.jl
+s=results_nodal["s"]
+result_mip=results_nodal["result_mip"]
 
+mn_data=results_nodal["mn_data"]
+
+data=results_nodal["data"]
+zones=[[2,5],[3,6],[4,7]]
+gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+s["home_market"]=zones
+s["rebalancing"]=true
+s["relax_problem"]=true
+s["output"]["duals"]=true
+result_mip_hm_prices = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+_CBD.print_solution_wcost_data(result_mip_hm_prices, s, data)#-856896.0245340846 
+
+s["home_market"]=[]
+result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+result_mip= _CBD.hm_market_prices(result_mip, result_mip_hm_prices)
+_CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
+results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s, "result_mip_hm_prices"=>result_mip_hm_prices)
+
+s, result_mip, data, mn_data=_CBD.summarize_zonal_in_s(results);
+
+results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
+
+s, result_mip, data, mn_data=_CBD.summarize_in_s(results);
+
+_CBD.print_table_summary(s)
+###########################################
 #################### printong 2 at once #############################
-node="3";scenario="1"
-time_series_nodal=s_nodal["income_summary"]["onshore"][scenario][node]["price_not_npv"]
-time_series_hmd=s_allhm["income_summary"]["onshore"][scenario][node]["price_not_npv"]
+node="5";scenario="1"
+time_series_wfuk=s_nodal["income_summary"]["onshore"][scenario]["1"]["price_not_npv"]
+time_series_wfbe=s_nodal["income_summary"]["onshore"][scenario]["2"]["price_not_npv"]
+time_series_wfde=s_nodal["income_summary"]["onshore"][scenario]["3"]["price_not_npv"]
+time_series_wfdk=s_nodal["income_summary"]["onshore"][scenario]["4"]["price_not_npv"]
+for scenario in ["2","3","4","5","6"]
+time_series_wfbe=time_series_wfbe.+s_nodal["income_summary"]["onshore"][scenario]["2"]["price_not_npv"]
+time_series_wfde=time_series_wfde.+s_nodal["income_summary"]["onshore"][scenario]["3"]["price_not_npv"]
+time_series_wfdk=time_series_wfdk.+s_nodal["income_summary"]["onshore"][scenario]["4"]["price_not_npv"] 
+end
+time_series_wfbe=time_series_wfbe/7
+time_series_wfde=time_series_wfde/7
+time_series_wfdk=time_series_wfdk/7
+
 function plot_clearing_price(time_series)
     
     clrs=generation_color_map()
@@ -182,15 +194,20 @@ function plot_clearing_price(time_series)
         #low_rng=minimum(marginal_prices)
         #high_rng=maximum(marginal_prices)
         scatter_vec_gen=[
+            
             PlotlyJS.scatter(
-                y=time_series_nodal,
-                mode="lines", name="nOBZ",
+                y=time_series_wfbe,
+                mode="lines", name="BE",
                 line=PlotlyJS.attr(width=2, color="red")
             ),PlotlyJS.scatter(
-                y=time_series_hmd,
-                mode="lines", name="HMD",
+                y=time_series_wfde,
+                mode="lines", name="DE",
                 line=PlotlyJS.attr(width=2, color="blue")
+            ),PlotlyJS.scatter(
+                y=time_series_wfdk,
+                mode="lines", name="DK",
+                line=PlotlyJS.attr(width=2, color="green")
             ) ]
         PlotlyJS.plot(
-            scatter_vec_gen, PlotlyJS.Layout(font_size=35,xaxis_range=(100, 300),yaxis_title="€/MWh",xaxis_title="time steps"))
+            scatter_vec_gen, PlotlyJS.Layout(font_size=35,xaxis_range=(0, 432),yaxis_title="€/MWh",xaxis_title="time steps"))
     end
