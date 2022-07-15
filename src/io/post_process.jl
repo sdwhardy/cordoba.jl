@@ -1,42 +1,6 @@
 ############################ figures ##################################
-function basic_bar_chart(xvalues,yvalues,xlabel,ylabel)
-    y_min=minimum(yvalues)-minimum(yvalues)*0.0005
-    y_max=maximum(yvalues)+maximum(yvalues)*0.0005
-    data =PlotlyJS.bar(
-      x=xvalues,
-      y=yvalues,
-      text=string.(round.(yvalues)),
-      textposition="auto",
-      textfont=PlotlyJS.attr(size=30))
-
-    layout=PlotlyJS.Layout(yaxis_range=(y_min,y_max), yaxis_title=ylabel,xaxis_title=xlabel, width=1000, height=550,font_size=35)
-    PlotlyJS.plot(data,layout)
-end
-
-function plot_demand(xy)
-    traceUK = [PlotlyJS.scatter(;mode="line",name="UK",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:UK_MWh])]
-    traceBE = [PlotlyJS.scatter(;mode="line",name="BE",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:BE_MWh])]
-    traceDE = [PlotlyJS.scatter(;mode="line",name="DE",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:DE_MWh])]
-    traceDK = [PlotlyJS.scatter(;mode="line",name="DK",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:DK_MWh])]    
-    trace=vcat(traceUK,traceBE,traceDE,traceDK)
-
-    layout = PlotlyJS.Layout(title="Demand",width=1000, height=550, yaxis_title="MWh",xaxis_title="Time",font_size=25,legend = PlotlyJS.attr(orientation="h",x=0.1,y = 1,font=PlotlyJS.attr(size=25),bgcolor= "#1C00ff00"))
-    PlotlyJS.plot(trace, layout)
-end
-
 function topology_map(s)
-    markerWF = PlotlyJS.attr(size=[10],
-                  color="blue",
-                  line_color="blue")
-    markerCNT = PlotlyJS.attr(size=[10],
-    color="green",
-    line_color="green")
-    lineDC = PlotlyJS.attr(width=2,color="black")
-    lineAC = PlotlyJS.attr(width=3,color="red",dash="dash")
-    
-    #trace1 = scattergeo(;mode="markers+text",textposition="top center",text=s["nodes"][!,:country].*"-".*string.(s["nodes"][!,:node]),
-    #lat=s["nodes"][!,:lat],lon=s["nodes"][!,:long],
-     #                   marker=marker)
+    #handle time steps
     t0=deepcopy(s["topology"]["t0"])
     t2=deepcopy(s["topology"]["t2"])
     tinf=deepcopy(s["topology"]["tinf"])
@@ -92,85 +56,87 @@ function topology_map(s)
             end
         end
     end
-
-    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=25),textposition="top center",text=string(row[:node])*": "*row[:country],
-    name=string(row[:node])*": "*t0[string(row[:node][1])]["conv"]*","*t2[string(row[:node][1])]["conv"]*","*tinf[string(row[:node][1])]["conv"]*"GW/"*t0[string(row[:node][1])]["strg"]*","*t2[string(row[:node][1])]["strg"]*","*tinf[string(row[:node][1])]["strg"]*"GWh",
-    lat=[row[:lat]],lon=[row[:long]],
-                        marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
-
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=25),textposition="top center",text=string(row[:node])*": "*row[:country]*"(WF)",
-    name=string(row[:node])*": "*t0[string(row[:node][1])]["wf"]*","*t2[string(row[:node][1])]["wf"]*","*tinf[string(row[:node][1])]["wf"]*"GW/"
-    *t0[string(row[:node][1])]["conv"]*","*t2[string(row[:node][1])]["conv"]*","*tinf[string(row[:node][1])]["conv"]*"GW/"
-    *t0[string(row[:node][1])]["strg"]*","*t2[string(row[:node][1])]["strg"]*","*tinf[string(row[:node][1])]["strg"]*"GWh",
-    lat=[row[:lat]],lon=[row[:long]],
-                        marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
     
-                        traceDC=[
-                            PlotlyJS.scattergeo(;mode="lines",
-                            name=string(Int64(row[:from]))*"-"*string(Int64(row[:to]))*": "*string(round(row[:mva])/10)*" GW",
-                            lat=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:lat][1],
-                            filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:lat][1]],
-                            lon=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:long][1],
-                            filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:long][1]],line=lineDC
-                            ) for row in eachrow(tinf["dc"])]
-                    
-                       
-        traceAC=[
-            PlotlyJS.scattergeo(;mode="lines",
-            name=string(Int64(row[:from]))*"-"*string(Int64(row[:to]))*": "*string(round(row[:mva])/10)*" GW",
-            lat=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:lat][1],
-            filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:lat][1]],
-            lon=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:long][1],
-            filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:long][1]],line=lineAC
-            ) for row in eachrow(tinf["ac"])]
-        
-         trace=vcat(traceCNT,traceWF,traceDC,traceAC)
-   #trace=vcat(traceCNT,traceWF)
+    #country node display            
+    markerCNT = PlotlyJS.attr(size=[10],
+                color="green",
+                line_color="green")
 
+    #country legend
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=25),
+                textposition="top center",text=string(row[:node])*": "*row[:country],
+                name=string(row[:node])*": "*t0[string(row[:node][1])]["conv"]*","
+                *t2[string(row[:node][1])]["conv"]*","*tinf[string(row[:node][1])]["conv"]*"GW/"
+                *t0[string(row[:node][1])]["strg"]*","*t2[string(row[:node][1])]["strg"]*","
+                *tinf[string(row[:node][1])]["strg"]*"GWh",
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
+
+    #windfarm node display
+    markerWF = PlotlyJS.attr(size=[10],
+    color="blue",
+    line_color="blue")
+
+    #windfarm legend
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=25),
+                textposition="top center",text=string(row[:node])*": "*row[:country]*"(WF)",
+                name=string(row[:node])*": "*t0[string(row[:node][1])]["wf"]*","
+                *t2[string(row[:node][1])]["wf"]*","*tinf[string(row[:node][1])]["wf"]*"GW/"
+                *t0[string(row[:node][1])]["conv"]*","*t2[string(row[:node][1])]["conv"]*","
+                *tinf[string(row[:node][1])]["conv"]*"GW/"*t0[string(row[:node][1])]["strg"]*","
+                *t2[string(row[:node][1])]["strg"]*","*tinf[string(row[:node][1])]["strg"]*"GWh",
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
+    
+    #DC line display
+    lineDC = PlotlyJS.attr(width=2,color="black")
+
+    #DC line legend
+    traceDC=[PlotlyJS.scattergeo(;mode="lines",name=string(Int64(row[:from]))*"-"
+                    *string(Int64(row[:to]))*": "*string(round(row[:mva])/10)*" GW",
+                    lat=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:lat][1],
+                    filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:lat][1]],
+                    lon=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:long][1],
+                    filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:long][1]],line=lineDC) 
+                    for row in eachrow(tinf["dc"])]
+                    
+    #AC line display
+    lineAC = PlotlyJS.attr(width=3,color="red",dash="dash")
+    
+    #AC line legend
+    traceAC=[PlotlyJS.scattergeo(;mode="lines",name=string(Int64(row[:from]))*"-"
+                *string(Int64(row[:to]))*": "*string(round(row[:mva])/10)*" GW",
+                lat=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:lat][1],
+                filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:lat][1]],
+                lon=[filter(:node=>x->x==Int64(row[:from]), s["nodes"])[!,:long][1],
+                filter(:node=>x->x==Int64(row[:to]), s["nodes"])[!,:long][1]],line=lineAC) 
+                for row in eachrow(tinf["ac"])]
+    
+    #combine plot data                
+    trace=vcat(traceCNT,traceWF,traceDC,traceAC)
+
+    #set map location
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
 
-    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=25),bgcolor= "#1C00ff00"), margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+    #plot layput
+    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, 
+    legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=25),bgcolor= "#1C00ff00"), 
+    margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+
+    #display plot
     PlotlyJS.plot(trace, layout)
 end
 
-######################### plotting generation types ###################################
-function plot_marginal_price(gen,map_gen_types, country)
-    col_names=names(gen[!,2:end])
-    for col in col_names;
-        if (isapprox(sum(gen[!,col]),0,atol=1))
-            DataFrames.select!(gen, DataFrames.Not(Symbol(col)))
-    end;end
-    marginal_prices=[]
-    for row in eachrow(gen)
-	    active_gen_types=[]
-	    for k in keys(row[2:end])
-		    if (row[k]>0)
-			    push!(active_gen_types,map_gen_types["costs"][string(k)])
-		    end
-	    end
-	    push!(marginal_prices,maximum(active_gen_types))
-    end
-    low_rng=minimum(marginal_prices)
-    high_rng=maximum(marginal_prices)
-    scatter_vec=[
-	PlotlyJS.scatter(
-	    x=gen[!,:ts], y=marginal_prices,
-	    name="Marginal Price", mode="lines",
-	    line=PlotlyJS.attr(width=1, color="black")
-	)]
+function plot_generation_profile(gen, con)
 
-	PlotlyJS.plot(
-	scatter_vec, PlotlyJS.Layout(yaxis_range=(low_rng, high_rng),yaxis_title="€/MWh",xaxis_title="time steps",title=country))
-end
-
-
-function plot_generation_profile(gen, con, country)
     clrs=generation_color_map()
+    #get generator names
     col_names=names(gen[!,2:end])
     for col in col_names;
         if (isapprox(sum(gen[!,col]),0,atol=1))
             DataFrames.select!(gen, DataFrames.Not(Symbol(col)))
     end;end
+
 	#battery energy
 	con_sum=DataFrames.DataFrame();con_sum[!,:ts]=con[!,:ts]
 	if (hasproperty(gen,:Battery))
@@ -183,51 +149,69 @@ function plot_generation_profile(gen, con, country)
 		gen=DataFrames.select!(gen,DataFrames.Not(Symbol("Battery")))
 	end
 
-
+    #consumption/generation values
     col_names_con=names(con[!,1:end])
     all_con=length(col_names_con)>1 ? abs.(sum(eachcol(con[!,2:end]))) : zeros(Int8,length(con[!,:ts]))
     all_gen=abs.(sum(eachcol(gen[!,2:end])))
+
     #imported energy
     import_export=all_con.-all_gen
     imp=[imp>=0 ? imp : 0 for imp in import_export]
     if (sum(imp)>0);gen[!,"Import"]=imp;end
+
     #Set range
     gen[!,2:end]=gen[!,2:end]./10
     all_gen=abs.(sum(eachcol(gen[!,2:end])))
     rng_gen=maximum(all_gen)
+
     #exported energy
     exp=[exp<=0 ? exp : 0 for exp in import_export]
     if (sum(exp)<0);con_sum[!,"Export"]=exp;end
 	if (sum(all_con)>0);con_sum[!,"Demand"]=-1*all_con;end
 
+    #scale and sum consumption data
     con_sum[!,2:end]=con_sum[!,2:end]./10
 	all_con=abs.(sum(eachcol(con_sum[!,2:end])))
     rng_con=maximum(all_con)
 
+    #names to display of consumption and generation
     col_names_gen=names(gen[!,2:end])
     col_names_con=names(con_sum[!,2:end])
-    scatter_vec_gen=[
-        PlotlyJS.scatter(
+
+    #generation data
+    scatter_vec_gen=[PlotlyJS.scatter(
             x=gen[!,:ts], y=gen[!,Symbol(nm)],
             stackgroup="one", name=String(nm), mode="lines", hoverinfo="x+y",
             line=PlotlyJS.attr(width=0.5, color=clrs[nm])
         ) for nm in col_names_gen]
 
-        scatter_vec_con=[
-            PlotlyJS.scatter(
-                x=con_sum[!,:ts], y=con_sum[!,Symbol(nm)],
-                stackgroup="two", name=String(nm), mode="lines", hoverinfo="x+y",
-                line=PlotlyJS.attr(width=0.5, color=clrs[nm])
-            ) for nm in col_names_con]
+    #consumption data    
+    scatter_vec_con=[PlotlyJS.scatter(
+            x=con_sum[!,:ts], y=con_sum[!,Symbol(nm)],
+            stackgroup="two", name=String(nm), mode="lines", hoverinfo="x+y",
+            line=PlotlyJS.attr(width=0.5, color=clrs[nm])
+        ) for nm in col_names_con]
 
-         scatter_vec=vcat(scatter_vec_con,scatter_vec_gen)
-            PlotlyJS.plot(
-            scatter_vec, PlotlyJS.Layout(font_size=25,yaxis_range=(-1*rng_con, rng_gen),yaxis_title="GW",xaxis_title="time steps"))
+    #combine gen and consumption
+    scatter_vec=vcat(scatter_vec_con,scatter_vec_gen)
+
+    #plot layout
+    layout=PlotlyJS.Layout(font_size=25,yaxis_range=(-1*rng_con, rng_gen),yaxis_title="GW",xaxis_title="time steps")
+
+    #plot
+    PlotlyJS.plot(scatter_vec, layout)
 end
+
+
 function plot_dual_marginal_price(result_mip, tss, cuntree)
 
+    #initialize data structures
     clrs=generation_color_map()
-    marg_price=Dict();push!(marg_price,"cuntrees"=>Dict());if !(haskey(marg_price,"ts"));push!(marg_price,"ts"=>[]);end
+    marg_price=Dict();
+    push!(marg_price,"cuntrees"=>Dict());
+
+    #copy marginal price per node
+    if !(haskey(marg_price,"ts"));push!(marg_price,"ts"=>[]);end
     for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
         if (issubset([string(n)],tss))
             push!(marg_price["ts"],n)
@@ -237,26 +221,40 @@ function plot_dual_marginal_price(result_mip, tss, cuntree)
                 push!(marg_price["cuntrees"][last(cuntree)],bs["lam_kcl_r"]);end;end;
         end;end
 
-        #low_rng=minimum(marginal_prices)
-        #high_rng=maximum(marginal_prices)
-        scatter_vec_gen=[
-            PlotlyJS.scatter(
-                x=marg_price["ts"], y=marginal_prices,
-                name=cuntree, mode="lines",
-                line=PlotlyJS.attr(width=2, color=clrs[cuntree])
-            ) for (cuntree,marginal_prices) in marg_price["cuntrees"]]
-        lims=[(maximum(marginal_prices),minimum(marginal_prices)) for (cuntree,marginal_prices) in marg_price["cuntrees"]]
-        PlotlyJS.plot(
-            scatter_vec_gen, PlotlyJS.Layout(font_size=35,yaxis_range=(minimum(last.(lims)), maximum(first.(lims))),yaxis_title="€/MWh",xaxis_title="time steps"))
-    end
+    #place marginal price in plot structure    
+    scatter_vec_gen=[PlotlyJS.scatter(
+            x=marg_price["ts"], y=marginal_prices,
+            name=cuntree, mode="lines",
+            line=PlotlyJS.attr(width=2, color=clrs[cuntree])) 
+            for (cuntree,marginal_prices) in marg_price["cuntrees"]]
+    
+    #calculate plot limits
+    lims=[(maximum(marginal_prices),minimum(marginal_prices)) 
+        for (cuntree,marginal_prices) in marg_price["cuntrees"]]
+        
+    #plot layout
+    layout=PlotlyJS.Layout(font_size=35,yaxis_range=(minimum(last.(lims)),
+        maximum(first.(lims))),yaxis_title="€/MWh",xaxis_title="time steps")
+    
+    #display plot    
+    PlotlyJS.plot(scatter_vec_gen, layout)
+end
+
 
 function plot_cumulative_wf_income_all_scenarios(s, mn_data, wf_country)
+    #get generation buses
     bus=filter(:country=>x->x==wf_country,filter(:type=>x->x==0,s["nodes"]))[!,:node][1]
     gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
     node=string(bus)
+
+    #convert 3 years of sampled hours to 30 year timeline
     hrs=s["hours_length"]
     hours2lifetime=(8760*10/hrs)
+
+    #cost of building owpp
     wf_price=s["cost_summary"]["owpp"]["totals"][gen]
+
+    #find wf cumulative income 
     scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
     cum_incomes=[];prices=[];hours=[]
     for (scenario, tss) in scenarios
@@ -266,20 +264,26 @@ function plot_cumulative_wf_income_all_scenarios(s, mn_data, wf_country)
         if (scenario=="1")
             hours=hourly_income["hour"];end
     end
+
+    #take first scenario for in come and price
     cum_income=cum_incomes[1]
     price=prices[1]
 
+    #if more than one scenario take the average income
     if (length(cum_incomes)>1)
         for ci in cum_incomes[2:end]
         cum_income=cum_income.+ci;end
         cum_income=cum_income/length(cum_incomes)
         end
+
+    #if more than one scenario take average price
     if (length(prices)>1)
         for p in prices[2:end]
             price=price.+p;end
             price=price/length(prices)
         end
 
+    #plot struct for cumulative income/investment/enery price
     data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2lifetime,
                 name="Cumulative Revenue (NPV)",
                 y=cum_income),
@@ -290,26 +294,39 @@ function plot_cumulative_wf_income_all_scenarios(s, mn_data, wf_country)
                 PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
                 y=price,name="Energy Price", line=PlotlyJS.attr(width=2, color="black"), yaxis="y2")]
 
-        PlotlyJS.plot(data, PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_income)), width=1000, height=550,font_size=35,yaxis_range=(0,maximum(cum_income)), yaxis_title="M€",xaxis_title="Hours",yaxis2=PlotlyJS.attr(
-        title="€/MWh",
-        overlaying="y",
-        side="right"
-    )))
+    #plot layout            
+    layout=PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_income)), 
+            width=1000, height=550,font_size=35,yaxis_range=(0,maximum(cum_income)), 
+            yaxis_title="M€",xaxis_title="Hours",yaxis2=PlotlyJS.attr(title="€/MWh",
+            overlaying="y",side="right"))
+
+    #display plot
+    PlotlyJS.plot(data, layout)
 end
 
 
 function plot_cumulative_income_all_scenarios_allWF(s, mn_data)
+
     kolors=generation_color_map()
+
+    #convert hours to 30 year life
     hrs=s["hours_length"]
     hours2lifetime=(8760*10/hrs)
+
+    #initialize dictionaries
     data_dict=Dict()
     wf_cost=0
     hours=[]
+
+
     for bus in s["offshore_nodes"]
+        #get wf nodes and their costs
         if !(haskey(data_dict,string(bus)));push!(data_dict,string(bus)=>Dict());end
         gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
         wf_cost=wf_cost+s["cost_summary"]["owpp"]["totals"][gen]
         node=string(bus)
+
+        #calculate cumulative income for wfs
         scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         cum_incomes=[];powers=[];hours=[]
         for (scenario, tss) in scenarios
@@ -318,8 +335,11 @@ function plot_cumulative_income_all_scenarios_allWF(s, mn_data)
             if (scenario=="1")
                 hours=hourly_income["hour"];end
         end
+
+        #take first scenario data
         cum_income=cum_incomes[1]
 
+        #if more than one scenario take average
         if (length(cum_incomes)>1)
             for ci in cum_incomes[2:end]
                 cum_income=cum_income.+ci;end
@@ -328,7 +348,8 @@ function plot_cumulative_income_all_scenarios_allWF(s, mn_data)
             data_dict[string(bus)]["cum_income"]=cum_income
             data_dict[string(bus)]["hours"]=hours
         end
-        println(wf_cost)
+        
+        #construct plot data structure for income
         data1=[PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
             y=dic["cum_income"],
             name="WF "*string(wf),
@@ -336,50 +357,25 @@ function plot_cumulative_income_all_scenarios_allWF(s, mn_data)
             line=PlotlyJS.attr(width=0.5, color=kolors[string(wf)])
         ) for (wf,dic) in data_dict]
 
+        #construct plot data structure for investment
         data2=PlotlyJS.scatter(x=parse.(Int64,hours)*hours2lifetime,
-        y=ones(length(hours))* wf_cost,name="OWPPs Investment (NPV)", line=PlotlyJS.attr(width=3, color="black"))
+            y=ones(length(hours))* wf_cost,name="OWPPs Investment (NPV)", 
+            line=PlotlyJS.attr(width=3, color="black"))
 
-data=vcat(data1,data2)
-PlotlyJS.plot(data, PlotlyJS.Layout(; width=1000, height=550,font_size=27,  yaxis_title="M€",xaxis_title="Hours",legend = PlotlyJS.attr(x = 0., y= 1,bgcolor= "#1C00ff00")))
-end
+        #combine income and investment struct 
+        data=vcat(data1,data2)
 
-function plot_cumulative_all_wf_production_all_scenarios(s, mn_data)
-    hrs=s["hours_length"];hours2lifetime=(8760*10/hrs);cum_generation=[];power=[]
-    cum_generations=zeros(hrs*s["years_length"]);powers=zeros(hrs*s["years_length"]);hours=zeros(hrs*s["years_length"])
-    for bus in s["offshore_nodes"]
-        gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
-        node=string(bus)
-        scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
-        for (scenario, tss) in scenarios
-            hourly_income=s["income_summary"]["owpp"][scenario][node]
-            cum_generations=cum_generations.+[sum(hourly_income["power"][1:i]./10) for (i,ic) in enumerate(hourly_income["power"])]
-            powers=powers.+hourly_income["power"]/10
-            if (scenario=="1")
-                hours=hourly_income["hour"];end
-        end
-
-
-        if (length(cum_generations)>1)
-            cum_generation=cum_generations/length(mn_data["scenario"])
-            end
-        if (length(powers)>1)
-            power=powers/length(mn_data["scenario"])
-        end
-    end
-    data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2lifetime,
-                name="Cumulative Generation", marker=PlotlyJS.attr(width=2, color="green"),
-                y=cum_generation*hours2lifetime),
-                PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
-                y=power,name="Hourly Generation", line=PlotlyJS.attr(width=2, color="red"), yaxis="y2")]
-
-        PlotlyJS.plot(data, PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_generation*hours2lifetime)), width=1000, height=550,font_size=35,yaxis_range=(0,maximum(cum_generation*hours2lifetime)), yaxis_title="GWh",xaxis_title="Hours",yaxis2=PlotlyJS.attr(
-        title="GWh",
-        overlaying="y",
-        side="right"
-    )))
+        #plot display layout
+        layout=PlotlyJS.Layout(; width=1000, height=550,font_size=27,  
+        yaxis_title="M€",xaxis_title="Hours",
+        legend = PlotlyJS.attr(x = 0., y= 1,bgcolor= "#1C00ff00"))
+        
+        #display plot
+        PlotlyJS.plot(data, layout)
 end
 
 
+#
 function plot_cumulative_wf_production_all_scenarios(s, mn_data, wf_country)
     bus=filter(:country=>x->x==wf_country,filter(:type=>x->x==0,s["nodes"]))[!,:node][1]
     gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
@@ -588,6 +584,7 @@ function generation_color_map()
         "Gas CCGT old 2 Bio"=>"chocolate",
         "Gas CCGT new"=>"chocolate",
 		"Gas OCGT new"=>"chocolate",
+        "Gas OCGT old"=>"chocolate",
         "Gas CCGT old 1"=>"chocolate",
         "Gas CCGT old 2"=>"chocolate",
         "Gas CCGT present 1"=>"chocolate",
@@ -610,6 +607,7 @@ function generation_color_map()
         "Lignite new"=>"brown",
         "Lignite old 2"=>"brown",
         "Hard coal new"=>"brown",
+        "Hard coal old 1"=>"brown",
         "Hard coal old 2"=>"brown",
         "Hard coal old 2 Bio"=>"brown",
         "Heavy oil old 1 Bio"=>"brown",
@@ -717,87 +715,6 @@ function strg_profit_obz(s, result_mip, scenario, tss, bus)
     return s
 end
       
-
-#=function SocialWelfare(s, result_mip, mn_data, data)
-    
-    function undo_npv_hourly(x,current_yr)
-        cost = (1+s["dr"])^(current_yr-base_year) * x# npv
-        return deepcopy(cost)
-    end
-
-    function undo_hourly_scaling(cost0)
-        cost=cost0*((hl*yl)/(8760*s["scenario_planning_horizon"]))*e2me
-        return deepcopy(cost)
-    end
-    e2me=1000000/result_mip["solution"]["nw"]["1"]["baseMVA"]
-    base_year=parse(Int64,s["scenario_years"][1])
-    sl=s["scenarios_length"]
-    yl=s["years_length"]
-    hl=s["hours_length"]
-
-    social_welfare=Dict();
-    for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("gross_consumer_surplus"=>Dict(),"available_demand"=>Dict(),"consumed"=>Dict(),"gen_revenue"=>Dict(),"con_expenditure"=>Dict(),"produced"=>Dict()));end
-    for (k_sc,sc) in social_welfare;
-        for n in s["onshore_nodes"];
-            push!(sc["produced"],string(n)=>0.0);
-            push!(sc["gross_consumer_surplus"],string(n)=>0.0);
-            push!(sc["available_demand"],string(n)=>0.0);
-            push!(sc["gen_revenue"],string(n)=>0.0);
-            push!(sc["con_expenditure"],string(n)=>0.0);
-            push!(sc["consumed"],string(n)=>0.0);end;
-        for n in s["offshore_nodes"];
-            push!(sc["produced"],string(n)=>0.0);
-            push!(sc["gross_consumer_surplus"],string(n)=>0.0);
-            push!(sc["available_demand"],string(n)=>0.0);
-            push!(sc["gen_revenue"],string(n)=>0.0);
-            push!(sc["con_expenditure"],string(n)=>0.0);
-            push!(sc["consumed"],string(n)=>0.0);end;end
-    for (k_sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x));
-        for (k_ts,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x));
-            ts_str=string(ts)
-            for (g,gen) in result_mip["solution"]["nw"][ts_str]["gen"];
-                gen_bus=string(data["gen"][g]["gen_bus"])
-                _sc=floor(Int64,(ts-1)/(yl*hl))
-                _yr=ceil(Int64,(ts-_sc*(yl*hl))/(hl))
-                if (gen["pg"]<=0)
-                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
-                    social_welfare[k_sc]["con_expenditure"][gen_bus]=social_welfare[k_sc]["con_expenditure"][gen_bus]+gen["pg"]*undo_hourly_scaling(lam_kcl_r)*sl
-                    demand_base_cost=undo_npv_hourly(s["xd"]["gen"][g]["cost"][ts][1],parse(Int64,s["scenario_years"][_yr]))
-                    social_welfare[k_sc]["available_demand"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]+gen["pg"]*undo_hourly_scaling(demand_base_cost)*-1
-                    social_welfare[k_sc]["consumed"][gen_bus]=social_welfare[k_sc]["consumed"][gen_bus]+gen["pg"]
-                    social_welfare[k_sc]["gross_consumer_surplus"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]-social_welfare[k_sc]["con_expenditure"][gen_bus]
-                else
-                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
-                    social_welfare[k_sc]["gen_revenue"][gen_bus]=social_welfare[k_sc]["gen_revenue"][gen_bus]+gen["pg"]*undo_hourly_scaling(lam_kcl_r)*-1*sl
-                    social_welfare[k_sc]["produced"][gen_bus]=social_welfare[k_sc]["produced"][gen_bus]+gen["pg"]
-                end
-            end
-            #=for (b,strg) in result_mip["solution"]["nw"][ts_str]["storage"];
-                storage_bus=string(data["storage"][b]["storage_bus"])
-                social_welfare[k_sc]["gen_revenue"][storage_bus]=social_welfare[k_sc]["gen_revenue"][storage_bus]+strg["ps"]*result_mip["solution"]["nw"][ts_str]["bus"][storage_bus]["lam_kcl_r"]*sl
-                if (strg["ps"]<=0)
-                    social_welfare[k_sc]["consumed"][storage_bus]=social_welfare[k_sc]["consumed"][storage_bus]+strg["ps"]
-                else
-                    social_welfare[k_sc]["produced"][storage_bus]=social_welfare[k_sc]["produced"][storage_bus]+strg["ps"]
-                end
-            end=#
-        end
-    end
-    totals=Dict();totals["all"]=Dict();
-    for (k_sc,sc) in social_welfare;
-        if !(haskey(totals,k_sc));push!(totals,k_sc=>Dict());end
-        for (k_type, type) in sc
-            if !(haskey(totals[k_sc],k_type));push!(totals[k_sc],k_type=>0.0);end
-            if !(haskey(totals["all"],k_type));push!(totals["all"],k_type=>0.0);end
-            for (b_k,b) in type
-                totals["all"][k_type]=totals["all"][k_type]+b
-                totals[k_sc][k_type]=totals[k_sc][k_type]+b
-            end
-        end
-    end
-    push!(social_welfare,"totals"=>totals)
-    return social_welfare
-end=#
 
 
 function SocialWelfare_zonal(s, result_mip, mn_data, data, result_mip_hm_prices)#NOTE CHANGED
@@ -1026,41 +943,6 @@ function summarize_in_s(results)
     return s, result_mip, data, mn_data
 end
 
-#=
-function transmission_line_profits(s, result_mip, tss, data)
-    hl=1#s["hours_length"]
-    yl=1#s["years_length"]
-    sl=s["scenarios_length"]
-    me2e=1#1000000
-    hourly_income=Dict();push!(hourly_income,"hour"=>[]);push!(hourly_income,"ac"=>Dict());push!(hourly_income,"dc"=>Dict());
-    for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
-        if (issubset([string(n)],tss))
-            push!(hourly_income["hour"],n)
-            bs=nw["bus"];
-            brs_dc=nw["branchdc"];
-            brs=nw["branch"];
-            for (k_br,br_dc) in brs_dc
-                if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branchdc"][k_br]["p_rateA"]>0)
-                if !(haskey(hourly_income["dc"],k_br));
-                    push!(hourly_income["dc"],k_br=>Dict());push!(hourly_income["dc"][k_br],"delta_price"=>[]);push!(hourly_income["dc"][k_br],"rent"=>[]);push!(hourly_income["dc"][k_br],"power"=>[]);end
-
-            push!(hourly_income["dc"][k_br]["power"],br_dc["pt"]);
-            push!(hourly_income["dc"][k_br]["delta_price"],(bs[string(data["branchdc"][k_br]["fbusdc"])]["lam_kcl_r"]-bs[string(data["branchdc"][k_br]["tbusdc"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
-            push!(hourly_income["dc"][k_br]["rent"],hourly_income["dc"][k_br]["power"][end]*hourly_income["dc"][k_br]["delta_price"][end]);
-                end;end
-            for (k_br,br_ac) in brs
-                if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branch"][k_br]["p_rateAC"]>0)
-                if !(haskey(hourly_income["ac"],k_br));
-                    push!(hourly_income["ac"],k_br=>Dict());push!(hourly_income["ac"][k_br],"delta_price"=>[]);push!(hourly_income["ac"][k_br],"rent"=>[]);push!(hourly_income["ac"][k_br],"power"=>[]);end
-
-            push!(hourly_income["ac"][k_br]["power"],br_ac["pt"]);
-            push!(hourly_income["ac"][k_br]["delta_price"],(bs[string(data["branch"][k_br]["f_bus"])]["lam_kcl_r"]-bs[string(data["branch"][k_br]["t_bus"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
-            push!(hourly_income["ac"][k_br]["rent"],hourly_income["ac"][k_br]["power"][end]*hourly_income["ac"][k_br]["delta_price"][end]);
-                end;end
-    end;end
-    return hourly_income
-end
-=#
 
 function transmission_lines_profits(s, result_mip, mn_data, data)
     for (scenario_num,scenario) in mn_data["scenario"]
@@ -1544,3 +1426,236 @@ function print_branchdc(result_mip,argz,data)
     end
     return branch_cost
 end
+
+function plot_clearing_price(time_series)
+    
+    clrs=generation_color_map()
+    
+
+        #low_rng=minimum(marginal_prices)
+        #high_rng=maximum(marginal_prices)
+        scatter_vec_gen=[
+            
+            PlotlyJS.scatter(
+                y=time_series,
+                mode="lines", name="BE",
+                line=PlotlyJS.attr(width=2, color="red")
+            ) ]
+        PlotlyJS.plot(
+            scatter_vec_gen, PlotlyJS.Layout(font_size=35,xaxis_range=(0, 432),yaxis_title="€/MWh",xaxis_title="time steps"))
+    end
+
+
+################### deprecated ###########################
+
+#=function SocialWelfare(s, result_mip, mn_data, data)
+    
+    function undo_npv_hourly(x,current_yr)
+        cost = (1+s["dr"])^(current_yr-base_year) * x# npv
+        return deepcopy(cost)
+    end
+
+    function undo_hourly_scaling(cost0)
+        cost=cost0*((hl*yl)/(8760*s["scenario_planning_horizon"]))*e2me
+        return deepcopy(cost)
+    end
+    e2me=1000000/result_mip["solution"]["nw"]["1"]["baseMVA"]
+    base_year=parse(Int64,s["scenario_years"][1])
+    sl=s["scenarios_length"]
+    yl=s["years_length"]
+    hl=s["hours_length"]
+
+    social_welfare=Dict();
+    for k in keys(mn_data["scenario"]);push!(social_welfare,k=>Dict("gross_consumer_surplus"=>Dict(),"available_demand"=>Dict(),"consumed"=>Dict(),"gen_revenue"=>Dict(),"con_expenditure"=>Dict(),"produced"=>Dict()));end
+    for (k_sc,sc) in social_welfare;
+        for n in s["onshore_nodes"];
+            push!(sc["produced"],string(n)=>0.0);
+            push!(sc["gross_consumer_surplus"],string(n)=>0.0);
+            push!(sc["available_demand"],string(n)=>0.0);
+            push!(sc["gen_revenue"],string(n)=>0.0);
+            push!(sc["con_expenditure"],string(n)=>0.0);
+            push!(sc["consumed"],string(n)=>0.0);end;
+        for n in s["offshore_nodes"];
+            push!(sc["produced"],string(n)=>0.0);
+            push!(sc["gross_consumer_surplus"],string(n)=>0.0);
+            push!(sc["available_demand"],string(n)=>0.0);
+            push!(sc["gen_revenue"],string(n)=>0.0);
+            push!(sc["con_expenditure"],string(n)=>0.0);
+            push!(sc["consumed"],string(n)=>0.0);end;end
+    for (k_sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x));
+        for (k_ts,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x));
+            ts_str=string(ts)
+            for (g,gen) in result_mip["solution"]["nw"][ts_str]["gen"];
+                gen_bus=string(data["gen"][g]["gen_bus"])
+                _sc=floor(Int64,(ts-1)/(yl*hl))
+                _yr=ceil(Int64,(ts-_sc*(yl*hl))/(hl))
+                if (gen["pg"]<=0)
+                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
+                    social_welfare[k_sc]["con_expenditure"][gen_bus]=social_welfare[k_sc]["con_expenditure"][gen_bus]+gen["pg"]*undo_hourly_scaling(lam_kcl_r)*sl
+                    demand_base_cost=undo_npv_hourly(s["xd"]["gen"][g]["cost"][ts][1],parse(Int64,s["scenario_years"][_yr]))
+                    social_welfare[k_sc]["available_demand"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]+gen["pg"]*undo_hourly_scaling(demand_base_cost)*-1
+                    social_welfare[k_sc]["consumed"][gen_bus]=social_welfare[k_sc]["consumed"][gen_bus]+gen["pg"]
+                    social_welfare[k_sc]["gross_consumer_surplus"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]-social_welfare[k_sc]["con_expenditure"][gen_bus]
+                else
+                    lam_kcl_r=undo_npv_hourly(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"],parse(Int64,s["scenario_years"][_yr]))
+                    social_welfare[k_sc]["gen_revenue"][gen_bus]=social_welfare[k_sc]["gen_revenue"][gen_bus]+gen["pg"]*undo_hourly_scaling(lam_kcl_r)*-1*sl
+                    social_welfare[k_sc]["produced"][gen_bus]=social_welfare[k_sc]["produced"][gen_bus]+gen["pg"]
+                end
+            end
+            #=for (b,strg) in result_mip["solution"]["nw"][ts_str]["storage"];
+                storage_bus=string(data["storage"][b]["storage_bus"])
+                social_welfare[k_sc]["gen_revenue"][storage_bus]=social_welfare[k_sc]["gen_revenue"][storage_bus]+strg["ps"]*result_mip["solution"]["nw"][ts_str]["bus"][storage_bus]["lam_kcl_r"]*sl
+                if (strg["ps"]<=0)
+                    social_welfare[k_sc]["consumed"][storage_bus]=social_welfare[k_sc]["consumed"][storage_bus]+strg["ps"]
+                else
+                    social_welfare[k_sc]["produced"][storage_bus]=social_welfare[k_sc]["produced"][storage_bus]+strg["ps"]
+                end
+            end=#
+        end
+    end
+    totals=Dict();totals["all"]=Dict();
+    for (k_sc,sc) in social_welfare;
+        if !(haskey(totals,k_sc));push!(totals,k_sc=>Dict());end
+        for (k_type, type) in sc
+            if !(haskey(totals[k_sc],k_type));push!(totals[k_sc],k_type=>0.0);end
+            if !(haskey(totals["all"],k_type));push!(totals["all"],k_type=>0.0);end
+            for (b_k,b) in type
+                totals["all"][k_type]=totals["all"][k_type]+b
+                totals[k_sc][k_type]=totals[k_sc][k_type]+b
+            end
+        end
+    end
+    push!(social_welfare,"totals"=>totals)
+    return social_welfare
+end=#
+
+#=
+function transmission_line_profits(s, result_mip, tss, data)
+    hl=1#s["hours_length"]
+    yl=1#s["years_length"]
+    sl=s["scenarios_length"]
+    me2e=1#1000000
+    hourly_income=Dict();push!(hourly_income,"hour"=>[]);push!(hourly_income,"ac"=>Dict());push!(hourly_income,"dc"=>Dict());
+    for (n,nw) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]), by=x->parse(Int64,x));
+        if (issubset([string(n)],tss))
+            push!(hourly_income["hour"],n)
+            bs=nw["bus"];
+            brs_dc=nw["branchdc"];
+            brs=nw["branch"];
+            for (k_br,br_dc) in brs_dc
+                if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branchdc"][k_br]["p_rateA"]>0)
+                if !(haskey(hourly_income["dc"],k_br));
+                    push!(hourly_income["dc"],k_br=>Dict());push!(hourly_income["dc"][k_br],"delta_price"=>[]);push!(hourly_income["dc"][k_br],"rent"=>[]);push!(hourly_income["dc"][k_br],"power"=>[]);end
+
+            push!(hourly_income["dc"][k_br]["power"],br_dc["pt"]);
+            push!(hourly_income["dc"][k_br]["delta_price"],(bs[string(data["branchdc"][k_br]["fbusdc"])]["lam_kcl_r"]-bs[string(data["branchdc"][k_br]["tbusdc"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
+            push!(hourly_income["dc"][k_br]["rent"],hourly_income["dc"][k_br]["power"][end]*hourly_income["dc"][k_br]["delta_price"][end]);
+                end;end
+            for (k_br,br_ac) in brs
+                if (result_mip["solution"]["nw"][string(maximum(parse.(Int64,tss)))]["branch"][k_br]["p_rateAC"]>0)
+                if !(haskey(hourly_income["ac"],k_br));
+                    push!(hourly_income["ac"],k_br=>Dict());push!(hourly_income["ac"][k_br],"delta_price"=>[]);push!(hourly_income["ac"][k_br],"rent"=>[]);push!(hourly_income["ac"][k_br],"power"=>[]);end
+
+            push!(hourly_income["ac"][k_br]["power"],br_ac["pt"]);
+            push!(hourly_income["ac"][k_br]["delta_price"],(bs[string(data["branch"][k_br]["f_bus"])]["lam_kcl_r"]-bs[string(data["branch"][k_br]["t_bus"])]["lam_kcl_r"])*-hl*yl*sl*me2e);
+            push!(hourly_income["ac"][k_br]["rent"],hourly_income["ac"][k_br]["power"][end]*hourly_income["ac"][k_br]["delta_price"][end]);
+                end;end
+    end;end
+    return hourly_income
+end
+=#
+
+#=
+function plot_cumulative_all_wf_production_all_scenarios(s, mn_data)
+    hrs=s["hours_length"];hours2lifetime=(8760*10/hrs);cum_generation=[];power=[]
+    cum_generations=zeros(hrs*s["years_length"]);powers=zeros(hrs*s["years_length"]);hours=zeros(hrs*s["years_length"])
+    for bus in s["offshore_nodes"]
+        gen= string(first(s["wfz"][findfirst(x->x==bus,s["offshore_nodes"])]))
+        node=string(bus)
+        scenarios=sort!(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+        for (scenario, tss) in scenarios
+            hourly_income=s["income_summary"]["owpp"][scenario][node]
+            cum_generations=cum_generations.+[sum(hourly_income["power"][1:i]./10) for (i,ic) in enumerate(hourly_income["power"])]
+            powers=powers.+hourly_income["power"]/10
+            if (scenario=="1")
+                hours=hourly_income["hour"];end
+        end
+
+
+        if (length(cum_generations)>1)
+            cum_generation=cum_generations/length(mn_data["scenario"])
+            end
+        if (length(powers)>1)
+            power=powers/length(mn_data["scenario"])
+        end
+    end
+    data = [PlotlyJS.bar(;x=parse.(Int64,hours)*hours2lifetime,
+                name="Cumulative Generation", marker=PlotlyJS.attr(width=2, color="green"),
+                y=cum_generation*hours2lifetime),
+                PlotlyJS.scatter(;x=parse.(Int64,hours)*hours2lifetime,
+                y=power,name="Hourly Generation", line=PlotlyJS.attr(width=2, color="red"), yaxis="y2")]
+
+        PlotlyJS.plot(data, PlotlyJS.Layout(legend = PlotlyJS.attr(x = 0., y= maximum(cum_generation*hours2lifetime)), width=1000, height=550,font_size=35,yaxis_range=(0,maximum(cum_generation*hours2lifetime)), yaxis_title="GWh",xaxis_title="Hours",yaxis2=PlotlyJS.attr(
+        title="GWh",
+        overlaying="y",
+        side="right"
+    )))
+end
+=#
+
+#=function basic_bar_chart(xvalues,yvalues,xlabel,ylabel)
+    y_min=minimum(yvalues)-minimum(yvalues)*0.0005
+    y_max=maximum(yvalues)+maximum(yvalues)*0.0005
+    data =PlotlyJS.bar(
+      x=xvalues,
+      y=yvalues,
+      text=string.(round.(yvalues)),
+      textposition="auto",
+      textfont=PlotlyJS.attr(size=30))
+
+    layout=PlotlyJS.Layout(yaxis_range=(y_min,y_max), yaxis_title=ylabel,xaxis_title=xlabel, width=1000, height=550,font_size=35)
+    PlotlyJS.plot(data,layout)
+end=#
+
+#=
+function plot_demand(xy)
+    traceUK = [PlotlyJS.scatter(;mode="line",name="UK",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:UK_MWh])]
+    traceBE = [PlotlyJS.scatter(;mode="line",name="BE",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:BE_MWh])]
+    traceDE = [PlotlyJS.scatter(;mode="line",name="DE",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:DE_MWh])]
+    traceDK = [PlotlyJS.scatter(;mode="line",name="DK",x=xy[!,:time_stamp].-Dates.Year(5),y=xy[!,:DK_MWh])]    
+    trace=vcat(traceUK,traceBE,traceDE,traceDK)
+
+    layout = PlotlyJS.Layout(title="Demand",width=1000, height=550, yaxis_title="MWh",xaxis_title="Time",font_size=25,legend = PlotlyJS.attr(orientation="h",x=0.1,y = 1,font=PlotlyJS.attr(size=25),bgcolor= "#1C00ff00"))
+    PlotlyJS.plot(trace, layout)
+end
+=#
+
+######################### plotting generation types ###################################
+#=function plot_marginal_price(gen,map_gen_types, country)
+    col_names=names(gen[!,2:end])
+    for col in col_names;
+        if (isapprox(sum(gen[!,col]),0,atol=1))
+            DataFrames.select!(gen, DataFrames.Not(Symbol(col)))
+    end;end
+    marginal_prices=[]
+    for row in eachrow(gen)
+	    active_gen_types=[]
+	    for k in keys(row[2:end])
+		    if (row[k]>0)
+			    push!(active_gen_types,map_gen_types["costs"][string(k)])
+		    end
+	    end
+	    push!(marginal_prices,maximum(active_gen_types))
+    end
+    low_rng=minimum(marginal_prices)
+    high_rng=maximum(marginal_prices)
+    scatter_vec=[
+	PlotlyJS.scatter(
+	    x=gen[!,:ts], y=marginal_prices,
+	    name="Marginal Price", mode="lines",
+	    line=PlotlyJS.attr(width=1, color="black")
+	)]
+
+	PlotlyJS.plot(
+	scatter_vec, PlotlyJS.Layout(yaxis_range=(low_rng, high_rng),yaxis_title="€/MWh",xaxis_title="time steps",title=country))
+end=#

@@ -1,4 +1,16 @@
 ################################ zonal/nodal market models main function #####################################
+function social_welfare(s)
+    if (length(s["home_market"])>0)
+        result_mip, data, mn_data, s, result_mip_hm_prices = zonal_market_main(s)
+        results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s, "result_mip_hm_prices"=>result_mip_hm_prices)
+    else
+        result_mip, data, mn_data, s = nodal_market_main(s);
+        results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)#primal: -565150.39, dual: -565819.65
+    end
+    s["cost_summary"]=print_solution_wcost_data(result_mip, s, data)
+    return results
+end
+
 function zonal_market_main(s)
     hm=deepcopy(s["home_market"]);
     mn_data, data, s = data_setup_zonal(s);#Build data structure for given options
@@ -1041,15 +1053,16 @@ function set_cable_impedance(data,result_mip)
     end;end
     #AC cables
     #NOTE uncomment AC cables!!!!!!!!!!!!!!!!! 1043 post_process.jl
-    for (b_ne,br_ne) in last_step["ne_branch"]
-        if (br_ne["built"]==1)
-            for (b,br) in data["branch"]
-                if (br["f_bus"]==data["ne_branch"][b_ne]["f_bus"] && br["t_bus"]==data["ne_branch"][b_ne]["t_bus"])
-                    data["branch"][b]["br_r"]=data["ne_branch"][b_ne]["br_r"]
-                    data["branch"][b]["br_x"]=data["ne_branch"][b_ne]["br_x"]
+    if (haskey(last_step,"ne_branch"))
+        for (b_ne,br_ne) in last_step["ne_branch"]
+            if (br_ne["built"]==1)
+                for (b,br) in data["branch"]
+                    if (br["f_bus"]==data["ne_branch"][b_ne]["f_bus"] && br["t_bus"]==data["ne_branch"][b_ne]["t_bus"])
+                        data["branch"][b]["br_r"]=data["ne_branch"][b_ne]["br_r"]
+                        data["branch"][b]["br_x"]=data["ne_branch"][b_ne]["br_x"]
+                    end
                 end
-            end
-    end;end
+        end;end;end
     return data
 end
 

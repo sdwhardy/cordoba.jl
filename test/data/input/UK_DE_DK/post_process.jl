@@ -56,7 +56,7 @@ _CBD.print_solution_wcost_data(result_mip_hm_prices, s, data)#-856896.0245340846
 
 s["home_market"]=[]
 result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-result_mip= _CBD.hm_market_prices(result_mip, result_mip_hm_prices)
+result_mip = _CBD.hm_market_prices(result_mip, result_mip_hm_prices)
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
 
@@ -111,7 +111,7 @@ social_welfare_34 = _CBD.SocialWelfare(s_34, result_mip_34, mn_data_34, data_34)
 
 s["income_summary"]["owpp"]
 social_welfare["totals"]
-_CBD.topology_map(s_nodal,"tinf")
+#_CBD.topology_map(s_nodal,"tinf")
 #nodal "gross_consumer_surplus"=>-1.30748e6
 #hm
 
