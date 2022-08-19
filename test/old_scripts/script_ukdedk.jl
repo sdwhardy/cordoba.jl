@@ -1,4 +1,4 @@
-using Ipopt, Juniper, JuMP, Cbc, Gurobi, Cbc, XLSX, DataFrames, Dates, CSV
+using Ipopt, Juniper, JuMP, Cbc, Gurobi, XLSX, DataFrames, Dates, CSV
 import cordoba; const _CBD = cordoba
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
