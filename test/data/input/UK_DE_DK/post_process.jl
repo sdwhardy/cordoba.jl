@@ -68,7 +68,7 @@ _CBD.print_table_summary(s_24)
 _CBD.print_table_summary(s_34)
 
 
-_CBD.topology_map(s_14,1.75)
+_CBD.topology_map(s_34,1.75)
 
 _CBD.plot_cumulative_production_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_all_scenarios_allWF(s_nodal, mn_data_nodal)
