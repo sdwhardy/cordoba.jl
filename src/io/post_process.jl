@@ -1,5 +1,8 @@
 ############################ figures ##################################
-function topology_map(s)
+#input results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_rc.jld2")
+#s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=summarize_in_s(results_nodal);
+#topology_map(s_nodal, 1.75)
+function topology_map(s, txt_x=1)
     #handle time steps
     t0=deepcopy(s["topology"]["t0"])
     t2=deepcopy(s["topology"]["t2"])
@@ -58,12 +61,12 @@ function topology_map(s)
     end
     
     #country node display            
-    markerCNT = PlotlyJS.attr(size=[10],
+    markerCNT = PlotlyJS.attr(size=[10*txt_x],
                 color="green",
                 line_color="green")
 
     #country legend
-    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=25),
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=25*txt_x),
                 textposition="top center",text=string(row[:node])*": "*row[:country],
                 name=string(row[:node])*": "*t0[string(row[:node][1])]["conv"]*","
                 *t2[string(row[:node][1])]["conv"]*","*tinf[string(row[:node][1])]["conv"]*"GW/"
@@ -73,12 +76,12 @@ function topology_map(s)
                 marker=markerCNT)  for row in eachrow(s["nodes"]) if (row[:type]==1)]
 
     #windfarm node display
-    markerWF = PlotlyJS.attr(size=[10],
+    markerWF = PlotlyJS.attr(size=[10*txt_x],
     color="blue",
     line_color="blue")
 
     #windfarm legend
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=25),
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=25*txt_x),
                 textposition="top center",text=string(row[:node])*": "*row[:country]*"(WF)",
                 name=string(row[:node])*": "*t0[string(row[:node][1])]["wf"]*","
                 *t2[string(row[:node][1])]["wf"]*","*tinf[string(row[:node][1])]["wf"]*"GW/"
@@ -89,7 +92,7 @@ function topology_map(s)
                 marker=markerWF)  for row in eachrow(s["nodes"]) if (row[:type]==0)]
     
     #DC line display
-    lineDC = PlotlyJS.attr(width=2,color="black")
+    lineDC = PlotlyJS.attr(width=2*txt_x,color="black")
 
     #DC line legend
     traceDC=[PlotlyJS.scattergeo(;mode="lines",name=string(Int64(row[:from]))*"-"
@@ -101,7 +104,7 @@ function topology_map(s)
                     for row in eachrow(tinf["dc"])]
                     
     #AC line display
-    lineAC = PlotlyJS.attr(width=3,color="red",dash="dash")
+    lineAC = PlotlyJS.attr(width=3*txt_x,color="red",dash="dash")
     
     #AC line legend
     traceAC=[PlotlyJS.scattergeo(;mode="lines",name=string(Int64(row[:from]))*"-"
@@ -120,7 +123,7 @@ function topology_map(s)
 
     #plot layput
     layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, 
-    legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=25),bgcolor= "#1C00ff00"), 
+    legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=25*txt_x),bgcolor= "#1C00ff00"), 
     margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
 
     #display plot
@@ -770,7 +773,9 @@ function SocialWelfare_zonal(s, result_mip, mn_data, data, result_mip_hm_prices)
                     social_welfare[k_sc]["gross_consumer_surplus"][gen_bus]=social_welfare[k_sc]["available_demand"][gen_bus]-social_welfare[k_sc]["con_expenditure"][gen_bus]
                 else
                     cost_npv=deepcopy(result_mip["solution"]["nw"][ts_str]["bus"][gen_bus]["lam_kcl_r"])*-1*sl
+                    #println("bus "*string(gen_bus)*" costs "*string(cost_npv))
                     gen_cost_npv=deepcopy(s["xd"]["gen"][g]["cost"][ts][1])
+                    #println("gen "*string(g)*" ts "*string(ts)*" costs "*string(gen_cost_npv))
                     social_welfare[k_sc]["gen_revenue"][gen_bus]=social_welfare[k_sc]["gen_revenue"][gen_bus]+gen["pg"]*cost_npv
                     social_welfare[k_sc]["produced"][gen_bus]=social_welfare[k_sc]["produced"][gen_bus]+gen["pg"]
 
@@ -917,6 +922,7 @@ function print_table_summary(s)
     end
     println("Redispatch cost: "*string(s["social_welfare"]["totals"]["all"]["re_dispatch_cost"]))
 end
+#results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000_rc.jld2")
 
 function summarize_zonal_in_s(results)#NOTE CHANGED
     s=results["s"];result_mip=results["result_mip"];data=results["data"];mn_data=results["mn_data"]
@@ -1445,6 +1451,148 @@ function plot_clearing_price(time_series)
             scatter_vec_gen, PlotlyJS.Layout(font_size=35,xaxis_range=(0, 432),yaxis_title="€/MWh",xaxis_title="time steps"))
     end
 
+############################## Addition as of 8/10/22 - for Hakan's "justify insanely high re-dispatch costs Q ##################
+
+function rename_gen_df_columns(gen_types,df)
+    col_names=Any[]
+    for _number in names(df)
+        if (sum(_number.==first.(gen_types))>0)
+            push!(col_names,last(gen_types[parse(Int64,_number)]))
+        else
+            push!(col_names,_number)
+        end
+    end
+    DataFrames.rename!(df,Symbol.(col_names),makeunique=true)
+    return df
+end
+   
+
+function gen_load_values(rez,v)
+    df=DataFrames.DataFrame()
+    rez=sort!(OrderedCollections.OrderedDict(rez), by=x->parse(Int64,x))
+    for (k_nw,nw) in rez
+        ks=keys(sort!(OrderedCollections.OrderedDict(nw["gen"]), by=x->parse(Int64,x)))
+        vs=[nw["gen"][k][v] for k in ks]
+        named_tuple = (; zip(Symbol.(ks), vs )...)
+        push!(df,named_tuple);
+    end
+    return df
+end
+
+#returns a data frame with NPV/original costs at every generator and load
+function bus_values(bus_df,rez,s)
+    #constants
+    e2me=1000000/rez["1"]["baseMVA"]
+    base_year=parse(Int64,s["scenario_years"][1])
+    sl=s["scenarios_length"]
+    yl=s["years_length"]
+    hl=s["hours_length"]
+
+    #undo NPV and scaling
+    function undo_npv_hourly(x,current_yr)
+        cost = (1+s["dr"])^(current_yr-base_year) * x# npv
+        return deepcopy(cost)
+    end
+    
+    function undo_hourly_scaling(cost0)
+        cost=cost0*((hl*yl)/(8760*s["scenario_planning_horizon"]))*e2me
+        return deepcopy(cost)
+    end
+
+    #new vars
+    df_NPV_scaled=DataFrames.DataFrame()
+    df_scaled=DataFrames.DataFrame()
+    df_orig=DataFrames.DataFrame()
+    df_names=names(bus_df)
+    for (r_num,r) in enumerate(eachrow(bus_df))
+        vs_NPV_scaled=[]
+        vs_scaled=[]
+        vs_orig=[]
+        for _name in df_names
+            _sc=floor(Int64,(r_num-1)/(yl*hl))
+            _yr=ceil(Int64,(r_num-_sc*(yl*hl))/(hl))
+            #store NPV cost at single time step
+            lam_kcl_r_NPV=rez[string(r_num)]["bus"][string(bus_df[!,_name][r_num])]["lam_kcl_r"]*-1*sl
+            push!(vs_NPV_scaled,lam_kcl_r_NPV)
+            #store scaled cost at single time step
+            lam_kcl_r_scaled=undo_npv_hourly(lam_kcl_r_NPV,parse(Int64,s["scenario_years"][_yr]))
+            push!(vs_scaled,lam_kcl_r_scaled)
+            #store Original cost at single time step
+            lam_kcl_r=undo_hourly_scaling(lam_kcl_r_scaled)
+            push!(vs_orig,lam_kcl_r)
+        end
+        #store each row in overall data frame
+        named_tuple = (; zip(Symbol.(df_names), vs_NPV_scaled )...)
+        push!(df_NPV_scaled,named_tuple);
+        named_tuple = (; zip(Symbol.(df_names), vs_scaled )...)
+        push!(df_scaled,named_tuple);
+        named_tuple = (; zip(Symbol.(df_names), vs_orig )...)
+        push!(df_orig,named_tuple);
+    end
+    #cost_dict=Dict("NPV"=>df_NPV_scaled,"Scaled"=>df_scaled,"Orig"=>df_orig)
+    cost_dict=Dict("NPV"=>df_NPV_scaled,"Orig"=>df_orig)
+    return cost_dict
+end
+
+
+#_gens are the list of genrators - 1/column, _sims are symbols of final columns desired
+function gen_bid_prices(_gens,_sims)
+    df=DataFrames.DataFrame()
+    for (_n,_gs) in sort!(OrderedCollections.OrderedDict(_gens), by=x->parse(Int64,x))
+        df[!,Symbol(_n)]=first.(_gs["cost"])
+    end    
+    df=df[!,_sims]
+    return df
+end
+#######################################################################
+#######################################################################
+#seperate re-dispatch into ramp-up and ramp down
+#test_in=DataFrame(A=[3.07467,0.0,0.0], B=[0.0,0.0,-19.8817], C=[-3.07467,0.0,0.0])
+#r_up, r_down=decompose_re_dispatch(test_in)
+#r_up: 
+#Row  │ A        B        C       
+#       │ Float64  Float64  Float64 
+# ─────┼───────────────────────────
+#    1 │ 3.07467      0.0      0.0
+#    2 │ 0.0          0.0      0.0
+#    3 │ 0.0          0.0      0.0
+#r_down:
+#Row │ A        B        C       
+#│ Float64  Float64  Float64 
+#─────┼───────────────────────────
+#1 │     0.0   0.0     3.07467
+#2 │     0.0   0.0     0.0
+#3 │     0.0  19.8817  0.0
+function decompose_re_dispatch(_rd)
+    r_up=(abs.(_rd).+_rd)./2
+    r_down=abs.(_rd.-r_up)
+    return r_up, r_down
+end
+#######################################################################
+#######################################################################
+#Return a Dtatframe with ID: initial dispatch, FD: Finial Dispatch, RD: Redispatch
+#test_in=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000_rc.jld2")
+#test_out=InitialD_FinalD_ReDispatch(test_in)
+#test_out:
+#Dict{String,DataFrame} with 3 entries:
+#  "FD" => 2592×93 DataFrame…
+#  "RD" => 2592×93 DataFrame…
+#  "ID" => 2592×93 DataFrame…
+#test_out["RD"][1:2,Symbol(8)]
+#2-element Array{Float64,1}:
+# 3.0746729621551054
+# 0.0
+function InitialD_FinalD_ReDispatch(results)
+    #ID: initial dispatch, RD: re-dispatch, FD: final dispatch  
+    dk_gen_load=Dict("ID"=>DataFrames.DataFrame(),"RD"=>DataFrames.DataFrame(),"FD"=>DataFrames.DataFrame())
+    dk_gen_load["FD"]=gen_load_values(results["result_mip"]["solution"]["nw"],"pg")
+    if haskey(results,"result_mip_hm_prices")
+        dk_gen_load["ID"]=gen_load_values(results["result_mip_hm_prices"]["solution"]["nw"],"pg")
+        dk_gen_load["RD"]=dk_gen_load["FD"].-dk_gen_load["ID"]
+    end
+    return dk_gen_load
+end
+#######################################################################
 
 ################### deprecated ###########################
 

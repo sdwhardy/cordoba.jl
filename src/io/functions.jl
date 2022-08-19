@@ -40,12 +40,48 @@ function zonal_market_main(s)
     return result_mip, data, mn_data, s, result_mip_hm_prices
 end
 
-
+#####################
+#=s = Dict(
+"rt_ex"=>pwd()*"\\test\\data\\input\\UK_BE\\",#folder path
+"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
+################# temperal parameters #################
+"test"=>true,#if true smallest (2 hour) problem variation is built for testing
+"scenario_planning_horizon"=>30,
+"scenario_names"=>["NT"],#["NT","DE","GA"]
+"k"=>6,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
+"res_years"=>["2012"],#Options: ["2012","2013","2014","2015","2016"]
+"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
+"dr"=>0.04,#discount rate
+"yearly_investment"=>100000,
+################ electrical parameters ################
+"AC"=>"1",#0=false, 1=true
+"owpp_mva"=>[3500],#mva of wf in MVA
+"conv_lim_onshore"=>3000,#Max Converter size in MVA
+"conv_lim_offshore"=>4000,#Max Converter size in MVA
+"strg_lim_offshore"=>0.2,
+"strg_lim_onshore"=>10,
+"candidate_ics_ac"=>[1/10],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)
+################## optimization/solver setup options ###################
+"output" => Dict("branch_flows" => false),
+"eps"=>0.0001,#admm residual (100kW)
+"beta"=>5.5,
+"relax_problem" => false,
+"conv_losses_mp" => true,
+"process_data_internally" => false,
+"corridor_limit" => true)
+########################################################################
+#0.0066 - branch
+##################################### HM market 
+################## Run MIP Formulation ###################
+#NOTE only very basic intuitive check passed on functions wgen_type
+s["home_market"]=[]=#
+#####################
 function nodal_market_main(s)
     mn_data, data, s = data_setup_nodal(s);
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>0.9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-    print_solution_wcost_data(result_mip, s, data)
+    #print_solution_wcost_data(result_mip, s, data)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     s["rebalancing"]=true
     s["relax_problem"]=true
@@ -243,7 +279,7 @@ end
 function update_settings_wgenz(s, data)
     s["ic_lim_onshore"]=s["conv_lim_onshore"]/data["baseMVA"]
     s["ic_lim_offshore"]=s["conv_lim_offshore"]/data["baseMVA"]
-    s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]])
+    if (length(data["ne_branch"])>0);s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]]);end
     s["scenarios_length"] = length(s["scenario_names"])*length(s["res_years"])
     s["years_length"] = length(s["scenario_years"])
     return s
@@ -1090,6 +1126,36 @@ function data_update(s,result_mip)
     return  mn_data, data, s
 end
 
+s = Dict(
+"rt_ex"=>pwd()*"\\test\\data\\input\\UK_BE\\",#folder path
+"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBE.jld2",
+################# temperal parameters #################
+"test"=>false,#if true smallest (2 hour) problem variation is built for testing
+"scenario_planning_horizon"=>2,
+"scenario_names"=>["NT"],#["NT","DE","GA"]
+"k"=>365,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
+"res_years"=>["2020"],#Options: ["2012","2013","2014","2015","2016"]
+"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
+"dr"=>0.04,#discount rate
+"yearly_investment"=>100000,
+################ electrical parameters ################
+"AC"=>"1",#0=false, 1=true
+"owpp_mva"=>[3500],#mva of wf in MVA
+"conv_lim_onshore"=>3500,#Max Converter size in MVA
+"conv_lim_offshore"=>3500,#Max Converter size in MVA
+"strg_lim_offshore"=>0.2,
+"strg_lim_onshore"=>10,
+"candidate_ics_ac"=>[1/10],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)
+################## optimization/solver setup options ###################
+"output" => Dict("branch_flows" => false),
+"eps"=>0.0001,#admm residual (100kW)
+"beta"=>5.5,
+"relax_problem" => false,
+"conv_losses_mp" => true,
+"process_data_internally" => false,
+"corridor_limit" => true)
+
 #seperates wfs from genz and defines markets/wfs zones
 function data_setup_nodal(s)
     data, s = get_topology_data(s)#topology.m file
@@ -1098,8 +1164,37 @@ function data_setup_nodal(s)
 	all_gens,s = gen_types(data,scenario_data,s)
     #################### Calculates cable options for AC lines
     data = AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
+    ###########################################################################
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    data["ne_branch"]["1"]["construction_cost"]=data["ne_branch"]["1"]["construction_cost"]*100
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     #################### Calculates cable options for DC lines
     data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
+    ###########################################################################
+    println("!!!!!!!!!!!!!! careful!!! DC cable price set to Zero!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    data["branchdc_ne"]["1"]["cost"]=0.0
+    data["branchdc_ne"]["2"]["cost"]=0.0
+    data["convdc"]["1"]["cost"]=0.0
+    data["convdc"]["2"]["cost"]=0.0
+    data["convdc"]["3"]["cost"]=0.0
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! DC cable price set to Zero !!!!!!!!!!!!!!!!!")
+    ####################################################################################
     #if (haskey(s, "wf_circuit") && length(s["wf_circuit"])>0);data=keep_only_hm_cables(s,data);end#if home market reduce to only those in
     additional_params_PMACDC(data)
     print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
@@ -1112,7 +1207,9 @@ function data_setup_nodal(s)
 	push!(s,"max_invest_per_year"=>max_invest_per_year(s))
     return  mn_data, data, s
 end
-
+#mn_data["nw"]
+#s["xd"]["gen"]["112"]["pmin"]
+#scenario_data["Demand"]["Base"]["2020"]
 function data_setup_zonal(s)
     data, s = get_topology_data(s)#topology.m file
     scenario_data = get_scenario_data(s)#scenario time series

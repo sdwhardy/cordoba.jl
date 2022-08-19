@@ -137,9 +137,9 @@ function variable_dc_converter(pm::_PM.AbstractDCPModel; kwargs...)
     _PMACDC.variable_dcside_power(pm; kwargs...)
     _PMACDC.variable_converter_filter_voltage(pm; kwargs...)
     _PMACDC.variable_converter_internal_voltage(pm; kwargs...)
-    _PMACDC.variable_converter_to_grid_active_power(pm; kwargs...)
+   _PMACDC.variable_converter_to_grid_active_power(pm; kwargs...)
 
-    _PMACDC.variable_conv_transformer_active_power_to(pm; kwargs...)
+     _PMACDC.variable_conv_transformer_active_power_to(pm; kwargs...)
     _PMACDC.variable_conv_reactor_active_power_from(pm; kwargs...)
 end
 

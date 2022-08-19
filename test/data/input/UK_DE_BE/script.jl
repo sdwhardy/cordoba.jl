@@ -9,7 +9,7 @@ s = Dict(
 "rt_ex"=>pwd()*"\\test\\data\\input\\UK_DE_BE\\",#folder path
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
 ################# temperal parameters #################
-"test"=>false,#if true smallest (2 hour) problem variation is built for testing
+"test"=>true,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
 "scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
 "k"=>6,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
@@ -91,23 +91,3 @@ social_welfare["totals"]
 
 
 
-
-################################################
-scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2")
-
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",scenario_data)
-
-
-sdgs=deepcopy(scenario_data["Generation"]["Scenarios"])
-scenario_data["Generation"]["Scenarios"]=Dict()
-push!(scenario_data["Generation"]["Scenarios"],"Base"=>Dict())
-push!(scenario_data["Demand"],"NT"=>Dict())
-push!(scenario_data["Demand"],"GA"=>Dict())
-push!(scenario_data["Demand"],"DE"=>Dict())
-push!(scenario_data["Generation"]["Scenarios"]["Base"],"2020"=>sdgs["Base"])
-push!(scenario_data["Demand"]["NT"],"2030"=>sdgs["NT2030"])
-push!(scenario_data["Demand"]["GA"],"2030"=>sdgs["GA2030"])
-push!(scenario_data["Demand"]["DE"],"2030"=>sdgs["DE2030"])
-push!(scenario_data["Demand"]["NT"],"2040"=>sdgs["NT2040"])
-push!(scenario_data["Demand"]["GA"],"2040"=>sdgs["GA2040"])
-push!(scenario_data["Demand"]["DE"],"2040"=>sdgs["DE2040"])

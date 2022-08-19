@@ -33,6 +33,8 @@ s = Dict(
 "conv_losses_mp" => true,
 "process_data_internally" => false,
 "corridor_limit" => true)
+s["home_market"]=[]
+mn_data, data, s = _CBD.data_setup_nodal(s);
 ########################################################################
 #0.0066 - branch
 ##################################### HM market 
@@ -92,22 +94,3 @@ social_welfare["totals"]
 
 
 
-################################################
-scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2")
-
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",scenario_data)
-
-
-sdgs=deepcopy(scenario_data["Generation"]["Scenarios"])
-scenario_data["Generation"]["Scenarios"]=Dict()
-push!(scenario_data["Generation"]["Scenarios"],"Base"=>Dict())
-push!(scenario_data["Demand"],"NT"=>Dict())
-push!(scenario_data["Demand"],"GA"=>Dict())
-push!(scenario_data["Demand"],"DE"=>Dict())
-push!(scenario_data["Generation"]["Scenarios"]["Base"],"2020"=>sdgs["Base"])
-push!(scenario_data["Demand"]["NT"],"2030"=>sdgs["NT2030"])
-push!(scenario_data["Demand"]["GA"],"2030"=>sdgs["GA2030"])
-push!(scenario_data["Demand"]["DE"],"2030"=>sdgs["DE2030"])
-push!(scenario_data["Demand"]["NT"],"2040"=>sdgs["NT2040"])
-push!(scenario_data["Demand"]["GA"],"2040"=>sdgs["GA2040"])
-push!(scenario_data["Demand"]["DE"],"2040"=>sdgs["DE2040"])

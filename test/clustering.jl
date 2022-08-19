@@ -1,13 +1,19 @@
-#=using Gurobi, JuMP, DataFrames, FileIO, JLD2, Dates, OrderedCollections, CSV, Clustering, Distances
+
+using Gurobi, JuMP, DataFrames, FileIO, JLD2, Dates, OrderedCollections, CSV, Clustering, Distances
 import Cordoba_self; const _CBD = Cordoba_self#Cordoba package backend - under development
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 
 
-scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2")
+scenario_data2=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2")
 
+scenario_data_2=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4UKBEDEDK.jld2")
+scenario_data==scenario_data_2
 k_exmaple=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4UKBEDEDK.jld2")
     
+
+scenario_data["Generation"]["Scenarios"]==scenario_data_2["Generation"]["Scenarios"]
+#=
 bins=bin_khours(scenario_data)
 ##################### Cluster time series data ###########################
 

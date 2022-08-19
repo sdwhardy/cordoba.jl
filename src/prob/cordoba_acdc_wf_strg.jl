@@ -239,5 +239,6 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
         else
             objective_min_cost_acdc_convex_conv_strg_npv(pm)
         end
+        #println(pm.model)
 end
 

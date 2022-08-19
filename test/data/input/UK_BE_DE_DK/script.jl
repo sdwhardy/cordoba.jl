@@ -92,3 +92,15 @@ _CBD.plot_cumulative_wf_income_all_scenarios(s, mn_data, "DK")
 
 time_series=s["income_summary"]["onshore"]["1"]["1"]["price_not_npv"]
 _CBD.plot_clearing_price(time_series)=#
+
+
+###########################################################################################################################
+############### YUSO 
+#Generation 
+#=df=FileIO.load(s["scenario_data_file"])
+scene="NT";year="2030";country="UK"
+CSV.write("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\YUSO_data\\"*country*"_"*scene*year*"_ENERGY_MIX.csv", df["Generation"]["Scenarios"][scene][year][country])
+#Demand
+scene="Base";year="2020";country="UK"
+CSV.write("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\YUSO_data\\"*country*"_BASE_DEMAND.csv", select(df["Demand"][scene][year],["time_stamp",country*"_MWh"]))
+=###############

@@ -12,6 +12,49 @@ results_34=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_
 
 
 
+######################################################
+#get dictionary of ID, FD, RDispatch
+results=results_34
+dk_gen_load=_CBD.InitialD_FinalD_ReDispatch(results)
+#Get Dataframe of the bus numbers of each generator
+df_bus=_CBD.gen_load_values(results["mn_data"]["nw"],"gen_bus")
+df_bus=df_bus[!,Symbol.(names(dk_gen_load["FD"]))]
+#get dataframes of NPV/Orig clearing prices per node
+dk_price=_CBD.bus_values(df_bus,results["result_mip"]["solution"]["nw"],results["s"])
+#Get Dataframe of generator NPV hourly values 
+push!(dk_price,"GENS"=>_CBD.gen_bid_prices(results["s"]["xd"]["gen"],Symbol.(names(dk_gen_load["FD"]))))
+#calculate the final dispatch cost
+a=dk_gen_load["FD"].*dk_price["NPV"]
+push!(a,sum.(eachcol(a)))
+a=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],a)
+#seperate the up and down regulation
+pos,neg=_CBD.decompose_re_dispatch(dk_gen_load["RD"])
+#calculate the Re dispatch cost
+b=pos.*dk_price["GENS"]
+c=neg.*(dk_price["NPV"].-dk_price["GENS"])
+rbc=(sum(sum.(eachcol(b)))+sum(sum.(eachcol(c))))/6#191272.64882850088
+b=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],b)
+
+d=(sum.(eachcol(b)).+sum.(eachcol(c)))./6
+for (_c,_v) in enumerate(d);println(names(b)[_c]*":"*string(_v));end
+
+names(b)[argmax(d)]
+push!(b,sum.(eachcol(b)))
+push!(c,sum.(eachcol(c)))
+b=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],b)
+c=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],c)
+
+(sum(b[end,:]+c[end,:]))/6
+
+push!(dk_gen_load["FD"],sum.(eachcol(dk_gen_load["FD"])))
+dk_gen_load["FD"]=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],dk_gen_load["FD"])
+sum(dk_gen_load["FD"][end,[:SLACK,:SLACK_1,:SLACK_2]])/6
+######################################################
+argmax(b[end,Not(Symbol("191"))])
+a[end,argmax(a[end,Not(Symbol("191"))])]/6
+display(a[end,Not(Symbol("191"))])
+CSV.write("C://Users//shardy//Desktop//thesis//plot_data.csv",a)
+
 
 s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=_CBD.summarize_in_s(results_nodal);
 s_14, result_mip_14, data_14, mn_data_14=_CBD.summarize_zonal_in_s(results_14);
@@ -25,7 +68,7 @@ _CBD.print_table_summary(s_24)
 _CBD.print_table_summary(s_34)
 
 
-_CBD.topology_map(s_34)
+_CBD.topology_map(s_14,1.75)
 
 _CBD.plot_cumulative_production_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_all_scenarios_allWF(s_nodal, mn_data_nodal)
@@ -184,3 +227,4 @@ _CBD.plot_dual_marginal_price(result_mip, string.(values(mn_data["scenario"][sce
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (2,"BE"))
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (4,"BE"))
 _CBD.plot_dual_marginal_price(result_mip, keys(mn_data["scenario"][scenario]), (4,"DK"))
+

@@ -241,7 +241,7 @@ function post_cordoba_acdc_wgentypes(pm::_PM.AbstractPowerModel)
         end
         #println(JuMP.objective_function(pm.model))
         #OBJECTIVE see objective.jl
-        #println(pm.model)
+       # println(pm.model)
         #OBJECTIVE see objective.jl
         #objective_min_cost_acdc_convex_conv_strg_npv(pm)
         #CONSTRAINTS: defined within PowerModels(ACDC) can directly be used, other constraints need to be defined in the according sections of the code: flexible_demand.jl
