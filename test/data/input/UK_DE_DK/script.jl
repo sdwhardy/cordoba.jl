@@ -14,8 +14,8 @@ argz = Dict(
 "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
 "owpp_mva"=>[4000],#mva of wf in MVA
 "conv_lim"=>4000,#Max Converter size in MVA
-"candidate_ics_ac"=>[6/5,1,4/5,3/5,2/5,1/5],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[6/5,1,4/5,3/5,2/5,1/5],#DC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_ac"=>[1,4/5,3/5,2/5,1/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1,4/5,3/5,1/2],#DC Candidate Cable sizes (fraction of full MVA)
 "dr"=>0.04,#discount rate
 "yearly_investment"=>1000000)
 
@@ -23,7 +23,7 @@ argz = Dict(
 s = Dict("output" => Dict("branch_flows" => false),
 "home_market"=>[],#nodes within Zonal market
 "balancing_reserve"=>0.3,#zonal market must be defined to have any effect
-"AC"=>"1",#0=false, 1=true
+"AC"=>"0",#0=false, 1=true
 "eps"=>0.0001,#admm residual (100kW)
 "relax_problem" => false,
 "conv_losses_mp" => false,
@@ -33,9 +33,11 @@ s = Dict("output" => Dict("branch_flows" => false),
 "strg_lim_onshore"=>10,
 "max_invest_per_year"=>_CBD.max_invest_per_year(argz))
 ########################################################################
-
+#scenario_data, ls = _CBD.load_time_series(rt_ex,argz)
+#file = rt_ex*"topology.m"
+#data = PowerModels.parse_file(file)
 ################## Run MIP Formulation ###################
-mn_data, data, argz, s = _CBD.main_ACDC_wstrg(rt_ex,argz, s)#Build data structure for given options
+mn_data, data, argz, s = _CBD.main_ACDC_wstrg(rt_ex,argz, s);#Build data structure for given options
 gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
 #with Home market in Germany
 result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
@@ -66,3 +68,6 @@ mn_data, data, s = _CBD.convex2mip(result_mip, data, mn_data, s)#Convert convex 
 gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap" => 1e-4)#In large problems a larger MIPgap (1-5%?) may be desirable
 result_mip = _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
 _CBD.print_solution_data(result_mip, data, argz)#print MIP solution
+
+
+mn_data["nw"]["1"]["gen"]["1"]
