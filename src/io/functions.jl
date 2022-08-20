@@ -5,6 +5,7 @@ function main_ACDC_wstrg(rt_ex,argz, s)
     ################# Load topology files ###################################
     topology_df(rt_ex, s["relax_problem"], s["AC"])#creates .m file
     data, ics_ac, ics_dc, nodes = filter_mfile_cables(rt_ex)#loads resulting topology and filters for candidate cables
+    
     ############### defines size and market of genz and wfs ###################
     infinite_grid, genz, wfz, markets = genz_n_wfs(argz["owpp_mva"],nodes,data["baseMVA"])
     push!(argz,"genz"=>genz)
