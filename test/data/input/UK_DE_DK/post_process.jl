@@ -14,7 +14,7 @@ results_34=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_
 
 ######################################################
 #get dictionary of ID, FD, RDispatch
-results=results_34
+results=results_24
 dk_gen_load=_CBD.InitialD_FinalD_ReDispatch(results)
 #Get Dataframe of the bus numbers of each generator
 df_bus=_CBD.gen_load_values(results["mn_data"]["nw"],"gen_bus")
@@ -24,9 +24,10 @@ dk_price=_CBD.bus_values(df_bus,results["result_mip"]["solution"]["nw"],results[
 #Get Dataframe of generator NPV hourly values 
 push!(dk_price,"GENS"=>_CBD.gen_bid_prices(results["s"]["xd"]["gen"],Symbol.(names(dk_gen_load["FD"]))))
 #calculate the final dispatch cost
-a=dk_gen_load["FD"].*dk_price["NPV"]
+a=dk_gen_load["ID"].*dk_price["NPV"]
 push!(a,sum.(eachcol(a)))
 a=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],a)
+sum(a[end,Not([Symbol(string(_name)) for _name = 167:1:196])])/6
 #seperate the up and down regulation
 pos,neg=_CBD.decompose_re_dispatch(dk_gen_load["RD"])
 #calculate the Re dispatch cost
@@ -49,6 +50,10 @@ c=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],c)
 push!(dk_gen_load["FD"],sum.(eachcol(dk_gen_load["FD"])))
 dk_gen_load["FD"]=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],dk_gen_load["FD"])
 sum(dk_gen_load["FD"][end,[:SLACK,:SLACK_1,:SLACK_2]])/6
+print(names(a))
+
+######################################################
+results["mn_data"]["nw"]
 ######################################################
 argmax(b[end,Not(Symbol("191"))])
 a[end,argmax(a[end,Not(Symbol("191"))])]/6
