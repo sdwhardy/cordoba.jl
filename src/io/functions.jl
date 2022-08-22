@@ -32,7 +32,8 @@ function update_settings(s, argz, data)
     s["genz"]=argz["genz"]
     s["wfz"]=argz["wfz"]
     s["ic_lim"]=argz["conv_lim"]/data["baseMVA"]
-    s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]])
+    if (length(data["ne_branch"])>0)
+        s["rad_lim"]=maximum([b["rate_a"] for (k,b) in data["ne_branch"]]);end
     s["scenarios_length"] = length(argz["scenario_names"])
     s["years_length"] = length(argz["scenario_years"])
     s["hours_length"] = argz["ls"]
@@ -689,3 +690,64 @@ function convex2mip_AC(result_mip, data)
     ac_cables=unique_candidateIC_AC(ac_cables)
     return ac_cables
 end
+
+
+############################## for SEST reruns
+   
+function main_ACDC_chandra(rt_ex,argz, s)
+    ################# Load topology files ###################################
+    topology_df(rt_ex, s["relax_problem"], s["AC"])#creates .m file
+    data, ics_ac, ics_dc, nodes = filter_mfile_cables(rt_ex)#loads resulting topology and filters for candidate cables
+    for (_is, _s) in data["storage"]; _s["cost"]=_s["cost"]*100;end
+    if (s["AC"]=="0")
+    ics_ac=[(1000,10)];end
+    #ics_dc=[(4000,550),(4000,760),(4000,250),(4000,443),(4000,212),(4000,311)]
+    ############### defines size and market of genz and wfs ###################
+    infinite_grid, genz, wfz, markets = genz_n_wfs(argz["owpp_mva"],nodes,data["baseMVA"])
+    push!(argz,"genz"=>genz)
+    push!(argz,"wfz"=>wfz)
+    #################### Calculates cable options for AC lines
+    data=AC_cable_options(data,argz["candidate_ics_ac"],ics_ac,data["baseMVA"])
+    if (s["AC"]=="0")
+        data["ne_branch"]["1"]["construction_cost"]=data["ne_branch"]["1"]["construction_cost"]*1000;end
+    print_topology_data_AC(data,markets)#print to verify
+    #################### Calculates cable options for DC lines
+    data=DC_cable_options(data,argz["candidate_ics_dc"],ics_dc,data["baseMVA"])
+    additional_params_PMACDC(data)
+    print_topology_data_DC(data,markets)#print to verify
+    ##################### load time series data ##############################
+    scenario_data, ls = load_time_series(rt_ex,argz)
+    push!(argz,"ls"=>ls)
+    ##################### multi period setup #################################
+    mn_data = multi_period_setup_chandra(ls, scenario_data, data, markets, infinite_grid, argz)
+    s=update_settings(s, argz, data)
+#   if (haskey(s,"home_market") && length(s["home_market"])>0)
+#      mn_data=zonal_adjust(mn_data, s);end
+    return  mn_data, data, argz, s
+end
+
+function multi_period_setup_chandra(ls,scenario_data,data, markets, infinite_grid, argz)
+    #################### Multi-period input parameters #######################
+    all_scenario_data,data,scenario, dim = multi_period_stoch_year_setup(ls,argz["scenario_years"],argz["scenario_names"],scenario_data,data)
+    scenario["planning_horizon"] = argz["scenario_planning_horizon"] # in years, to scale generation cost
+    extradata,data =create_profile_sets_mesh(dim, data, all_scenario_data, markets, infinite_grid, [data["baseMVA"] for wf in argz["owpp_mva"]])
+    #########################################################################
+    #################### Scale cost data
+    #[println(b*" "*string(br["construction_cost"])) for (b,br) in data["ne_branch"]];println()
+    scale_cost_data_2hourly!(data, scenario)#infrastructure investments
+    #[println(b*" "*string(br["construction_cost"])) for (b,br) in data["ne_branch"]];println()
+    scale_cost_data_2yearly!(extradata, scenario)#energy cost benefits
+    #[println(b*" "*string(br["construction_cost"])) for (b,br) in data["ne_branch"]];println()
+
+    # Create data dictionary where time series data is included at the right place
+    mn_data = _PMACDC.multinetwork_data(data, extradata, Set{String}(["source_type", "scenario", "scenario_prob", "name", "source_version", "per_unit"]))
+    #[println(k*" "*b*" "*string(br["construction_cost"])) for (k,nw) in mn_data["nw"] for (b,br) in nw["ne_branch"]];println()
+    # scale all to NPV
+    #mn_data_mip= _CBD.npvs_costs_datas(mn_data_mip, scenario, scenario_years)#sum of years must equal total
+   #mn_data = npvs_costs_datas_wREZ(mn_data, scenario, argz["scenario_years"], argz["dr"])#sum of years must equal total
+    #[println(k*" "*b*" "*string(br["construction_cost"])) for (k,nw) in mn_data["nw"] for (b,br) in nw["ne_branch"]];println()
+    mn_data = npvs_costs_datas_4mip(mn_data, scenario, argz["scenario_years"], argz["dr"])#future investment at y scaled to year y=0
+    return mn_data
+end
+
+
