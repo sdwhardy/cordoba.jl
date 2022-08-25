@@ -53,7 +53,18 @@ sum(dk_gen_load["FD"][end,[:SLACK,:SLACK_1,:SLACK_2]])/6
 print(names(a))
 
 ######################################################
-results["mn_data"]["nw"]
+w_ttl=(sum(results["s"]["xd"]["gen"][string(first(first(results["s"]["wfz"])))]["pmax"])/6)*4000*8760/(6*24)
+print(w_ttl)
+
+_w=0
+for (nw_i,nw) in sort(OrderedCollections.OrderedDict(results["result_mip"]["solution"]["nw"]), by=x->parse(Int64,x))
+     _w=_w+nw["gen"]["166"]["pg"] 
+end
+
+w_gen=(_w/6)*100*8760/(6*24)
+print(w_gen)
+print((w_ttl-w_gen)/(w_ttl)*100)
+
 ######################################################
 argmax(b[end,Not(Symbol("191"))])
 a[end,argmax(a[end,Not(Symbol("191"))])]/6
