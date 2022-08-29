@@ -1,5 +1,5 @@
 ################## loads external packages ##############################
-using Gurobi, JuMP, DataFrames, OrderedCollections, FileIO
+using Gurobi, JuMP, DataFrames, OrderedCollections, FileIO, Plots
 import Cordoba_self; const _CBD = Cordoba_self#Cordoba package backend - under development
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
@@ -33,8 +33,23 @@ s = Dict("output" => Dict("branch_flows" => false),
 "strg_lim_onshore"=>10,
 "max_invest_per_year"=>_CBD.max_invest_per_year(argz))
 ########################################################################
-#scenario_data, ls = _CBD.load_time_series(rt_ex,argz)
+scenario_data, ls = _CBD.load_time_series(rt_ex,argz)
+plotly()
+width=1500/2
+height=1000/2
+hour_start=1
+hour_limit=120
+p=plot(xaxis = ("Time steps [hours]", font(20, "Courier")), xticks = hour_start-1:20:hour_limit,yaxis = ("Generation P.U.", font(20, "Courier")),size = (width, height))
+#plot!(p,1:1:hour_limit,scenario_data["EU17"]["2020"][1:hour_limit,:Wnd_MWhDE], label="DE17")#930.8381
+#plot!(p,1:1:hour_limit,scenario_data["EU18"]["2020"][1:hour_limit,:Wnd_MWhDE], label="DE18")#930.8381
+#plot!(p,1:1:hour_limit,scenario_data["EU19"]["2020"][1:hour_limit,:Wnd_MWhDE], label="DE19")#930.8381
+plot!(p,hour_start:1:hour_limit,scenario_data["EU20"]["2020"][hour_start:hour_limit,:Wnd_MWhDE], label="DE20",color="black")#930.8381
+#plot!(p,1:1:hour_limit,scenario_data["EU17"]["2020"][1:hour_limit,:Wnd_MWhBE], label="BE17")#930.8381
+#plot!(p,1:1:hour_limit,scenario_data["EU18"]["2020"][1:hour_limit,:Wnd_MWhBE], label="BE18")#930.8381
+#plot!(p,1:1:hour_limit,scenario_data["EU19"]["2020"][1:hour_limit,:Wnd_MWhBE], label="BE19")#930.8381
+plot!(p,hour_start:1:hour_limit,scenario_data["EU20"]["2020"][hour_start:hour_limit,:Wnd_MWhBE], label="BE20",color="red")#930.8381
 
+gui()
 
 #file = rt_ex*"topology.m"
 #data = PowerModels.parse_file(file)

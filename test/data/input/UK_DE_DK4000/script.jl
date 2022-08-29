@@ -1,5 +1,5 @@
 ################## loads external packages ##############################
-using Gurobi, JuMP, DataFrames, OrderedCollections, FileIO
+using Gurobi, JuMP, DataFrames, OrderedCollections, FileIO, Plot
 import Cordoba_self; const _CBD = Cordoba_self#Cordoba package backend - under development
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
