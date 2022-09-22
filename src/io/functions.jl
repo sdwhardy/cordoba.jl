@@ -41,27 +41,27 @@ function zonal_market_main(s)
 end
 
 #####################
-#=s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\UK_BE\\",#folder path
+s = Dict(
+"rt_ex"=>pwd()*"\\test\\data\\input\\UK_DE_DK_wOnshore\\",#folder path
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
 ################# temperal parameters #################
 "test"=>true,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
-"scenario_names"=>["NT"],#["NT","DE","GA"]
-"k"=>6,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
-"res_years"=>["2012"],#Options: ["2012","2013","2014","2015","2016"]
-"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
+"scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
+"k"=>6,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+"res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+"scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
 "dr"=>0.04,#discount rate
-"yearly_investment"=>100000,
+"yearly_investment"=>1000000,
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
-"owpp_mva"=>[3500],#mva of wf in MVA
+"owpp_mva"=>[4000],#mva of wf in MVA
 "conv_lim_onshore"=>3000,#Max Converter size in MVA
 "conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,
 "strg_lim_onshore"=>10,
-"candidate_ics_ac"=>[1/10],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_ac"=>[1,4/5,3/5,2/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1,4/5,3/5,2/5],#DC Candidate Cable sizes (fraction of full MVA)
 ################## optimization/solver setup options ###################
 "output" => Dict("branch_flows" => false),
 "eps"=>0.0001,#admm residual (100kW)
@@ -79,7 +79,7 @@ s["home_market"]=[]=#
 #####################
 function nodal_market_main(s)
     mn_data, data, s = data_setup_nodal(s);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>0.9e-3)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#, "MIPGap"=>0.9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
@@ -287,13 +287,16 @@ end
 
 ########################################## Cables ###############################################
 ###################### HVAC/HVDC
+#rt_ex="C:\\Users\\shardy\\Documents\\julia\\packages\\cordoba\\test\\data\\input\\UK_DE_DK_wOnshore\\"
 #loads .m result and filters candidates
 function filter_mfile_cables(rt_ex)
     nodes = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "node_generation")...)
 	edges = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "connections_acdc")...)
+    edges_existing = DataFrames.DataFrame()
+    try edges_existing = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "existing_lines")...) catch; println("No onshore net transfer capacities specified.") end
     file = rt_ex*"topology.m"
 	data = PowerModels.parse_file(file)
-	data,ics_ac=filter_AClines(data,edges,nodes)
+	data,ics_ac=filter_AClines(data,edges,nodes,edges_existing)
 	data,ics_dc=filter_DClines(data,edges,nodes)
     return data, ics_ac, ics_dc, nodes
 end
@@ -306,7 +309,7 @@ function utm_gps2xy(lla,north_south::Bool=true,zone_utm::Int64=31)
 end
 
 ################################# HVAC ##############################
-function filter_AClines(data,edges,nodes)
+function filter_AClines(data,edges,nodes,edges_existing)
     #size and length
     ics_ac=Tuple{Int64,Int64}[]
     acc=filter(x->!ismissing(x),edges[!,"AC_mva"])
@@ -316,8 +319,8 @@ function filter_AClines(data,edges,nodes)
         push!(ics_ac,(s,round(Int64,Geodesy.euclidean_distance(from_xy, to_xy, 31, true, Geodesy.wgs84)/1000*1.25)))
     end
 
-    #filter ac connections
-    accbles2keep_ne=Dict[];accbles2keep=Dict[]
+    #filter candidate ac connections
+    accbles2keep_ne=Dict[];
     acc=filter!(x->!ismissing(x),edges[!,"AC_mva"])
     for (r,s) in enumerate(acc)
         for (k,b) in data["ne_branch"]
@@ -332,8 +335,9 @@ function filter_AClines(data,edges,nodes)
         c["source_id"][2]=k
         push!(data["ne_branch"],string(k)=>c)
     end
-
-	for (r,s) in enumerate(acc)
+    ##cables to keep for candidates
+    accbles2keep=Dict[]
+    for (r,s) in enumerate(acc)
         for (k,b) in data["branch"]
             if (edges[!,"AC_from"][r]==b["f_bus"] && edges[!,"AC_to"][r]==b["t_bus"])
                 push!(accbles2keep,deepcopy(b))
@@ -341,14 +345,40 @@ function filter_AClines(data,edges,nodes)
             end
         end
     end
+
+    #existing onshore grid
+    if (DataFrames.columnindex(edges_existing,:AC_mva) > 0)
+        acc_ex=filter!(x->!ismissing(x),edges_existing[!,"AC_mva"])
+        for (r,s) in enumerate(acc_ex)
+            for (k,b) in data["branch"]
+                if (edges_existing[!,"AC_from"][r]==b["f_bus"] && edges_existing[!,"AC_to"][r]==b["t_bus"])
+                    push!(b,"rateA"=>s/data["baseMVA"])
+                    push!(b,"rateB"=>s/data["baseMVA"])
+                    push!(b,"rateC"=>s/data["baseMVA"])
+                    b["cost"]=0
+                    b["br_status"]=1
+                    push!(accbles2keep,deepcopy(b))
+                    break;
+                end
+            end
+        end
+    end
+
+    #existing branches to keep
     data["branch"]=Dict{String,Any}()
     for (k,c) in enumerate(accbles2keep)
         c["source_id"][2]=k
+        c["index"]=k
         push!(data["branch"],string(k)=>c)
     end
+    
     return data, ics_ac
 end
 
+
+#candidate_ics_ac=s["candidate_ics_ac"]
+#ics_ac=s["ics_ac"]
+#pu=data["baseMVA"]
 function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
     z_base_ac=(data["bus"]["1"]["base_kv"])^2/pu
     data=additional_candidatesICS_AC(data,candidate_ics_ac,ics_ac)#adds additional candidates
@@ -361,6 +391,7 @@ function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
 	cable_pu_r=Dict{String,Any}()
 	cable_pu_x=Dict{String,Any}()
     cable_rateA=Dict{String,Any}()
+
 	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(data["ne_branch"]), by=x->parse(Int64,x)))
 		last(acb)["source_id"][2]=i
 		#last(acb)["br_status"]=0
@@ -403,8 +434,9 @@ function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
         last(acb)["rateA"]=last(acb)["rateB"]=last(acb)["rateC"]=maximum(b for b in cable_rateA[string(last(acb)["f_bus"])*"_"*string(last(acb)["t_bus"])])
 		last(acb)["source_id"][2]=i
 		push!(temp_cables2,string(i)=>last(acb))
+        data["branch"][string(i)]=last(acb)
 	end
-	data["branch"]=temp_cables2
+	#data["branch"]=temp_cables2
     return data
 end
 
@@ -622,8 +654,13 @@ function print_topology_data_DC(data_mip,markets_wfs)
     end
     println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 end
+########################################## Onshore Grid ############################################################
+#data,edges_existing,nodes
+#function add_onshoreGrid(data,edges_existing,nodes)
+#    data["branch"]["1"]
 
-
+#    return data,existing_AClines
+#end
 ########################################## Generators ##############################################################
 
 #seperates wfs from genz and defines markets/wfs zones
@@ -1127,26 +1164,26 @@ function data_update(s,result_mip)
 end
 
 s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\UK_BE\\",#folder path
-"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBE.jld2",
+"rt_ex"=>pwd()*"\\test\\data\\input\\UK_DE_DK_wOnshore\\",#folder path
+"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
 ################# temperal parameters #################
 "test"=>false,#if true smallest (2 hour) problem variation is built for testing
-"scenario_planning_horizon"=>2,
-"scenario_names"=>["NT"],#["NT","DE","GA"]
-"k"=>365,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
-"res_years"=>["2020"],#Options: ["2012","2013","2014","2015","2016"]
-"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
+"scenario_planning_horizon"=>30,
+"scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
+"k"=>6,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+"res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+"scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
 "dr"=>0.04,#discount rate
-"yearly_investment"=>100000,
+"yearly_investment"=>1000000,
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
-"owpp_mva"=>[3500],#mva of wf in MVA
-"conv_lim_onshore"=>3500,#Max Converter size in MVA
-"conv_lim_offshore"=>3500,#Max Converter size in MVA
+"owpp_mva"=>[4000],#mva of wf in MVA
+"conv_lim_onshore"=>3000,#Max Converter size in MVA
+"conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,
 "strg_lim_onshore"=>10,
-"candidate_ics_ac"=>[1/10],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_ac"=>[1,4/5,3/5,2/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1,4/5,3/5,2/5],#DC Candidate Cable sizes (fraction of full MVA)
 ################## optimization/solver setup options ###################
 "output" => Dict("branch_flows" => false),
 "eps"=>0.0001,#admm residual (100kW)
@@ -1154,7 +1191,7 @@ s = Dict(
 "relax_problem" => false,
 "conv_losses_mp" => true,
 "process_data_internally" => false,
-"corridor_limit" => true)
+"corridor_limit" => true)=#
 
 #seperates wfs from genz and defines markets/wfs zones
 function data_setup_nodal(s)
@@ -1165,7 +1202,7 @@ function data_setup_nodal(s)
     #################### Calculates cable options for AC lines
     data = AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
     ###########################################################################
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+   #= println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
@@ -1175,11 +1212,11 @@ function data_setup_nodal(s)
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")=#
     #################### Calculates cable options for DC lines
     data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
     ###########################################################################
-    println("!!!!!!!!!!!!!! careful!!! DC cable price set to Zero!!!!!!!!!!!!!!!!!")
+    #=println("!!!!!!!!!!!!!! careful!!! DC cable price set to Zero!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
@@ -1193,7 +1230,7 @@ function data_setup_nodal(s)
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
     println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! DC cable price set to Zero !!!!!!!!!!!!!!!!!")
+    println("!!!!!!!!!!!!!! careful!!! DC cable price set to Zero !!!!!!!!!!!!!!!!!")=#
     ####################################################################################
     #if (haskey(s, "wf_circuit") && length(s["wf_circuit"])>0);data=keep_only_hm_cables(s,data);end#if home market reduce to only those in
     additional_params_PMACDC(data)
