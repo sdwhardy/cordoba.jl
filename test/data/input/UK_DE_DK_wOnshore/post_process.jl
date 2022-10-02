@@ -5,16 +5,16 @@ import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 using OrderedCollections
 
-results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_rc.jld2")
-results_14=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000_rc.jld2")
-results_24=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm24_VOLL5000_rc.jld2")
-results_34=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34_VOLL5000_rc.jld2")
+results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_onShore30convs.jld2")
+results_14=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000_onShore30convs.jld2")
+results_24=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm24_VOLL5000_onShore30convs.jld2")
+results_34=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34_VOLL5000_onShore30convs.jld2")
 
 
 
 ######################################################
 #get dictionary of ID, FD, RDispatch
-results=results_24
+results=results_34
 dk_gen_load=_CBD.InitialD_FinalD_ReDispatch(results)
 #Get Dataframe of the bus numbers of each generator
 df_bus=_CBD.gen_load_values(results["mn_data"]["nw"],"gen_bus")
@@ -84,17 +84,17 @@ _CBD.print_table_summary(s_24)
 _CBD.print_table_summary(s_34)
 
 
-_CBD.topology_map(s_34,1.75)
+_CBD.topology_map(s_nodal)
 
 _CBD.plot_cumulative_production_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_all_scenarios_allWF(s_nodal, mn_data_nodal)
 _CBD.plot_cumulative_income_tl_all_scenarios(s_nodal,data_nodal)
 
 
+_CBD.print_solution_wcost_data(result_mip_nodal, s_nodal, data_nodal)#-856896.0245340846 
 _CBD.print_solution_wcost_data(result_mip_34, s_34, data_34)#-856896.0245340846 
-
-
-
+_CBD.print_solution_wcost_data(result_mip_24, s_24, data_24)#-856896.0245340846 
+_CBD.print_solution_wcost_data(result_mip_14, s_14, data_14)#-856896.0245340846 
 
 ###########################################
 #NOTE uncomment AC cables!!!!!!!!!!!!!!!!! 1043 post_process.jl

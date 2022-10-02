@@ -41,7 +41,7 @@ function zonal_market_main(s)
 end
 
 #####################
-s = Dict(
+#=s = Dict(
 "rt_ex"=>pwd()*"\\test\\data\\input\\UK_DE_DK_wOnshore\\",#folder path
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
 ################# temperal parameters #################
@@ -69,17 +69,56 @@ s = Dict(
 "relax_problem" => false,
 "conv_losses_mp" => true,
 "process_data_internally" => false,
-"corridor_limit" => true)
+"corridor_limit" => true,
+"onshore_grid"=>true)
 ########################################################################
 #0.0066 - branch
 ##################################### HM market 
 ################## Run MIP Formulation ###################
 #NOTE only very basic intuitive check passed on functions wgen_type
 s["home_market"]=[]=#
+#mn_data["nw"]["1"]["branch"]["2"]
 #####################
+################## loads external packages ##############################
+##################### File parameters #################################
+#=s = Dict(
+"rt_ex"=>pwd()*"\\test\\data\\input\\UK_FR_BE_NL_DE_DK_NO\\",#folder path
+"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",
+################# temperal parameters #################
+"test"=>true,#if true smallest (2 hour) problem variation is built for testing
+"scenario_planning_horizon"=>30,
+"scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
+"k"=>6,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+"res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+"scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
+"dr"=>0.04,#discount rate
+"yearly_investment"=>1000000,
+################ electrical parameters ################
+"AC"=>"1",#0=false, 1=true
+"owpp_mva"=>[4000,4000,4000],#mva of wf in MVA
+"conv_lim_onshore"=>3000,#Max Converter size in MVA
+"conv_lim_offshore"=>4000,#Max Converter size in MVA
+"strg_lim_offshore"=>0.2,
+"strg_lim_onshore"=>10,
+"candidate_ics_ac"=>[1,4/5,3/5,2/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1,4/5,3/5,2/5],#DC Candidate Cable sizes (fraction of full MVA)
+################## optimization/solver setup options ###################
+"output" => Dict("branch_flows" => false),
+"eps"=>0.0001,#admm residual (100kW)
+"beta"=>5.5,
+"relax_problem" => false,
+"conv_losses_mp" => true,
+"process_data_internally" => false,
+"corridor_limit" => true,
+"onshore_grid"=>true)
+s["home_market"]=[]
+mn_data["nw"]["1"]["branch"]["278"]
+s["map_gen_types"]["loads"]["BLNK"]
+s["xd"]["gen"]["223"]=#
+#mn_data["nw"]["1"]["branch"]["3"]
 function nodal_market_main(s)
     mn_data, data, s = data_setup_nodal(s);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#, "MIPGap"=>0.9e-3)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>5e-4)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
@@ -109,8 +148,9 @@ function nodal2zonal(s,result_mip,zones)
     s, mn_data= remove_integers(result_mip,mn_data,data,s);
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
-    return result_mip, data, mn_data, s
+    return result_mip, data, mn_data, s, result_mip_hm_prices
 end
+
 #=
 function nodal_market_mainA(s)
     mn_data, data, s = data_setup_nodal(s);
@@ -284,10 +324,10 @@ function update_settings_wgenz(s, data)
     s["years_length"] = length(s["scenario_years"])
     return s
 end
-
+#data["branch"]
 ########################################## Cables ###############################################
 ###################### HVAC/HVDC
-#rt_ex="C:\\Users\\shardy\\Documents\\julia\\packages\\cordoba\\test\\data\\input\\UK_DE_DK_wOnshore\\"
+#rt_ex="C:\\Users\\shardy\\Documents\\julia\\packages\\cordoba\\test\\data\\input\\UK_FR_BE_NL_DE_DK_NO\\"
 #loads .m result and filters candidates
 function filter_mfile_cables(rt_ex)
     nodes = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "node_generation")...)
@@ -1163,9 +1203,9 @@ function data_update(s,result_mip)
     return  mn_data, data, s
 end
 
-s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\UK_DE_DK_wOnshore\\",#folder path
-"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",
+#=s = Dict(
+"rt_ex"=>pwd()*"\\test\\data\\input\\UK_FR_BE_NL_DE_DK_NO\\",#folder path
+"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",
 ################# temperal parameters #################
 "test"=>false,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,
@@ -1177,7 +1217,7 @@ s = Dict(
 "yearly_investment"=>1000000,
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
-"owpp_mva"=>[4000],#mva of wf in MVA
+"owpp_mva"=>[2000,4000,4000],#mva of wf in MVA
 "conv_lim_onshore"=>3000,#Max Converter size in MVA
 "conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,
@@ -1191,9 +1231,13 @@ s = Dict(
 "relax_problem" => false,
 "conv_losses_mp" => true,
 "process_data_internally" => false,
-"corridor_limit" => true)=#
-
+"corridor_limit" => true,
+"onshore_grid"=>true)
+data["branch"]["8"]
+s["home_market"]=[]=#
+#all_gens["onshore"]
 #seperates wfs from genz and defines markets/wfs zones
+#println(keys(s))
 function data_setup_nodal(s)
     data, s = get_topology_data(s)#topology.m file
     scenario_data = get_scenario_data(s)#scenario time series

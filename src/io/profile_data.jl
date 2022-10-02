@@ -415,7 +415,10 @@ function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario
     end
     return all_scenario_data,data,scenario, dim
 end
-
+#[println(string(i)*": "*string(data["gen"][string(i)]["gen_bus"])) for i=1:length(data["gen"])]
+#println(keys(extradata["gen"]["225"]["gen_bus"]))
+#println(keys(s["xd"]["gen"]["101"]))
+#println(keys(all_gens["onshore"]["BE"]["Solar PV"]))
 #multi period problem setup
 function multi_period_setup_wgen_type(scenario_data,data, all_gens, s)
     #################### Multi-period input parameters #######################
@@ -752,7 +755,11 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 		        #loads
 				for (cuntree, dic) in loads
 			        for (l, load) in sort!(OrderedCollections.OrderedDict(dic), by=x->parse(Int64,x))
-						ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
+                        if (cuntree=="BLNK")
+						    ts=scenario_data["Generation"]["RES"]["Onshore Wind"][first(keys(scenario_data["Generation"]["RES"]["Onshore Wind"]))][k_sc[3:6]][!,:time_stamp][h]
+                        else
+                            ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
+                        end
 						S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd][k_yr])[!,Symbol(cuntree*"_MWh")]
 		                extradata["gen"][string(l)]["pmax"][1, d] = load["pmax"]*S_row[1]/pu
 		                extradata["gen"][string(l)]["pmin"][1, d] = load["pmin"]*S_row[1]/pu

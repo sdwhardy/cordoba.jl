@@ -116,19 +116,21 @@ function topology_map(s, txt_x=1)
                 for row in eachrow(tinf["ac"])]
     
     #combine plot data                
-    trace=vcat(traceCNT,traceWF,traceDC,traceAC)
+    #trace=vcat(traceCNT,traceWF,traceDC,traceAC)
+    trace=vcat(traceCNT,traceWF)
 
     #set map location
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
 
     #plot layput
     layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, 
-    legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=25*txt_x),bgcolor= "#1C00ff00"), 
+    #legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=25*txt_x),bgcolor= "#1C00ff00"), 
     margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
 
     #display plot
     PlotlyJS.plot(trace, layout)
 end
+
 
 function plot_generation_profile(gen, con)
 

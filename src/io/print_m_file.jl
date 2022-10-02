@@ -63,9 +63,14 @@ function ppf_Gens(mf,r_df)
 	%column_names% 		type invest
 	mpc.gen_type = [")
 
-	for r in r_df[!,:gen_type]
+	gen_type=filter!(x->!ismissing(x),r_df[!,:gen_type])
+	for r in gen_type
 		println(mf,r)
 	end
+	#=
+	for r in r_df[!,:gen_type]
+		println(mf,r)
+	end=#
 	println(mf,"];")
 end
 

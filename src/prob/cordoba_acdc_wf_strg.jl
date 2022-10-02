@@ -35,6 +35,10 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                 variable_branch_power(pm; nw = n)#CREATES real and imaginary branch power variables, sets upper and lower limits and initial values
                 push!(vdp,variable_dcbranch_peak(pm; nw = n))
                 variable_active_dcbranch_flow(pm; nw = n)
+            elseif (haskey(pm.setting,"onshore_grid") && pm.setting["onshore_grid"]==true)
+                push!(vacp,variable_acbranch_peak(pm; nw = n))
+                variable_branch_power(pm; nw = n)#CREATES real and imaginary branch power variables, sets upper and lower limits and initial values
+                _PMACDC.variable_active_dcbranch_flow(pm; nw = n)#CREATES pdcgrid for each branchdc and bounds between +/- rateA
             else
                 _PM.variable_branch_power(pm; nw = n)#CREATES real and imaginary branch power variables, sets upper and lower limits and initial values
                 _PMACDC.variable_active_dcbranch_flow(pm; nw = n)#CREATES pdcgrid for each branchdc and bounds between +/- rateA

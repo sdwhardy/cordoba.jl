@@ -83,17 +83,19 @@ FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files
 ################################################
 #Processing from Hakan's Input file directly
 ################################################
-scenario_data_for=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2")
+scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2")
+scenario_data["Generation"]["Scenarios"]["Base"]["2020"]
+scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4UKFRBENLDEDKNO.jld2")
 
-scenario_data_4=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4UKBEDEDK.jld2")
+scenario_data_4=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4UKFRBENLDEDKNO.jld2")
 
 
-#FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBEDEDK.jld2",scenario_data)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",scenario_data)
 
 
 scenario_data["Generation"]["Scenarios"]=Dict()
 push!(scenario_data["Generation"]["Scenarios"],"Base"=>Dict())
-push!(scenario_data["Generation"]["Scenarios"]["Base"],"2020"=>sdgs["NT2025"])
+#push!(scenario_data["Generation"]["Scenarios"]["Base"],"2020"=>sdgs["NT2025"])
 
 #Demand
 sdgs=deepcopy(scenario_data_4["Demand"])
@@ -111,7 +113,7 @@ push!(scenario_data["Demand"]["NT"],"2040"=>sdgs["NT2040"])
 push!(scenario_data["Demand"]["GA"],"2040"=>sdgs["GA2040"])
 push!(scenario_data["Demand"]["DE"],"2040"=>sdgs["DE2040"])
 
-scenario_data["Demand"]==scenario_data_for["Demand"]
+#scenario_data["Demand"]==scenario_data_for["Demand"]
 
 
 #Generation
@@ -135,10 +137,6 @@ push!(scenario_data["Generation"]["Scenarios"]["NT"],"2040"=>sdgs["Scenarios"]["
 push!(scenario_data["Generation"]["Scenarios"]["GA"],"2040"=>sdgs["Scenarios"]["GA2040"])
 push!(scenario_data["Generation"]["Scenarios"]["DE"],"2040"=>sdgs["Scenarios"]["DE2040"])
 
-scenario_data["Generation"]==scenario_data_for["Generation"]
-scenario_data==scenario_data_for
 
 
-scenario_data["Generation"]["RES"]["Offshore Wind"]["UK"]["2014"]
-
-scenario_data["Generation"]["RES"]["Offshore Wind"]["UK"]["2014"]
+scenario_data["Generation"]["Scenarios"]["Base"]["2020"]["BLNK"]

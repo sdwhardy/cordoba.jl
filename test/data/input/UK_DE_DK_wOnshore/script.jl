@@ -33,7 +33,8 @@ s = Dict(
 "relax_problem" => false,
 "conv_losses_mp" => true,
 "process_data_internally" => false,
-"corridor_limit" => true)
+"corridor_limit" => true,
+"onshore_grid"=>true)
 ########################################################################
 #0.0066 - branch
 ##################################### HM market 
@@ -43,13 +44,13 @@ s["home_market"]=[]
 @time result_mip, data, mn_data, s = _CBD.nodal_market_main(s);
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_rc.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_onShore30convs.jld2",results)
 
-s["home_market"]=[[1,4]]
+s["home_market"]=[[3,4]]
 @time result_mip, data, mn_data, s, result_mip_hm_prices = _CBD.zonal_market_main(s);
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856559.087752747 (MIP)
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s, "result_mip_hm_prices"=>result_mip_hm_prices)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000_rc.jld2",results)
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34_VOLL5000_onShore30convs.jld2",results)
 
 #result_mip=deepcopy(result_mip_001)
 @time gen_consume_summary=_CBD.summarize_generator_solution_data(result_mip, data,s)#print solution
