@@ -83,6 +83,7 @@ function calc_gen_cost(pm::_PM.AbstractPowerModel, n::Int)
 
     gen = _PM.ref(pm, n, :gen)
     cost = sum(calc_single_gen_cost(i,pm.setting["xd"]["gen"][string(i)]["cost"][n]) for (i,g) in gen)
+    #println(cost)
     return cost
 end
 
@@ -142,6 +143,7 @@ function calc_convdc_convexafy_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
         #println("else "*string(n)*" "*string(hl)*" "*string(yl)*" "*string(_yr))
         cost = sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][n],n) for (i,b) in convdc0)
     end
+    #println(cost)
     return cost
 end
 
@@ -218,6 +220,7 @@ function calc_branch_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
     else
         cost=0
     end
+    #println(cost)
     return cost
 end
 

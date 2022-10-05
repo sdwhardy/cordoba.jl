@@ -65,7 +65,8 @@ function ppf_Gens(mf,r_df)
 
 	gen_type=filter!(x->!ismissing(x),r_df[!,:gen_type])
 	for r in gen_type
-		println(mf,r)
+		if (r[1]!='2')
+			println(mf,r);end
 	end
 	#=
 	for r in r_df[!,:gen_type]
@@ -90,9 +91,9 @@ function ppf_acbranches(mf,ac_df, relax, _AC)
 		rv=split(r," ")
 		filter!(x->x!="",rv)
 		if (relax)
-			println(mf,rv[1]*"	"*rv[2]*"	"*"0.0040   0.0400   0.00   0  0  0  0  0  "*_AC*" -60  60;")
+			println(mf,rv[1]*"	"*rv[2]*"	"*"0.010   0.100   0.00   0  0  0  0  0  "*_AC*" -60  60;")
 		else
-			println(mf,rv[1]*"	"*rv[2]*"	"*"0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60;")
+			println(mf,rv[1]*"	"*rv[2]*"	"*"0.010   0.100   0.00   0  0  0  0  0  0 -60  60;")
 		end
 	end
 	println(mf,"];")
@@ -157,7 +158,7 @@ function ppf_BussDC_ne_blank(mf)
 	%% candidate dc bus data
 	%column_names%   busdc_i grid    Pdc     Vdc     basekVdc    Vdcmax  Vdcmin  Cdc
 	mpc.busdc_ne = [
-	8              4       0       1       300         1.1     0.9     0;
+	10000              4       0       1       300         1.1     0.9     0;
 	];")
 end
 
@@ -212,7 +213,7 @@ function ppf_dc_blank_conv_ne(mf)
 	%% candidate converters
 	%column_names%   busdc_i busac_i type_dc type_ac P_g   Q_g  islcc  Vtar    rtf   xtf  transformer tm   bf 	filter    rc     xc  reactor   basekVac Vmmax   Vmmin   Imax    status   LossA LossB  LossCrec LossCinv  droop     Pdcset    Vdcset  dVdcset Pacmax Pacmin Qacmax Qacmin cost
 	mpc.convdc_ne = [
-	                1000       3      1       1    400000    0   	0     1.0   0.001  0.1       0 			 1 	0.08 		0 		0.001   0.09 		0  				220    1.1     0.9    100000      1     	 0     0        0       0      0.0050    -52.7     1.0079     0  		1  -1   1    -1   1000000;
+	                1000       2      1       1    400000    0   	0     1.0   0.001  0.1       0 			 1 	0.08 		0 		0.001   0.09 		0  				220    1.1     0.9    100000      1     	 0     0        0       0      0.0050    -52.7     1.0079     0  		1  -1   1    -1   1000000;
 	];")
 end
 
@@ -225,7 +226,9 @@ function ppf_storage(mf,r_df)
 	 % storage_bus   ps   qs energy energy_rating charge_rating discharge_rating charge_efficiency discharge_efficiency thermal_rating    qmin   qmax    r    x p_loss q_loss status
 	 mpc.storage = [")
 	 	for r in r_df[!,:storage]
- 	   		println(mf,r)
+			if !(ismissing(r))
+			#println(r)
+ 	   		println(mf,r);end
     	end
 	println(mf,"];")
 
@@ -236,7 +239,9 @@ function ppf_storage(mf,r_df)
 	 %column_names% max_energy_absorption stationary_energy_inflow stationary_energy_outflow self_discharge_rate cost
 	 mpc.storage_extra = [")
 		 for r in r_df[!,:storage_extra]
-			 println(mf,r)
+			if !(ismissing(r))
+				#println(r)
+			 println(mf,r);end
 		 end
 	 println(mf,"];")
 

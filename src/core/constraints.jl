@@ -42,7 +42,7 @@ function constraint_power_balance_acne_dcne_strg(pm::_PM.AbstractDCPModel, n::In
 
     #cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) -sum(ps_ne[s] for s in bus_storage_ne) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
     cstr=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  == sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) - sum(pd[d] for d in bus_loads) - sum(gs[s] for s in bus_shunts)*v^2)
-
+    
     if _IM.report_duals(pm)
         #println("1: "*string(cstr))
         _PM.sol(pm, n, :bus, i)[:lam_kcl_r] = cstr
@@ -407,6 +407,53 @@ function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractDCPModel, n:
     end
 end
 
+function constraint_power_balance_dc_dcne(pm::_PM.AbstractPowerModel, i::Int; nw::Int=_PM.nw_id_default)
+    bus_arcs_dcgrid = PowerModels.ref(pm, nw, :bus_arcs_dcgrid, i)
+    if haskey(PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne), i)
+        bus_arcs_dcgrid_ne = PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, i)
+    else
+        bus_arcs_dcgrid_ne = []
+    end
+    bus_convs_dc = PowerModels.ref(pm, nw, :bus_convs_dc, i)
+    bus_convs_dc_ne = PowerModels.ref(pm, nw, :bus_convs_dc_ne, i)
+    pd = PowerModels.ref(pm, nw, :busdc, i)["Pdc"]
+    constraint_power_balance_dc_dcne(pm, nw, i, bus_arcs_dcgrid, bus_arcs_dcgrid_ne, bus_convs_dc, bus_convs_dc_ne, pd)
+end
+
+function constraint_power_balance_dc_dcne(pm::_PM.AbstractPowerModel, n::Int, i::Int, bus_arcs_dcgrid, bus_arcs_dcgrid_ne, bus_convs_dc, bus_convs_dc_ne, pd)
+    p_dcgrid = _PM.var(pm, n, :p_dcgrid)
+    p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
+    pconv_dc = _PM.var(pm, n, :pconv_dc)
+    pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
+
+    cstr=JuMP.@constraint(pm.model, sum(p_dcgrid[a] for a in bus_arcs_dcgrid) + sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc[c] for c in bus_convs_dc) + sum(pconv_dc_ne[c] for c in bus_convs_dc_ne)  == (-pd))
+    #println(cstr)
+end
+
+function constraint_power_balance_dcne_dcne(pm::_PM.AbstractPowerModel, i::Int; nw::Int=_PM.nw_id_default)
+    bus_i = PowerModels.ref(pm, nw, :busdc_ne, i)["busdc_i"]
+    #println(bus_i)
+    if haskey(PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne), bus_i)
+        bus_arcs_dcgrid_ne = PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, bus_i)
+    else
+        bus_arcs_dcgrid_ne = []
+    end
+    #println(bus_arcs_dcgrid_ne)
+    bus_ne_convs_dc_ne = PowerModels.ref(pm, nw, :bus_ne_convs_dc_ne, bus_i)
+    pd_ne = PowerModels.ref(pm, nw, :busdc_ne, i)["Pdc"]
+    constraint_power_balance_dcne_dcne(pm, nw, i, bus_arcs_dcgrid_ne, bus_ne_convs_dc_ne, pd_ne)
+end
+
+function constraint_power_balance_dcne_dcne(pm::_PM.AbstractPowerModel, n::Int, i::Int, bus_arcs_dcgrid_ne, bus_ne_convs_dc_ne, pd_ne)
+    p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
+    pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
+    #println(p_dcgrid_ne)
+    #println(sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne))
+    xb = _PM.var(pm, n, :branchdc_ne)
+    xc = _PM.var(pm, n, :conv_ne)
+    cstr=JuMP.@constraint(pm.model, sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc_ne[c] for c in bus_ne_convs_dc_ne)  == (-pd_ne))
+    #println(cstr)
+end
 ############################ Fixing branch variables for MIP vs Convex approx ###########################
 ############################# HVDC
 function fix_dc_lines2zero(pm)
@@ -494,7 +541,8 @@ function constraint_ohms_dc_branch_ne(pm::_PM.AbstractDCPModel, n::Int, f_bus, t
     p_dc_fr_ne = _PM.var(pm, n, :p_dcgrid_ne, f_idx)
     p_dc_to_ne = _PM.var(pm, n, :p_dcgrid_ne, t_idx)
 #    if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
-        JuMP.@constraint(pm.model, p_dc_fr_ne + p_dc_to_ne == 0)
+    cstr=JuMP.@constraint(pm.model, p_dc_fr_ne + p_dc_to_ne == 0)
+    
 #    else
 #        JuMP.@constraint(pm.model, p_dc_fr_ne + p_dc_to_ne + 0.3*rate_a >= 0)
 #        JuMP.@constraint(pm.model, p_dc_fr_ne + p_dc_to_ne - 0.3*rate_a <= 0)
@@ -521,6 +569,7 @@ function constraint_ohms_dc_branch(pm::_PM.AbstractDCPModel, n::Int,  f_bus, t_b
 
     #if (!(haskey(pm.setting, "home_market")) || !(issubset([f_bus],pm.setting["home_market"]) && issubset([t_bus],pm.setting["home_market"])))
         JuMP.@constraint(pm.model, p_dc_fr + p_dc_to == 0)
+
     #else
     #    println("p_rateA")
     #    println(p_rateA)

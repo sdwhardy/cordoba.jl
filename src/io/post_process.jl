@@ -1,4 +1,119 @@
 ############################ figures ##################################
+############### pre simulation 
+function map_Of_Connections_ACDCNTC(data, s)
+    nodes = s["nodes"]
+    nodes_ntc = DataFrames.DataFrame(XLSX.readtable(s["rt_ex"]*"input.xlsx", "nodes_ntc")...)
+    _map_of_connections_ACDCNTC=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
+    for (key,br) in data["branch"]
+        df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
+        df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
+        mva=first(s["xd"]["branch"][key]["rateA"])
+        from=string(df_fr_ac.country)*string(df_fr_ac.type)
+        to=string(df_to_ac.country)*string(df_to_ac.type)
+        push!(_map_of_connections_ACDCNTC,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+    end
+
+    cvs=data["convdc"]
+    for (key_br,br) in data["branchdc"]
+        df_fr_dc=DataFrames.DataFrame()
+        df_to_dc=DataFrames.DataFrame()
+        for (key_cv,cv) in cvs; 
+            if (br["fbusdc"]==cv["busdc_i"]);
+                df_fr_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :];
+            elseif (br["tbusdc"]==cv["busdc_i"]);
+                df_to_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :]; 
+            end
+        end
+            mva=first(s["xd"]["branchdc"][key_br]["rateA"])
+        if (br["status"]==0)#candidate HVDC
+            from=string(df_fr_dc.country)*string(df_fr_dc.type)
+            to=string(df_to_dc.country)*string(df_to_dc.type)
+            push!(_map_of_connections_ACDCNTC,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+        elseif (br["status"]==1)#NTC    
+            df_fr_ntc=nodes_ntc[only(findall(==(df_fr_dc["country"]), nodes_ntc.country)), :]
+            df_to_ntc=nodes_ntc[only(findall(==(df_to_dc["country"]), nodes_ntc.country)), :]
+            from=string(df_fr_ntc.country)
+            to=string(df_to_ntc.country)
+            push!(_map_of_connections_ACDCNTC,[from,to,df_fr_ntc.lat,df_fr_ntc.long,df_to_ntc.lat,df_to_ntc.long,mva,"NTC"])
+        end
+    end
+    return _map_of_connections_ACDCNTC
+end
+
+function problemINPUT_map(data, s, txt_x=1)
+    nodes = s["nodes"]
+    df_map=map_Of_Connections_ACDCNTC(data, s)
+    println(df_map)
+
+    #country node display    
+    countries=filter(:type => !=(0), s["nodes"])        
+    markerCNT = PlotlyJS.attr(size=[15*txt_x],
+                color="green")
+
+    #country legend
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerCNT)  for row in eachrow(countries)]
+
+    #OWPP node display 
+    owpps=filter(:type => ==(0), s["nodes"])           
+    markerWF = PlotlyJS.attr(size=[15*txt_x],
+                color="navy")
+
+    #windfarm legend
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerWF)  for row in eachrow(owpps)]
+
+    #windfarm legend
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerWF)  for row in eachrow(owpps)]
+    
+     #DC line display
+     lineDC = PlotlyJS.attr(width=1*txt_x,color="black",dash="dash")
+
+     #DC line legend
+     traceDC=[PlotlyJS.scattergeo(;mode="lines",
+                     lat=[row.lat_fr,row.lat_to],
+                     lon=[row.long_fr,row.long_to],line=lineDC) 
+                     for row in eachrow(df_map) if (row[:type]=="DC")]
+
+    #AC line display
+    lineAC = PlotlyJS.attr(width=1*txt_x,color="red",dash="dash")
+
+    #DC line legend
+    traceAC=[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,row.lat_to],
+    lon=[row.long_fr,row.long_to],line=lineAC) 
+    for row in eachrow(df_map) if (row[:type]=="AC")]
+
+    #NTC line display
+    lineNTC = PlotlyJS.attr(width=1*txt_x,color="blue")
+
+    #NTC line legend
+    traceNTC=[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,row.lat_to],
+    lon=[row.long_fr,row.long_to],line=lineNTC) 
+    for row in eachrow(df_map) if (row[:type]=="NTC")]    
+
+    #combine plot data                
+    #trace=vcat(traceCNT,traceWF,traceDC,traceAC)
+    trace=vcat(traceCNT,traceWF,traceNTC,traceDC,traceAC)
+    #trace=vcat(traceCNT,traceWF)
+
+    #set map location
+    geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
+
+    #plot layput
+    layout = PlotlyJS.Layout(geo=geo,geo_resolution=50, width=1000, height=1100, 
+    #legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=25*txt_x),bgcolor= "#1C00ff00"), 
+    margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+
+    #display plot
+    PlotlyJS.plot(trace, layout)
+end
+#######################################################################
 #input results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_rc.jld2")
 #s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=summarize_in_s(results_nodal);
 #topology_map(s_nodal, 1.75)
@@ -116,8 +231,8 @@ function topology_map(s, txt_x=1)
                 for row in eachrow(tinf["ac"])]
     
     #combine plot data                
-    #trace=vcat(traceCNT,traceWF,traceDC,traceAC)
-    trace=vcat(traceCNT,traceWF)
+    trace=vcat(traceCNT,traceWF,traceDC,traceAC)
+    #trace=vcat(traceCNT,traceWF)
 
     #set map location
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")

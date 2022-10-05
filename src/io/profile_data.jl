@@ -420,6 +420,8 @@ end
 #println(keys(s["xd"]["gen"]["101"]))
 #println(keys(all_gens["onshore"]["BE"]["Solar PV"]))
 #multi period problem setup
+#data["convdc"]
+#extradata["convdc"]
 function multi_period_setup_wgen_type(scenario_data,data, all_gens, s)
     #################### Multi-period input parameters #######################
     data, s = multi_period_stoch_year_setup_wgen_type(s,data);
@@ -1478,9 +1480,11 @@ function create_profile_sets_rest_wgen_type(extradata, data_orig, s)
                 if issubset([parse(Int64,c)],s["onshore_nodes"])
                     #println(c*" onshore node")
                     extradata["convdc"][c]["Pacmax"][1, d] = s["conv_lim_onshore"]/pu
-                else
+                elseif issubset([parse(Int64,c)],s["offshore_nodes"])
                     #println(c*" offshore node")
                     extradata["convdc"][c]["Pacmax"][1, d] = s["conv_lim_offshore"]/pu
+                else
+                    extradata["convdc"][c]["Pacmax"][1, d] = data_orig["convdc"][c]["Pacmax"]
                 end
         end
     end

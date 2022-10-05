@@ -38,7 +38,9 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             elseif (haskey(pm.setting,"onshore_grid") && pm.setting["onshore_grid"]==true)
                 push!(vacp,variable_acbranch_peak(pm; nw = n))
                 variable_branch_power(pm; nw = n)#CREATES real and imaginary branch power variables, sets upper and lower limits and initial values
-                _PMACDC.variable_active_dcbranch_flow(pm; nw = n)#CREATES pdcgrid for each branchdc and bounds between +/- rateA
+                #_PMACDC.variable_active_dcbranch_flow(pm; nw = n)#CREATES pdcgrid for each branchdc and bounds between +/- rateA
+                push!(vdp,variable_dcbranch_peak(pm; nw = n))
+                variable_active_dcbranch_flow(pm; nw = n)
             else
                 _PM.variable_branch_power(pm; nw = n)#CREATES real and imaginary branch power variables, sets upper and lower limits and initial values
                 _PMACDC.variable_active_dcbranch_flow(pm; nw = n)#CREATES pdcgrid for each branchdc and bounds between +/- rateA
@@ -82,7 +84,6 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
         constraint_t0t1(vcp,pm)
         sort!(vgp, by = x -> x[1])
         constraint_t0t1_wfz(vgp,pm)
-
     #CONSTRAINTS: defined within PowerModels(ACDC) can directly be used, other constraints need to be defined in the according sections of the code: flexible_demand.jl
         for n in _PM.nw_ids(pm)
             _PM.constraint_model_voltage(pm; nw = n)
@@ -101,7 +102,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                             constraint_power_balance_acne_dcne_strg(pm, i; nw = n)
                         end
                     else
-                        constraint_power_balance_acne_dcne_strg(pm, i; nw = n)
+                       constraint_power_balance_acne_dcne_strg(pm, i; nw = n)
                     end
                 end
             end
@@ -140,7 +141,8 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                         _PMACDC.constraint_power_balance_dc_dcne(pm, i; nw = n)
                     end
                 else
-                    _PMACDC.constraint_power_balance_dc_dcne(pm, i; nw = n)
+                    #println("entering!!!!!!!!!!!!!!!!!!!")
+                    constraint_power_balance_dc_dcne(pm, i; nw = n)
                 end
             end
 
@@ -160,7 +162,8 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
                         _PMACDC.constraint_power_balance_dcne_dcne(pm, i; nw = n)
                     end
                 else
-                    _PMACDC.constraint_power_balance_dcne_dcne(pm, i; nw = n)
+                    #println("entering222!!!!!!!!!!!!!!!!!!!")
+                    constraint_power_balance_dcne_dcne(pm, i; nw = n)
                end
             end
 
@@ -179,6 +182,7 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
 
             dc_candidates_in_corridor=[]
             for i in _PM.ids(pm, n, :branchdc_ne)
+                #println("!!!!!!!!!!!! entrering333 !!!!!!!!!!!!!!!!!!")
                 constraint_ohms_dc_branch_ne(pm, i; nw = n)#NOTE change for Zonal market
                 _PMACDC.constraint_branch_limit_on_off(pm, i; nw = n)
                 push!(dc_candidates_in_corridor,collect_4_constraint_candidate_corridor_limit_dc(pm, i; nw = n))
