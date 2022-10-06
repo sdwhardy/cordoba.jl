@@ -1,5 +1,5 @@
 
-
+#=
 s = Dict(
 "rt_ex"=>pwd()*"\\test\\data\\input\\onshore_grid\\",#folder path
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",
@@ -30,14 +30,26 @@ s = Dict(
 "process_data_internally" => false,
 "corridor_limit" => true,
 "onshore_grid"=>true)
+s_z=deepcopy(s)
+
 s["home_market"]=[]
-mn_data, data, s = data_setup_nodal(s);
-problemINPUT_map(data, s)
-gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#, "MIPGap"=>5e-4)#select solver
+mn_data, data, s = data_setup(s);
+gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 10)#, "MIPGap"=>5e-4)#select solver
 result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#
+problemINPUT_map(data, s)
+print_mn_data(mn_data,s)
+
+s_z["home_market"]=[[1,8,13],[3,9],[4,11],[5,10],[6,12]]
+hm=deepcopy(s_z["home_market"]);
+mn_data_z, data_z, s_z = data_setup(s_z);#Build data structure for given options
+
+gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1);#select solver
+result_mip_z = cordoba_acdc_wf_strg(mn_data_z, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s_z);#Solve problem
+problemINPUT_map(data_z, s_z)
+print_mn_data(mn_data_z,s_z)
 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
-print_solution_wcost_data(result_mip, s, data)
+print_solution_wcost_data(result_mip_z, s_z, data_z)
 dk_gen_load=InitialD_FinalD_ReDispatch(results)#generators
 #Get Dataframe of the bus numbers of each generator
 country="DK"
@@ -52,7 +64,7 @@ c=sum.(eachrow(dk_gen_load["FD"][!,Symbol.([string(k) for k=s["map_gen_types"]["
 a+b+c
 print_mn_data(mn_data,s)=#
 ################################ zonal/nodal market models main function #####################################
-function social_welfare(s)
+#=function social_welfare(s)
     if (length(s["home_market"])>0)
         result_mip, data, mn_data, s, result_mip_hm_prices = zonal_market_main(s)
         results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s, "result_mip_hm_prices"=>result_mip_hm_prices)
@@ -62,15 +74,16 @@ function social_welfare(s)
     end
     s["cost_summary"]=print_solution_wcost_data(result_mip, s, data)
     return results
-end
+end=#
 
-function zonal_market_main(s)
+function zonal_market_main(mn_data, data, s)
     hm=deepcopy(s["home_market"]);
-    mn_data, data, s = data_setup_zonal(s);#Build data structure for given options
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1);#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);#Solve problem
     #print_solution_wcost_data(result_mip, s, data);
-    mn_data, data, s = data_setup_nodal(s);#Build data structure for given options
+    s["home_market"]=[]
+    mn_data, data, s = data_setup(s);#Build data structure for given options
+    s["home_market"]=hm
     mn_data, s = set_inter_zonal_grid(result_mip,mn_data,s);
     s["home_market"]=[]
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
@@ -90,14 +103,13 @@ function zonal_market_main(s)
     s, mn_data= remove_integers(result_mip,mn_data,data,s);
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
-    return result_mip, data, mn_data, s, result_mip_hm_prices
+    results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s, "result_mip_hm_prices"=>result_mip_hm_prices)
+    return results
 end
 #####################
 
-function nodal_market_main(s)
-    mn_data, data, s = data_setup_nodal(s);
-    problemINPUT_map(data, s, txt_x=1)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "MIPGap"=>2e-2)#select solver
+function nodal_market_main(mn_data, data, s)
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 79000)#, "MIPGap"=>9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
@@ -108,7 +120,8 @@ function nodal_market_main(s)
     mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
     s, mn_data= remove_integers(result_mip,mn_data,data,s);
     result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem=#
-    return result_mip, data, mn_data, s
+    results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
+    return results
 end
 
 ############
@@ -158,7 +171,7 @@ function print_mn_data(mn_data,s)
         wf=mn_data["nw"]["1"]["gen"][wfn] 
         println("pmax "*string(wf["pmax"])*" cost "*string(wf["invest"])*" status "*string(wf["gen_status"])*" ID "*string(wf["source_id"])*" bus "*string(wf["gen_bus"]))    
        # println(s["xd"]["gen"][string(wfn)])
-    end#=
+    end
     println("!!!!!!!!!! ACBus !!!!!!!!!!!!!!!!!!!!")
     for c in sort!(parse.(Int64,keys(mn_data["nw"]["1"]["bus"]))) 
         println(c)
@@ -171,9 +184,9 @@ function print_mn_data(mn_data,s)
     for c in sort!(parse.(Int64,keys(mn_data["nw"]["1"]["busdc"])))
         #println(c) 
         cv=mn_data["nw"]["1"]["busdc"][string(c)]
-        println("busdc_i "*string(cv["busdc_i"])*" busac_i "*string(cv["busac_i"])*" grid "*string(cv["grid"])*" ID "*string(cv["source_id"]))    
+        println("busdc_i "*string(cv["busdc_i"])*" busac_i "*" grid "*string(cv["grid"])*" ID "*string(cv["source_id"]))    
        # println(mn_data["nw"]["1"]["busdc"][string(c)]==mn_data["nw"]["2"]["busdc"][string(c)]==mn_data["nw"]["3"]["busdc"][string(c)]==mn_data["nw"]["4"]["busdc"][string(c)])
-    end=#
+    end
 end
 ###########
 
@@ -1362,7 +1375,7 @@ function data_update(s,result_mip)
     return  mn_data, data, s
 end
 #data["bus"]["4"]
-function data_setup_nodal(s)
+#=function data_setup_nodal(s)
     data, s = get_topology_data(s)#topology.m file
     scenario_data = get_scenario_data(s)#scenario time series
 	###########################################################################
@@ -1370,35 +1383,9 @@ function data_setup_nodal(s)
     #################### Calculates cable options for AC lines
     data = AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
     ###########################################################################
-   #= println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    data["ne_branch"]["1"]["construction_cost"]=data["ne_branch"]["1"]["construction_cost"]*100
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")=#
     #################### Calculates cable options for DC lines
     data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
     ###########################################################################
-    #=println("!!!!!!!!!!!!!! careful!!! DC cable price set to Zero!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    data["branchdc_ne"]["1"]["cost"]=0.0
-    data["branchdc_ne"]["2"]["cost"]=0.0
-    data["convdc"]["1"]["cost"]=0.0
-    data["convdc"]["2"]["cost"]=0.0
-    data["convdc"]["3"]["cost"]=0.0
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! AC cable price set to Infinity!!!!!!!!!!!!!!!!!")
-    println("!!!!!!!!!!!!!! careful!!! DC cable price set to Zero !!!!!!!!!!!!!!!!!")=#
     ####################################################################################
     #if (haskey(s, "wf_circuit") && length(s["wf_circuit"])>0);data=keep_only_hm_cables(s,data);end#if home market reduce to only those in
     additional_params_PMACDC(data)
@@ -1411,11 +1398,12 @@ function data_setup_nodal(s)
     mn_data, s  = multi_period_setup_wgen_type(scenario_data, data, all_gens, s);
 	push!(s,"max_invest_per_year"=>max_invest_per_year(s))
     return  mn_data, data, s
-end
+end=#
 #mn_data["nw"]
 #s["xd"]["branch"]["112"]["pmin"]
 #scenario_data["Demand"]["Base"]["2020"]
-function data_setup_zonal(s)
+
+function data_setup(s)
     data, s = get_topology_data(s)#topology.m file
     scenario_data = get_scenario_data(s)#scenario time series
 	###########################################################################

@@ -173,43 +173,44 @@ function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, is::Set
         if (i==1);bus_arcs_dcgrid=PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v)
         else;bus_arcs_dcgrid=vcat(bus_arcs_dcgrid,PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v))
         end;end
-       # println("bus_arcs_dcgrid")
+        #println("bus_arcs_dcgrid")
         #println(bus_arcs_dcgrid)
         bus_arcs_dcgrid=[a for a in bus_arcs_dcgrid if !(issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
     
       # println(bus_arcs_dcgrid)
     #for (l,i,j) in bus_arcs_dcgrid; println(l);print(" ");print(i);print(" ");print(j);println()
     #end
+    #println("bus_arcs_dcgrid2")
 
     bus_arcs_dcgrid_ne=[];for (i,v) in enumerate(is);
 
         if (i==1);bus_arcs_dcgrid_ne=PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, v)
         else;bus_arcs_dcgrid_ne=vcat(bus_arcs_dcgrid_ne,PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne, v))
         end;end
-    #println("bus_arcs_dcgrid_ne")
+  #  println("bus_arcs_dcgrid_ne")
     bus_arcs_dcgrid_ne=[a for a in bus_arcs_dcgrid_ne if !(issubset([a[2]],is) && issubset([a[3]],is))] #println(string(a[1])*" "*string(a[2])*" "*string(a[3]))
     #end;end
-    #println(bus_arcs_dcgrid_ne)
+   # println(bus_arcs_dcgrid_ne)
 
     bus_convs_dc=[];for (i,v) in enumerate(is);
         if (i==1);bus_convs_dc=PowerModels.ref(pm, nw, :bus_convs_dc, v)
         else;bus_convs_dc=vcat(bus_convs_dc,PowerModels.ref(pm, nw, :bus_convs_dc, v))
         end;end
-#    println("bus_convs_dc")
+    #println("bus_convs_dc")
 #    println(bus_convs_dc)
 
     bus_convs_dc_ne=[];for (i,v) in enumerate(is);
         if (i==1);bus_convs_dc_ne=PowerModels.ref(pm, nw, :bus_convs_dc_ne, v)
         else;bus_convs_dc_ne=vcat(bus_convs_dc_ne,PowerModels.ref(pm, nw, :bus_convs_dc_ne, v))
         end;end
-#    println("bus_convs_dc_ne")
+    #println("bus_convs_dc_ne")
 #    println(bus_convs_dc_ne)
 
     pd=[];for (i,v) in enumerate(is);
         if (i==1);pd=PowerModels.ref(pm, nw, :busdc, v)["Pdc"]
         else;pd=vcat(pd,PowerModels.ref(pm, nw, :busdc, v)["Pdc"])
         end;end
-#    println("pd")
+    #println("pd")
 #    println(pd)
 
     if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
@@ -226,7 +227,7 @@ function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, n::Int,
     p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
     pconv_dc = _PM.var(pm, n, :pconv_dc)
     pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
-
+    #println(p_dcgrid_ne)
     cstr=JuMP.@constraint(pm.model, sum(p_dcgrid[a] for a in bus_arcs_dcgrid) + sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc[c] for c in bus_convs_dc) + sum(pconv_dc_ne[c] for c in bus_convs_dc_ne)  == -1*sum(pd))
     #println(cstr)
     if _IM.report_duals(pm)

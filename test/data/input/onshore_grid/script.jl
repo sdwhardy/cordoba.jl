@@ -39,8 +39,10 @@ s = Dict(
 #[println(result_mip["result_mip"]["solution"]["nw"][string(k)]["branch"]["5"]["pt"]) for k=1:1:32]
 ######################### Nodal market #########################
 s["home_market"]=[]
-@time result_mip=_CBD.social_welfare(s)#-3359431 -33899162 0.89%
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_NORTH_SEA_2gap.jld2",result_mip)
+mn_data, data, s = _CBD.data_setup(s);
+@time result = _CBD.nodal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
+result["s"]["cost_summary"]=_CBD.print_solution_wcost_data(result["result_mip"], result["s"], result["data"])
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_NORTH_SEA_0gap.jld2",result)#09gap was good one
 ######################### Zonal market #########################
 #s["home_market"]=[[2,5],[3,6],[4,7]]
 s["home_market"]=[[5,6,7]]

@@ -1,7 +1,7 @@
 ################## loads external packages ##############################
 using Test
 
-include("data/input/UK_DE_DK/test_script.jl")
+include("data/input/test/test_script_full.jl")
 ##################### File parameters #################################
 
-@test isapprox(main_test(), -3.4539576650664983e6; atol = 0.1) 
+@test isapprox(main_test(), -5.808978079364737e6; atol = 0.1) 
