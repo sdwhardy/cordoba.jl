@@ -32,22 +32,6 @@ function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerM
 end
 
 #Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
-#=function objective_min_cost_acdc_convex_conv_wgentypes_npv(pm::_PM.AbstractPowerModel)
-    return JuMP.@objective(pm.model, Min,
-        sum(pm.ref[:scenario_prob][s] *
-            sum(
-                calc_gen_cost_wgentypes(pm, n)
-                + calc_convdc_convexafy_cost_npv(pm, n)
-                + calc_branch_cost_npv(pm, n)
-                + calc_branchdc_cost_npv(pm, n)
-                + calc_storage_cost_cordoba_npv(pm, n)
-                + calc_wf_cost_npv(pm, n)
-            for (sc, n) in scenario)
-        for (s, scenario) in pm.ref[:scenario])
-    )
-end=#
-
-#Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
 function objective_min_cost_acdc_convex_allcble_strg_npv(pm::_PM.AbstractPowerModel)
     return JuMP.@objective(pm.model, Min,
         sum(pm.ref[:scenario_prob][s] *
@@ -93,7 +77,6 @@ function calc_gen_cost_wgentypes(pm::_PM.AbstractPowerModel, n::Int)
     function calc_single_gen_cost(i, g_cost)
         len = length(g_cost)
         cost = 0.0
-        #println("gen: "*string(i))
         if len >= 1
             cost = g_cost[len] # Constant term
             if len >= 2
@@ -106,7 +89,6 @@ function calc_gen_cost_wgentypes(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_load_cost(i, g_cost)
         cost=0
-        #println("load: "*string(i)*" "*string(g_cost))
         cost += g_cost * _PM.var(pm,n,:pg,i) # Adds linear term
 
         return cost
@@ -133,17 +115,12 @@ function calc_convdc_convexafy_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
     convdc0 = _PM.ref(pm, n, :convdc)
 
     if (_yr<yl)
-        #println("if "*string(n)*" "*string(hl)*" "*string(yl)*" "*string(_yr))
         convdc1 = _PM.ref(pm, n+hl, :convdc)
         cost = sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][n],n) for (i,b) in convdc0)
-        #println(cost)
         cost = cost-sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][n+hl],n) for (i,b) in convdc1)
-        #println(cost)
     else
-        #println("else "*string(n)*" "*string(hl)*" "*string(yl)*" "*string(_yr))
         cost = sum(calc_single_convdc_cost_npv(i,pm.setting["xd"]["convdc"][string(i)]["cost"][n],n) for (i,b) in convdc0)
     end
-    #println(cost)
     return cost
 end
 
@@ -220,7 +197,6 @@ function calc_branch_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
     else
         cost=0
     end
-    #println(cost)
     return cost
 end
 
@@ -254,9 +230,7 @@ function calc_ne_branch_cost(pm::_PM.AbstractPowerModel, n::Int)
     if haskey(_PM.ref(pm, n), :ne_branch)
         ne_branch = _PM.ref(pm, n, :ne_branch)
         if !isempty(ne_branch)
-            #println(_PM.var(pm, n, :branch_ne, i) for (i,branch) in ne_branch)
             cost = sum(pm.setting["xd"]["ne_branch"][string(i)]["construction_cost"][n]*_PM.var(pm, n, :branch_ne, i) for (i,branch) in ne_branch)
-            #println(cost)
         end
     end
     return cost
@@ -268,9 +242,7 @@ function calc_branchdc_ne_cost(pm::_PM.AbstractPowerModel, n::Int)
     if haskey(_PM.ref(pm, n), :branchdc_ne)
         branchdc_ne = _PM.ref(pm, n, :branchdc_ne)
         if !isempty(branchdc_ne)
-            #println(_PM.var(pm, n, :branchdc_ne, i) for (i,branch) in branchdc_ne)
             cost = sum(pm.setting["xd"]["branchdc_ne"][string(i)]["cost"][n]*_PM.var(pm, n, :branchdc_ne, i) for (i,branch) in branchdc_ne)
-            #println(cost)
         end
     end
     return cost

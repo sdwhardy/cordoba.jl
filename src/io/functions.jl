@@ -86,7 +86,7 @@ function zonal_market_main(mn_data, data, s)
     s["home_market"]=hm
     mn_data, s = set_inter_zonal_grid(result_mip,mn_data,s);
     s["home_market"]=[]
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 75000)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     s["home_market"]=hm
@@ -109,7 +109,7 @@ end
 #####################
 
 function nodal_market_main(mn_data, data, s)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 79000)#, "MIPGap"=>9e-3)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 75000)#, "MIPGap"=>9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
@@ -198,16 +198,30 @@ function nodal2zonal(s,result_mip,zones)
     s["output"]["duals"]=true
     mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
     mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
-    s, mn_data= remove_integers(result_mip,mn_data,data,s);
+    s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
     result_mip_hm_prices = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     s["home_market"]=[]
     mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
     mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
-    s, mn_data= remove_integers(result_mip,mn_data,data,s);
+    s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
     return result_mip, data, mn_data, s, result_mip_hm_prices
 end
+
+function zonal2nodal(s,result_mip)
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+    s["rebalancing"]=true
+    s["relax_problem"]=true
+    s["output"]["duals"]=true
+    s["home_market"]=[]
+    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
+    s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
+    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    return result_mip, data, mn_data, s
+end
+
 
 #=
 function nodal_market_mainA(s)
@@ -625,7 +639,6 @@ function candidateIC_cost_impedance_AC(bac,z_base,s_base)
     bac["rate_c"]=bac["rate_b"]=bac["rate_a"]=(cb.num*cb.elec.mva)/s_base
     return bac
 end
-
 #for each existing AC line capacity an appropriate cable is selected and characteristics stored
 function IC_cost_impedance_AC(bac,z_base,s_base)
     cb=_ECO.AC_cbl(bac["rateA"], bac["length"])
@@ -1187,6 +1200,46 @@ function remove_integers(result_mip,mn_data,data,s)
     return s, mn_data
 end
 
+function remove_integers_new_market(result_mip,mn_data,data,s)
+    for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+        for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
+            
+            #dc cables
+            for (bs,brs) in result_mip["solution"]["nw"][string(ts)]["branchdc"];
+                if (brs["p_rateA"]>0.5)
+                    brd=data["branchdc"][bs]
+                    for (b_ne,br_ne) in data["branchdc_ne"]
+                        if (brd["fbusdc"]==br_ne["fbusdc"] && brd["tbusdc"]==br_ne["tbusdc"] && (brs["p_rateA"] <= br_ne["rateA"]+1 && br_ne["rateA"]-1 <= brs["p_rateA"]))
+                            s["xd"]["branchdc"][bs]["rateA"][1,ts]=brs["p_rateA"]
+                            s["xd"]["branchdc"][bs]["r"][1,ts]=br_ne["r"]
+                            s["xd"]["branchdc"][bs]["cost"][1,ts]=0.0;
+                        end
+                    end;
+                else
+                    s["xd"]["branchdc"][bs]["rateA"][1,ts]=0.0
+                    s["xd"]["branchdc"][bs]["cost"][1,ts]=0.0;
+                end;
+            end;
+
+            #ac cables
+            for (bs,brs) in result_mip["solution"]["nw"][string(ts)]["branch"];
+                if (brs["p_rateAC"]>0.5)
+                    brd=data["branch"][bs]
+                    for (b_ne,br_ne) in data["ne_branch"]
+                        if (brd["f_bus"]==br_ne["f_bus"] && brd["t_bus"]==br_ne["t_bus"] && (brs["p_rateAC"] <= br_ne["rate_a"]+1 && br_ne["rate_a"]-1 <= brs["p_rateAC"]))
+                            s["xd"]["branch"][bs]["rateA"][1,ts]=brs["p_rateAC"]
+                            s["xd"]["branch"][bs]["br_r"][1,ts]=br_ne["br_r"]
+                            s["xd"]["branch"][bs]["cost"][1,ts]=0.0;
+                        end
+                    end;
+                else
+                    s["xd"]["branch"][bs]["rateA"][1,ts]=0.0
+                    s["xd"]["branch"][bs]["cost"][1,ts]=0.0;
+                end;
+            end;
+    end;end
+    return s, mn_data
+end
 
 
 function set_intra_zonal_grid(result_mip,mn_data,s)

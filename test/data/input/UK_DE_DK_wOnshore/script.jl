@@ -37,11 +37,13 @@ s = Dict(
 "onshore_grid"=>true)
 ########################################################################
 #0.0066 - branch
+_CBD.problemINPUT_map(data, s)
 ##################################### HM market 
 ################## Run MIP Formulation ###################
 #NOTE only very basic intuitive check passed on functions wgen_type
 s["home_market"]=[]
-@time result_mip, data, mn_data, s = _CBD.nodal_market_main(s);
+mn_data, data, s = _CBD.data_setup(s);
+@time result = _CBD.nodal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
 _CBD.print_solution_wcost_data(result_mip, s, data)#-856896.0245340846 
 results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_onShore30convs.jld2",results)

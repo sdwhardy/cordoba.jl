@@ -1,4 +1,4 @@
-#Main logic for ADMM
+#=Main logic for ADMM
 function admm_4_AjAwAgAuAo_main(mn_data, gurobi, s)
     results_set=[]
     eps=s["eps"]#set max value of residual for convergence
@@ -378,3 +378,4 @@ function fix_branchesac(pm, n)#set branch vars
         end
     end
 end
+=#

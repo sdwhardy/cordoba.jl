@@ -8,19 +8,12 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
     if bounded
         for (s, gen) in _PM.ref(pm, nw, :gen)
             if issubset([s],first.(pm.setting["wfz"]))
-                ########################################
                 if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
                     JuMP.set_lower_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
                     JuMP.set_upper_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
                 else
-                    
-              
-                #println(pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
-                ########################################
                 JuMP.set_lower_bound(wf_pacmax[s],  0)
-                #JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s-length(pm.setting["genz"])/2)]))
                 JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s+1-minimum(first.(pm.setting["wfz"])))]))
-                #######################################
                 end
             end
         end
@@ -58,27 +51,6 @@ function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bou
     report && _IM.sol_component_value(pm, nw, :gen, :pg, _PM.ids(pm, nw, :gen), pg)
 end
 
-#=function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
-    pg = _PM.var(pm, nw)[:pg] = JuMP.@variable(pm.model,
-        [i in _PM.ids(pm, nw, :gen)], base_name="$(nw)_pg",
-        start = _PM.comp_start_value(_PM.ref(pm, nw, :gen, i), "pg_start")
-    )
-
-    if bounded
-        for (i, gen) in _PM.ref(pm, nw, :gen)
-            if issubset([i],first.(pm.setting["genz"]))
-                JuMP.set_lower_bound(pg[i], gen["pmin"])
-                JuMP.set_upper_bound(pg[i], gen["pmax"])
-            elseif issubset([i],first.(pm.setting["wfz"]))
-                wf_pacmax = _PM.var(pm, nw, :wf_pacmax, i)
-                JuMP.@constraint(pm.model, pg[i]-gen["pmax"]*wf_pacmax  <= 0)
-                JuMP.@constraint(pm.model, pg[i]+gen["pmin"]  >= 0)
-            end
-        end
-    end
-    report && _IM.sol_component_value(pm, nw, :gen, :pg, _PM.ids(pm, nw, :gen), pg)
-end=#
-
 #generator imaginary power + constraints
 function variable_gen_power_imaginary(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     qg = _PM.var(pm, nw)[:qg] = JuMP.@variable(pm.model,
@@ -105,24 +77,12 @@ function variable_convdc_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounde
 
     if bounded
         for (s, convdc) in _PM.ref(pm, nw, :convdc)
-            if (nw>1)
-                #p_rateA0 = _PM.var(pm, nw-1, :p_rateA, s)
-                #println("p_rateA0: ")
-                #println(p_rateA0)
-            end
-            #println("p_rateA[s]: ")
-            #println(p_rateA[s])
-            ########################################
             if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
                 JuMP.set_lower_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
             else
                 JuMP.set_lower_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmin"][nw])
             end
-            #println(pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
-            #println(pm.setting["ic_lim"])
             JuMP.set_upper_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
-            #JuMP.set_upper_bound(p_pacmax[s],  pm.setting["ic_lim"])
-            #######################################
         end
     end
 
@@ -166,36 +126,16 @@ function variable_storage_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bound
 
     if bounded
         for (s, strg) in _PM.ref(pm, nw, :storage)
-            #println("p_rateA[s]: ")
-            #println(p_rateA[s])
-            #if issubset([s],first.(pm.setting["onshore_nodes"]))
-                #println("onshore battery: "*string(s))
-                ########################################
-                if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
-                    JuMP.set_lower_bound(e_absmax[s],  pm.setting["xd"]["storage"][string(s)]["pmax"][nw])
-                else
-                    JuMP.set_lower_bound(e_absmax[s],  pm.setting["xd"]["storage"][string(s)]["pmin"][nw])
-                end
-                #println(pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
-                #println(pm.setting["ic_lim"])
-                JuMP.set_upper_bound(e_absmax[s],  pm.setting["xd"]["storage"][string(s)]["pmax"][nw])
-                
-                #JuMP.set_lower_bound(e_absmax[s],  0)
-                #JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_onshore"])
-                #######################################
-            #elseif issubset([s],first.(pm.setting["offshore_nodes"]))
-                #println("offshore battery: "*string(s))
-                ########################################
-               # JuMP.set_lower_bound(e_absmax[s],  0)
-                #JuMP.set_upper_bound(e_absmax[s],  pm.setting["strg_lim_offshore"])
-                #######################################
-            #end
-
+            if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
+                JuMP.set_lower_bound(e_absmax[s],  pm.setting["xd"]["storage"][string(s)]["pmax"][nw])
+            else
+                JuMP.set_lower_bound(e_absmax[s],  pm.setting["xd"]["storage"][string(s)]["pmin"][nw])
+            end
+            JuMP.set_upper_bound(e_absmax[s],  pm.setting["xd"]["storage"][string(s)]["pmax"][nw])
         end
     end
 
     report && _IM.sol_component_value(pm, nw, :storage, :e_absmax, _PM.ids(pm, nw, :storage), e_absmax)
-    #_IM.sol_component_value(pm, nw, :storage, :e_absmax, _PM.ids(pm, nw, :storage), e_absmax)
     return (nw,e_absmax)
 end
 
@@ -206,7 +146,6 @@ function variable_absorbed_energy(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bo
 
     for (s, strg) in _PM.ref(pm, nw, :storage)
         e_absmax = _PM.var(pm, nw, :e_absmax, s)
-        #JuMP.@constraint(pm.model, e_abs[s]-5000*e_absmax  <= 0)
         JuMP.@constraint(pm.model, e_abs[s]  >= 0)
     end
 
@@ -289,7 +228,6 @@ function variable_storage_discharge(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, 
         [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_sd",
         start = _PM.comp_start_value(_PM.ref(pm, nw, :storage, i), "sd_start", 1)
     )
-    #the discharge rate is full discharge in 2 hours - dr=0.5 in maths
     for (s, strg) in _PM.ref(pm, nw, :storage)
         e_absmax = _PM.var(pm, nw, :e_absmax, s)
         JuMP.@constraint(pm.model, sd[s]-e_absmax/2  <= 0)
@@ -304,7 +242,6 @@ function variable_storage_charge(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bou
         [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_sc",
         start = _PM.comp_start_value(_PM.ref(pm, nw, :storage, i), "sc_start", 1)
     )
-    #the charge rate is full charge in 4 hours - cr=0.25 in maths
     for (s, strg) in _PM.ref(pm, nw, :storage)
         e_absmax = _PM.var(pm, nw, :e_absmax, s)
         JuMP.@constraint(pm.model, sc[s]-e_absmax/4  <= 0)
@@ -366,17 +303,12 @@ function variable_dcbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
     start = 0)
     if bounded
         for (s, branchdc) in _PM.ref(pm, nw, :branchdc)
-            #######################################
             if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
                 JuMP.set_lower_bound(p_rateA[s],  pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw])
             else
                 JuMP.set_lower_bound(p_rateA[s],  0)
             end
-            #JuMP.set_upper_bound(p_rateA[s],  pm.setting["ic_lim"])
-           # println("prev upper limit: "*string(pm.setting["ic_lim"]))
-           # println("upper limit: "*string(pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw]))
             JuMP.set_upper_bound(p_rateA[s],  pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw])
-            #######################################
         end
     end
 
@@ -409,15 +341,12 @@ function variable_acbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
     start = 0)
     if bounded
         for (s, branch) in _PM.ref(pm, nw, :branch)
-            ########################################
             if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
                 JuMP.set_lower_bound(p_rateAC[s],  pm.setting["xd"]["branch"][string(s)]["rateA"][nw])
             else
                 JuMP.set_lower_bound(p_rateAC[s],  0)
             end
-            #JuMP.set_upper_bound(p_rateAC[s],  pm.setting["rad_lim"])
             JuMP.set_upper_bound(p_rateAC[s],  pm.setting["xd"]["branch"][string(s)]["rateA"][nw])
-            #######################################
         end
     end
 

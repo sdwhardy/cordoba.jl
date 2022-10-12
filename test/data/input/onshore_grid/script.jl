@@ -19,13 +19,13 @@ s = Dict(
 "yearly_investment"=>1000000,
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
-"owpp_mva"=>[4000,4000,6000,6000,8000],#mva of wf in MVA
+"owpp_mva"=>[4000,4000,4000,4000,4000],#mva of wf in MVA
 "conv_lim_onshore"=>3000,#Max Converter size in MVA
 "conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,
 "strg_lim_onshore"=>10,
 "candidate_ics_ac"=>[1,4/5,3/5],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[1,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+"candidate_ics_dc"=>[1,4/5,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
 ################## optimization/solver setup options ###################
 "output" => Dict("branch_flows" => false),
 "eps"=>0.0001,#admm residual (100kW)
@@ -36,20 +36,22 @@ s = Dict(
 "corridor_limit" => true,
 "onshore_grid"=>true)
 
-#[println(result_mip["result_mip"]["solution"]["nw"][string(k)]["branch"]["5"]["pt"]) for k=1:1:32]
+#[println(mn_data["nw"]["1"]["ne_branch"]["4"])["5"]["pt"]) for k=1:1:32]
 ######################### Nodal market #########################
 s["home_market"]=[]
 mn_data, data, s = _CBD.data_setup(s);
+_CBD.problemINPUT_map(data, s)
 @time result = _CBD.nodal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
 result["s"]["cost_summary"]=_CBD.print_solution_wcost_data(result["result_mip"], result["s"], result["data"])
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_NORTH_SEA_0gap.jld2",result)#09gap was good one
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\nodal_market_NORTH_SEA_4G.jld2",result)#09gap was good one
 ######################### Zonal market #########################
 #s["home_market"]=[[2,5],[3,6],[4,7]]
-s["home_market"]=[[5,6,7]]
-@time result_mip=_CBD.social_welfare(s)
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_567_k6_VOLL5000_wonshore4NL.jld2",result_mip)
+s["home_market"]=[[9,10,11,12,13]]
+mn_data, data, s = _CBD.data_setup(s);
+@time result = _CBD.zonal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonalOBZ_results_NORTH_SEA_0gap.jld2",result)
 ##################### Post processing ##########################                               
-results = FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonal_results_allhm_k6_VOLL5000_wonshore.jld2")
+results = FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonalOBZ_results_NORTH_SEA_0gap.jld2")
 s, result_mip, data, mn_data = _CBD.summarize_in_s(results);
 s, result_mip, data, mn_data = _CBD.summarize_zonal_in_s(results);
 

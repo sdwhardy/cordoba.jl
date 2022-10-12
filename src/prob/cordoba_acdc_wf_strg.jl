@@ -73,7 +73,6 @@ function post_cordoba_acdc_wf_strg(pm::_PM.AbstractPowerModel)
             sort!(vacp, by = x -> x[1])
             constraint_t0t1(vacp,pm)
         end
-
         sort!(vsp, by = x -> x[1])
         constraint_t0t1(vsp,pm)
         sort!(vbp, by = x -> x[1])

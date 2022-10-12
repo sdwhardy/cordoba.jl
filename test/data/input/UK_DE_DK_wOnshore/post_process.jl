@@ -10,7 +10,8 @@ results_14=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_
 results_24=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm24_VOLL5000_onShore30convs.jld2")
 results_34=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34_VOLL5000_onShore30convs.jld2")
 
-
+results=results_14
+_CBD.problemOUTPUT_map(results_34, 0.1, 0.1,1, 1)
 
 ######################################################
 #get dictionary of ID, FD, RDispatch
@@ -77,7 +78,7 @@ s_14, result_mip_14, data_14, mn_data_14=_CBD.summarize_zonal_in_s(results_14);
 s_24, result_mip_24, data_24, mn_data_24=_CBD.summarize_zonal_in_s(results_24);
 s_34, result_mip_34, data_34, mn_data_34=_CBD.summarize_zonal_in_s(results_34);
 
-_CBD.print_solution_wcost_data(result_mip_34, s_34, data_34)#-856896.0245340846
+_CBD.print_solution_wcost_data(result_mip_nodal, s_nodal, data_nodal)#-856896.0245340846
 _CBD.print_table_summary(s_nodal)
 _CBD.print_table_summary(s_14)
 _CBD.print_table_summary(s_24)
