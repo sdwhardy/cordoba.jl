@@ -32,12 +32,12 @@ mpc.baseMVA = 100;
 	%% branch data
 	%	fbus	tbus	r	       x	    b	  rateA	rateB	rateC	ratio	angle	status	angmin	angmax
 	mpc.branch = [
-1	2	0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60;
-1	3	0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60;
-1	4	0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60;
-2	3	0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60;
-2	4	0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60;
-3	4	0.0040   0.0400   0.00   0  0  0  0  0  0 -60  60;
+1	2	0.010   0.100   0.00   0  0  0  0  0  0 -60  60;
+1	3	0.010   0.100   0.00   0  0  0  0  0  0 -60  60;
+1	4	0.010   0.100   0.00   0  0  0  0  0  0 -60  60;
+2	3	0.010   0.100   0.00   0  0  0  0  0  0 -60  60;
+2	4	0.010   0.100   0.00   0  0  0  0  0  0 -60  60;
+3	4	0.010   0.100   0.00   0  0  0  0  0  0 -60  60;
 ];
 %%Additional generator fields, type=0(wind generator), type=1(onshore market ie load and generator created)
 	%column_names% 		cost
@@ -83,7 +83,7 @@ mpc.baseMVA = 100;
 	%% candidate dc bus data
 	%column_names%   busdc_i grid    Pdc     Vdc     basekVdc    Vdcmax  Vdcmin  Cdc
 	mpc.busdc_ne = [
-	8              4       0       1       300         1.1     0.9     0;
+	10000              4       0       1       300         1.1     0.9     0;
 	];
 %% existing dc branches
 	%column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB rateC cost status
@@ -120,7 +120,7 @@ mpc.baseMVA = 100;
 	%% candidate converters
 	%column_names%   busdc_i busac_i type_dc type_ac P_g   Q_g  islcc  Vtar    rtf   xtf  transformer tm   bf 	filter    rc     xc  reactor   basekVac Vmmax   Vmmin   Imax    status   LossA LossB  LossCrec LossCinv  droop     Pdcset    Vdcset  dVdcset Pacmax Pacmin Qacmax Qacmin cost
 	mpc.convdc_ne = [
-	                1000       3      1       1    400000    0   	0     1.0   0.001  0.1       0 			 1 	0.08 		0 		0.001   0.09 		0  				220    1.1     0.9    100000      1     	 0     0        0       0      0.0050    -52.7     1.0079     0  		1  -1   1    -1   1000000;
+	                1000       2      1       1    400000    0   	0     1.0   0.001  0.1       0 			 1 	0.08 		0 		0.001   0.09 		0  				220    1.1     0.9    100000      1     	 0     0        0       0      0.0050    -52.7     1.0079     0  		1  -1   1    -1   1000000;
 	];
  % hours
 	 mpc.time_elapsed = 1.0

@@ -78,7 +78,7 @@ end=#
 
 function zonal_market_main(mn_data, data, s)
     hm=deepcopy(s["home_market"]);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1);#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 36000);#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);#Solve problem
     #print_solution_wcost_data(result_mip, s, data);
     s["home_market"]=[]
@@ -86,7 +86,7 @@ function zonal_market_main(mn_data, data, s)
     s["home_market"]=hm
     mn_data, s = set_inter_zonal_grid(result_mip,mn_data,s);
     s["home_market"]=[]
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 75000)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 36000)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     s["home_market"]=hm
@@ -109,7 +109,7 @@ end
 #####################
 
 function nodal_market_main(mn_data, data, s)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 75000)#, "MIPGap"=>9e-3)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 54000)#, "MIPGap"=>9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver

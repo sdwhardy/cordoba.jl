@@ -176,8 +176,8 @@ function problemOUTPUT_map(results, lat_offset, long_offset, lo, la, txt_x=1)
     s=results["s"]
     nodes = s["nodes"]
     
-    #df_map=post_map_Of_Connections_ACDCNTC(results)
-    df_map=post_map_Of_Connections_ACDCNTC_ACgrid(results)
+    df_map=post_map_Of_Connections_ACDCNTC(results)
+    #df_map=post_map_Of_Connections_ACDCNTC_ACgrid(results)
     df_map["0"]
     for (k,_map) in df_map
     println(k)    
@@ -256,20 +256,20 @@ function problemOUTPUT_map(results, lat_offset, long_offset, lo, la, txt_x=1)
     traceAClabels=[PlotlyJS.scattergeo(;mode="text",
     lat=[(row.lat_fr+row.lat_to)/2-la*lat_offset],
     lon=[(row.long_fr+row.long_to)/2-lo*long_offset],text=[string(round(row.mva/10,digits = 1))*" GW"], 
-    textfont=PlotlyJS.attr(size=25*txt_x,color="red"), marker=lineACtext, textposition="right bottom") 
+    textfont=PlotlyJS.attr(size=25*txt_x,color="red"), marker=lineACtext, textposition="middle bottom") 
     for row in eachrow(df) if (row[:type]=="AC")]
 
     traceDClabels=[PlotlyJS.scattergeo(;mode="text",
     lat=[(row.lat_fr+row.lat_to)/2+la*lat_offset],
     lon=[(row.long_fr+row.long_to)/2+lo*long_offset],text=[string(round(row.mva/10,digits = 1))*" GW"], 
-    textfont=PlotlyJS.attr(size=25*txt_x,color="black"), marker=lineDCtext,textposition="left top") 
+    textfont=PlotlyJS.attr(size=25*txt_x,color="black"), marker=lineDCtext,textposition="middle top") 
     for row in eachrow(df) if (row[:type]=="DC")]    
            
 
     #combine plot data                
     #trace=vcat(traceCNT,traceWF,traceDC,traceAC)
-    #trace=vcat(traceCNT,traceWF,traceAC0,traceAC1,traceAC2,traceDC0,traceDC1,traceDC2,traceAClabels,traceDClabels)
-    trace=vcat(traceCNT,traceWF,traceAC0,traceAC1,traceAC2,traceDC0,traceDC1,traceDC2)
+    trace=vcat(traceCNT,traceWF,traceAC0,traceAC1,traceAC2,traceDC0,traceDC1,traceDC2,traceAClabels,traceDClabels)
+    #trace=vcat(traceCNT,traceWF,traceAC0,traceAC1,traceAC2,traceDC0,traceDC1,traceDC2)
     #trace=vcat(traceCNT,traceWF)
 
     #set map location
@@ -1413,20 +1413,13 @@ end
 
 
 function summarize_generator_solution_data(result_mip, data,s)#print solution
-    println("1")
 	gen_tbls=build_generator_tables(result_mip, data)
-    println("2")
 	gen_by_market=sort_by_country(gen_tbls,s)
-    println("3")
 	gen_by_offshore=sort_by_offshore(gen_tbls,s)
-    println("4")
 	load_by_market=sort_load_by_country(gen_tbls,s["map_gen_types"])
-    println("5")
 	gen_consume=Dict()
 	push!(gen_consume,"onshore_generation"=>gen_by_market)
-    println("6")
 	push!(gen_consume,"offshore_generation"=>gen_by_offshore)
-    println("7")
 	push!(gen_consume,"onshore_demand"=>load_by_market)
 	return gen_consume
 end
@@ -1527,8 +1520,8 @@ function build_generator_tables(result_mip, data)
 	return gen_per_scenario
 end
 ################################################# tabulating solution ####################################################
-
-function print_solution_wcost_data(result_mip, argz,data)
+function print_solution_wcost_data(result_mip, argz, data)
+    #result_mip["solution"]["nw"]=VOLL_clearing_price(result_mip["solution"]["nw"],argz)
     costs=Dict();insert=DataFrames.DataFrame(:from=>[],:to=>[],:mva=>[]);#template=Dict("ac"=>deepcopy(insert),"dc"=>deepcopy(insert))
     argz["topology"]=Dict("t0"=>Dict(),"t2"=>Dict(),"tinf"=>Dict())
     push!(argz["topology"]["t0"],"ac"=>deepcopy(insert));push!(argz["topology"]["t2"],"ac"=>deepcopy(insert));push!(argz["topology"]["tinf"],"ac"=>deepcopy(insert))
@@ -1555,6 +1548,58 @@ function print_solution_wcost_data(result_mip, argz,data)
     costs["capex_tinf"]=sum(c["tinf"]["all"] for (k,c) in costs_temp)
     costs["transmission"]=sum(c["all"] for (k,c) in costs_temp if (k != "storage" && k != "owpp"))
     argz["cost_summary"]=costs
+end
+
+function VOLL_clearing_price(rez,s, price_cap::Float64=180.0)
+    #constants
+    e2me=1000000/rez["1"]["baseMVA"]
+    base_year=parse(Int64,s["scenario_years"][1])
+    sl=s["scenarios_length"]
+    yl=s["years_length"]
+    hl=s["hours_length"]
+
+    #undo NPV and scaling
+    function undo_npv_hourly(x,current_yr)
+        cost = (1+s["dr"])^(current_yr-base_year) * x# npv
+        return deepcopy(cost)
+    end
+    
+    function undo_hourly_scaling(cost0)
+        cost=cost0*((hl*yl)/(8760*s["scenario_planning_horizon"]))*e2me
+        return deepcopy(cost)
+    end
+
+    #undo NPV and scaling
+    function npv_hourly(x,current_yr)
+        cost = x/(1+s["dr"])^(current_yr-base_year)# npv
+        return deepcopy(cost)
+    end
+    
+    function hourly_scaling(cost0)
+        cost=cost0/(((hl*yl)/(8760*s["scenario_planning_horizon"]))*e2me)
+        return deepcopy(cost)
+    end
+
+    #new vars
+    for (r_num,r) in rez
+            _sc=floor(Int64,(parse(Int64,r_num)-1)/(yl*hl))
+            _yr=ceil(Int64,(parse(Int64,r_num)-_sc*(yl*hl))/(hl))
+            #store NPV cost at single time step
+            for (b_num,b) in r["bus"]
+                lam_kcl_r_NPV=b["lam_kcl_r"]*-1*sl
+                lam_kcl_r_scaled=undo_npv_hourly(lam_kcl_r_NPV,parse(Int64,s["scenario_years"][_yr]))
+                lam_kcl_r=undo_hourly_scaling(lam_kcl_r_scaled)
+                if (lam_kcl_r>4500)
+                    max_marginal=hourly_scaling(price_cap)
+                    max_marginal_NPV=npv_hourly(max_marginal,parse(Int64,s["scenario_years"][_yr]))
+                    max_marginal_NPV/(-1*sl)
+                    println(r_num*" "*b_num*" "*string(b["lam_kcl_r"])*" "*string(lam_kcl_r)*" "*string(max_marginal_NPV/(-1*sl)))
+                    rez[r_num]["bus"][b_num]["lam_kcl_r"]=deepcopy(max_marginal_NPV/(-1*sl))
+                end
+            end
+        
+    end
+    return rez
 end
 
 function print_branch_ne(result_mip,argz,data_mip)

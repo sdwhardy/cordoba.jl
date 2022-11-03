@@ -5,10 +5,26 @@ import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 using OrderedCollections
 
-results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_onShore30convs.jld2")
-results_14=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000_onShore30convs.jld2")
-results_24=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm24_VOLL5000_onShore30convs.jld2")
-results_34=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34_VOLL5000_onShore30convs.jld2")
+results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_onShore30convs.jld2")
+results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000_onShore30convs.jld2")
+results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm24_VOLL5000_onShore30convs.jld2")
+results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm34_VOLL5000_onShore30convs.jld2")
+
+######################### Nodal summary
+results["result_mip"]["solution"]["nw"]=_CBD.VOLL_clearing_price(results["result_mip"]["solution"]["nw"],results["s"])
+results["s"]["cost_summary"]=_CBD.print_solution_wcost_data(results["result_mip"], results["s"], results["data"])
+s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=_CBD.summarize_in_s(results);
+_CBD.print_solution_wcost_data(result_mip_nodal, s_nodal, data_nodal)#-856896.0245340846
+_CBD.print_table_summary(s_nodal)
+
+######################### Zonal summary
+results["result_mip"]["solution"]["nw"]=_CBD.VOLL_clearing_price(results["result_mip"]["solution"]["nw"],results["s"])
+results["result_mip_hm_prices"]["solution"]["nw"]=_CBD.VOLL_clearing_price(results["result_mip_hm_prices"]["solution"]["nw"],results["s"])
+results["s"]["cost_summary"]=_CBD.print_solution_wcost_data(results["result_mip"], results["s"], results["data"])
+s_z, result_mip_z, data_z, mn_data_z=_CBD.summarize_zonal_in_s(results);
+_CBD.print_solution_wcost_data(result_mip_z, s_z, data_z)#-856896.0245340846
+_CBD.print_table_summary(s_z)
+
 
 results=results_14
 _CBD.problemOUTPUT_map(results_34, 0.1, 0.1,1, 1)
@@ -30,15 +46,24 @@ push!(a,sum.(eachcol(a)))
 a=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],a)
 sum(a[end,Not([Symbol(string(_name)) for _name = 167:1:196])])/6
 #seperate the up and down regulation
+dk_gen_load["RD"]=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],dk_gen_load["RD"])
 pos,neg=_CBD.decompose_re_dispatch(dk_gen_load["RD"])
 #calculate the Re dispatch cost
+dk_price["GENS"]=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],dk_price["GENS"])
+dk_price["NPV"]=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],dk_price["NPV"])
+dk_price["NPV"][!,"SLACK"]=dk_price["GENS"][!,"SLACK"]
+dk_price["NPV"][!,"SLACK_1"]=dk_price["GENS"][!,"SLACK_1"]
+dk_price["NPV"][!,"SLACK_2"]=dk_price["GENS"][!,"SLACK_2"]
 b=pos.*dk_price["GENS"]
 c=neg.*(dk_price["NPV"].-dk_price["GENS"])
 rbc=(sum(sum.(eachcol(b)))+sum(sum.(eachcol(c))))/6#191272.64882850088
 b=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],b)
+c=_CBD.rename_gen_df_columns(results["s"]["map_gen_types"]["type"],c)
 
 d=(sum.(eachcol(b)).+sum.(eachcol(c)))./6
 for (_c,_v) in enumerate(d);println(names(b)[_c]*":"*string(_v));end
+println(names(dk_price["NPV"]))
+
 
 names(b)[argmax(d)]
 push!(b,sum.(eachcol(b)))
