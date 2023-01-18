@@ -1,9 +1,9 @@
-############################# cordoba_acdc_wgentypes ###############
+#=############################ cordoba_acdc_wgentypes ###############
 export cordoba_acdc_wgentypes
 
-function cordoba_acdc_wgentypes(data::Dict{String,Any}, model_type::Type, solver; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!,  _FP.add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
+function cordoba_acdc_wgentypes(data::Dict{String,Any}, model_type::Type, solver; ref_extensions = [_PMACDC.add_ref_dcgrid!, _PMACDC.add_candidate_dcgrid!,  add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
     s = setting
-    return _PM.run_model(data, model_type, solver, post_cordoba_acdc_wgentypes; ref_extensions = [_PMACDC.add_ref_dcgrid!,_PMACDC.add_candidate_dcgrid!,  _FP.add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
+    return _PM.run_model(data, model_type, solver, post_cordoba_acdc_wgentypes; ref_extensions = [_PMACDC.add_ref_dcgrid!,_PMACDC.add_candidate_dcgrid!,  add_candidate_storage!, _PM.ref_add_on_off_va_bounds!, _PM.ref_add_ne_branch!], setting = s, kwargs...)
 end
 
 
@@ -206,19 +206,19 @@ function post_cordoba_acdc_wgentypes(pm::_PM.AbstractPowerModel)
 
             # NW = 1
             for i in _PM.ids(pm, :storage, nw = n_1)
-                _FP.constraint_storage_state(pm, i, nw = n_1)
-                _FP.constraint_maximum_absorption(pm, i, nw = n_1)
+                constraint_storage_state(pm, i, nw = n_1)
+                constraint_maximum_absorption(pm, i, nw = n_1)
             end
 
             # NW = last
             for i in _PM.ids(pm, :storage, nw = n_last)
-                _FP.constraint_storage_state_final(pm, i, nw = n_last)
+                constraint_storage_state_final(pm, i, nw = n_last)
             end
 
             for n_2 in network_ids[2:end]
                 for i in _PM.ids(pm, :storage, nw = n_2)
-                    _FP.constraint_storage_state(pm, i, n_1, n_2)
-                    _FP.constraint_maximum_absorption(pm, i, n_1, n_2)
+                    constraint_storage_state(pm, i, n_1, n_2)
+                    constraint_maximum_absorption(pm, i, n_1, n_2)
                 end
                 n_1 = n_2
             end
@@ -249,3 +249,4 @@ function post_cordoba_acdc_wgentypes(pm::_PM.AbstractPowerModel)
             println(v)
         end=#
 end
+=#

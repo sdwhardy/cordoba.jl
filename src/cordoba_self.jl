@@ -14,7 +14,7 @@ import JLD2
 import Geodesy
 import PowerModels;const _PM = PowerModels
 import PowerModelsACDC;const _PMACDC = PowerModelsACDC
-import FlexPlan;const _FP = FlexPlan
+#import FlexPlan;const _FP = FlexPlan
 import InfrastructureModels;const _IM = InfrastructureModels
 import MathOptInterface;const _MOI = MathOptInterface
 
