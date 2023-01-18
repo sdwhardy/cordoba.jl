@@ -5,7 +5,7 @@ import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 ##################### File parameters #################################
 
-function main_test()
+function main_setup()
     s = Dict(
     "rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path
     "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",
@@ -36,18 +36,23 @@ function main_test()
     "process_data_internally" => false,
     "corridor_limit" => true,
     "onshore_grid"=>true)
-    
-    s_z=deepcopy(s)
+
     ################## Run MIP Formulation ###################
     #NOTE only very basic intuitive check passed on functions wgen_type
     s["home_market"]=[]
-    mn_data, data, s = _CBD.data_setup(s);
-    result = _CBD.nodal_market_main(mn_data, data, s)
-    s["cost_summary"]=_CBD.print_solution_wcost_data(result["result_mip"], result["s"], result["data"])
-    
-    s_z["home_market"]=[[4,10],[5,11],[6,12],[1,8,13],[3,9]]
-    mn_data_z, data_z, s_z = _CBD.data_setup(s_z);#Build data structure for given options
-    result_z=_CBD.zonal_market_main(mn_data_z, data_z, s_z)
-    s_z["cost_summary"]=_CBD.print_solution_wcost_data(result_z["result_mip"], result_z["s"], result_z["data"])
-    return result["result_mip"]["objective"]+result_z["result_mip"]["objective"]
+    mn_data, data, s = _CBD.data_setup_nodal(s);
+    _CBD.print_mn_data(mn_data,s)
+
+    a=mn_data["nw"]["1"]["ne_branch"]["1"]["br_r"]
+    b=mn_data["nw"]["1"]["branchdc_ne"]["11"]["rateB"]
+    c=mn_data["nw"]["1"]["branchdc"]["5"]["index"]
+    d=mn_data["nw"]["1"]["branch"]["1"]["cost"]
+    e=mn_data["nw"]["1"]["convdc"]["23"]["Pacmax"]
+
+    f=last(s["xd"]["ne_branch"]["2"]["construction_cost"])
+    g=last(s["xd"]["branchdc_ne"]["7"]["cost"])
+    h=last(s["xd"]["branchdc"]["6"]["r"])
+    i=last(s["xd"]["branch"]["1"]["br_x"])
+    j=last(s["xd"]["convdc"]["15"]["Pacmax"])
+    return a+b+c+d+e+f+g+h+i+j
 end
