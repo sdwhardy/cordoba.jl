@@ -421,7 +421,8 @@ end
 #println(keys(all_gens["onshore"]["BE"]["Solar PV"]))
 #multi period problem setup
 #data["convdc"]
-#extradata["convdc"]
+#extradata["gen"]["106"]
+
 function multi_period_setup_wgen_type(scenario_data,data, all_gens, s)
     #################### Multi-period input parameters #######################
     data, s = multi_period_stoch_year_setup_wgen_type(s,data);
@@ -605,6 +606,7 @@ end
     end
     return extradata,data_orig
 end=#
+
 function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, s)
 	genz=[];wfz=[]
     pu=data_orig["baseMVA"]
@@ -637,7 +639,8 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
         extradata["gen"][string(g)]["wf_pmax"] = Array{Float64,2}(undef, 1, s["dim"]);end
     end
 
-	for (k_sc,sc) in s["scenario"]["sc_names"]
+
+    for (k_sc,sc) in s["scenario"]["sc_names"]
 		for (k_yr,yr) in sc
 			#k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
 			k_sc_sd=k_yr=="2020" ? "Base" : k_sc[1:2]
@@ -677,8 +680,10 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 						extradata["gen"][string(g)]["pmin"][1, d] = 0
 		                extradata["gen"][string(g)]["cost"][d] = [0,0]
 						extradata["gen"][string(g)]["invest"][1, d] = gen["invest"]
-                        extradata["gen"][string(g)]["wf_pmax"][1, d] = s["owpp_mva"][j]/pu
-						push!(wfz,(parse(Int64,g),s["owpp_mva"][j]/pu))
+                        #extradata["gen"][string(g)]["wf_pmax"][1, d] = s["owpp_mva"][j]/pu
+                        extradata["gen"][string(g)]["wf_pmax"][1, d] = gen["pmax"]*pu
+						#push!(wfz,(parse(Int64,g),s["owpp_mva"][j]/pu))
+                        push!(wfz,(parse(Int64,g),gen["pmax"]*pu))
 				end;end
 			end
         end

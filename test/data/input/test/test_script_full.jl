@@ -7,7 +7,8 @@ import PowerModels; const _PM = PowerModels
 
 function main_test()
     s = Dict(
-    "rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path
+    "rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path if calling test
+    #"rt_ex"=>pwd()*"\\test\\data\\input\\test\\",#folder path if directly
     "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",
     ################# temperal parameters #################
     "test"=>true,#if true smallest (2 hour) problem variation is built for testing
@@ -20,7 +21,7 @@ function main_test()
     "yearly_investment"=>1000000,
     ################ electrical parameters ################
     "AC"=>"1",#0=false, 1=true
-    "owpp_mva"=>[4000,4000,6000,6000,8000],#mva of wf in MVA
+    #"owpp_mva"=>[4000,4000,6000,6000,8000],#mva of wf in MVA
     "conv_lim_onshore"=>3000,#Max Converter size in MVA
     "conv_lim_offshore"=>4000,#Max Converter size in MVA
     "strg_lim_offshore"=>0.2,
@@ -51,3 +52,5 @@ function main_test()
     s_z["cost_summary"]=_CBD.print_solution_wcost_data(result_z["result_mip"], result_z["s"], result_z["data"])
     return result["result_mip"]["objective"]+result_z["result_mip"]["objective"]
 end
+#-2.9225485778511274e6
+#-2.92254857785113e6

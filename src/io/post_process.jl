@@ -345,7 +345,7 @@ function problemINPUT_map(data, s, txt_x=1)
     #combine plot data                
     #trace=vcat(traceCNT,traceWF,traceDC,traceAC)
     trace=vcat(traceCNT,traceWF,traceNTC,traceDC,traceAC)
-    #trace=vcat(traceCNT,traceWF)
+    trace=vcat(traceCNT,traceWF)
 
     #set map location
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")

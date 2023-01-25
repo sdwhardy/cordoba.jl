@@ -118,6 +118,7 @@ function nodal_market_main(mn_data, data, s)
     s["relax_problem"]=true
     s["output"]["duals"]=true
     mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    println(s["wfz"])
     mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
     s, mn_data= remove_integers(result_mip,mn_data,data,s);
     result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem=#
@@ -1404,11 +1405,13 @@ function set_cable_impedance(data,result_mip)
         end;end;end
     return data
 end
-
 #seperates wfs from genz and defines markets/wfs zones
 function data_update(s,result_mip)
     data, s = get_topology_data(s)#topology.m file
     scenario_data = get_scenario_data(s)#scenario time series
+    ########## untested
+    reduce_nonstoch_gens(scenario_data)
+    ##########
 	###########################################################################
 	all_gens,s = gen_types(data,scenario_data,s)
     #################### Calculates cable options for AC lines
@@ -1457,9 +1460,43 @@ end=#
 #s["xd"]["branch"]["112"]["pmin"]
 #scenario_data["Demand"]["Base"]["2020"]
 
+#=s = Dict(
+"rt_ex"=>pwd()*"\\test\\data\\input\\onshore_grid\\",#folder path
+"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",
+################# temperal parameters #################
+"test"=>false,#if true smallest (2 hour) problem variation is built for testing
+"scenario_planning_horizon"=>30,
+"scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
+"k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+"res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+"scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
+"dr"=>0.04,#discount rate
+"yearly_investment"=>1000000,
+################ electrical parameters ################
+"AC"=>"1",#0=false, 1=true
+"owpp_mva"=>[4000,4000,4000,4000,4000,4000,4000],#mva of wf in MVA
+"conv_lim_onshore"=>3000,#Max Converter size in MVA
+"conv_lim_offshore"=>4000,#Max Converter size in MVA
+"strg_lim_offshore"=>0.2,
+"strg_lim_onshore"=>10,
+"candidate_ics_ac"=>[1,4/5,3/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1,4/5,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+################## optimization/solver setup options ###################
+"output" => Dict("branch_flows" => false),
+"eps"=>0.0001,#admm residual (100kW)
+"beta"=>5.5,
+"relax_problem" => false,
+"conv_losses_mp" => true,
+"process_data_internally" => false,
+"corridor_limit" => true,
+"onshore_grid"=>true)=#
+
 function data_setup(s)
     data, s = get_topology_data(s)#topology.m file
     scenario_data = get_scenario_data(s)#scenario time series
+    ########## untested
+    reduce_nonstoch_gens(scenario_data)
+    ##########
 	###########################################################################
 	all_gens,s = gen_types(data,scenario_data,s)
     #################### Calculates cable options for AC lines
@@ -1477,4 +1514,71 @@ function data_setup(s)
     mn_data, s  = multi_period_setup_wgen_type(scenario_data, data, all_gens, s);
 	push!(s,"max_invest_per_year"=>max_invest_per_year(s))
     return  mn_data, data, s
+end
+#s["xd"]["gen"]["113"]
+#=scenario_data["Generation"]["costs"]
+scenario_data["Generation"]["keys"]
+scenario_data["Generation"]["RES"]["Solar PV"]["BLNK_UK1"]["2016"]
+scenario_data["Generation"]["Scenarios"]["GA"]["2030"]["BLNK_NO1"]
+non_stoch=first(keys(new_gens_map))
+gen_type=eachrow(scenario_data["Generation"]["Scenarios"]["GA"]["2030"]["FR"])[1]=#
+function reduce_nonstoch_gens(scenario_data)
+    new_gens_map=reduce_to_nonstoch_costs_keys(scenario_data)
+    reduce_to_nonstoch_scenarios(scenario_data,new_gens_map) 
+end
+
+function reduce_to_nonstoch_scenarios(scenario_data,new_gens_map)
+    for scene in keys(scenario_data["Generation"]["Scenarios"])
+        for year in keys(scenario_data["Generation"]["Scenarios"][scene])
+            for country in keys(scenario_data["Generation"]["Scenarios"][scene][year])
+                non_stoch_totals=Dict()
+                for gen_type in eachrow(scenario_data["Generation"]["Scenarios"][scene][year][country])
+                    for non_stoch in keys(new_gens_map)
+                        if !(haskey(non_stoch_totals, non_stoch))
+                            push!(non_stoch_totals,non_stoch=>0)
+                        end
+                        if issubset([gen_type[:Generation_Type]],new_gens_map[non_stoch])
+                            if (non_stoch!="SLACK")
+                                non_stoch_totals[non_stoch]=non_stoch_totals[non_stoch]+gen_type[:Capacity]
+                            else
+                                non_stoch_totals[non_stoch]=gen_type[:Capacity]
+                            end
+                        end
+                    end
+                end
+                df=DataFrames.DataFrame(:Generation_Type=>String[],:Capacity=>Float64[])
+                for gen_type in keys(non_stoch_totals)
+                    if (non_stoch_totals[gen_type]!=0)
+                        push!(df,[gen_type,non_stoch_totals[gen_type]])
+                        #delete!(non_stoch_totals,gen_type)
+                    end
+                end
+                scenario_data["Generation"]["Scenarios"][scene][year][country]=df
+            end
+        end
+    end
+end
+
+
+function reduce_to_nonstoch_costs_keys(scenario_data)
+    costs=unique!([scenario_data["Generation"]["costs"][k] for k in keys(scenario_data["Generation"]["costs"])])#extract unique costs
+    new_gens_map=Dict()
+    new_gen_costs=Dict()
+    for cost in costs
+        k="nonStochGen"*string(cost)
+        push!(new_gens_map,k=>[k_type for k_type in keys(scenario_data["Generation"]["costs"]) if (scenario_data["Generation"]["costs"][k_type]==cost && !(issubset([k_type],keys(scenario_data["Generation"]["RES"]))))])
+        push!(new_gen_costs,k=>cost)
+    end
+    for k in keys(scenario_data["Generation"]["RES"])
+        push!(new_gens_map,k=>[k])
+        push!(new_gen_costs,k=>scenario_data["Generation"]["costs"][k])
+    end
+    k="nonStochGen"*string(scenario_data["Generation"]["costs"]["SLACK"])
+    push!(new_gen_costs,"SLACK"=>new_gen_costs[k])
+    push!(new_gens_map,"SLACK"=>["SLACK"])
+    delete!(new_gen_costs,k)
+    delete!(new_gens_map,k)
+    scenario_data["Generation"]["costs"]=new_gen_costs
+    scenario_data["Generation"]["keys"]=keys(new_gen_costs)
+    return new_gens_map
 end

@@ -19,7 +19,7 @@ s = Dict(
 "yearly_investment"=>1000000,
 ################ electrical parameters ################
 "AC"=>"1",#0=false, 1=true
-"owpp_mva"=>[4000,4000,4000,4000,4000],#mva of wf in MVA
+#"owpp_mva"=>[4000,4000,4000,4000,4000,4000,4000],#mva of wf in MVA
 "conv_lim_onshore"=>3000,#Max Converter size in MVA
 "conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,
@@ -35,6 +35,7 @@ s = Dict(
 "process_data_internally" => false,
 "corridor_limit" => true,
 "onshore_grid"=>true)
+
 
 #[println(mn_data["nw"]["1"]["ne_branch"]["4"])["5"]["pt"]) for k=1:1:32]
 ######################### Nodal market #########################
