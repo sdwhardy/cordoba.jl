@@ -7,8 +7,8 @@ import PowerModels; const _PM = PowerModels
 
 function main_test()
     s = Dict(
-    "rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path if calling test
-    #"rt_ex"=>pwd()*"\\test\\data\\input\\test\\",#folder path if directly
+   # "rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path if calling test
+    "rt_ex"=>pwd()*"\\test\\data\\input\\test\\",#folder path if directly
     "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",
     ################# temperal parameters #################
     "test"=>true,#if true smallest (2 hour) problem variation is built for testing
