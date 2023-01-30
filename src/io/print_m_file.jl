@@ -3,11 +3,24 @@
 #rt_ex=s["rt_ex"]
 #relax=s["relax_problem"]
 #_ac=s["AC"]
-function topology_df(rt_ex, relax, _ac)
+function topology_df(rt_ex, relax, _ac, scenario_data)
 	ac_cable_df = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "CABLES_AC_SET_UP")...)
 	dc_cable_df = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "CABLES_DC_SET_UP")...)
 	rem_df = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "REMAINDER")...)
+	rem_df, scenario_data = surrounding_countries(rem_df, scenario_data)
 	ppf_mainACDCStorage2mfile(rem_df,ac_cable_df,dc_cable_df,rt_ex, relax, _ac)
+end
+function surrounding_countries(rem_df, scenario_data)
+	start_bus=parse(Int64,rem_df[!,:bus][end])
+	_buses=[]
+	for (count,nodes) in enumerate(scenario_data["Generation"]["nodes"][!,:node_id])
+	_bus=start_bus+count
+	push!(_buses,_bus)
+	_row=[string(_bus),string(_bus),string(_bus)*" 1",missing,string(0),"1 0",missing,string(_bus)*" "*string(_bus),string(_bus)*" "*string(_bus)*" 19.25",string(_bus),"39"]
+	push!(rem_df,_row)
+	end
+	scenario_data["Generation"]["nodes"][!,:bus]=_buses
+	return rem_df, scenario_data
 end
 #rem_df[!,:storage]
 #r_df=rem_df

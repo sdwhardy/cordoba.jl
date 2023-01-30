@@ -52,12 +52,8 @@ s = Dict(
 "relax_problem" => false,
 "conv_losses_mp" => true,
 "process_data_internally" => false,
-"corridor_limit" => true)
-    data, s = get_topology_data(s)#topology.m file
-    scenario_data = get_scenario_data(s)#scenario time series
-	###########################################################################
-	all_gens,s = gen_types(data,scenario_data,s)
-scenario_data = load_time_series_gentypes(s, scenario_data)=#
+"corridor_limit" => true)=#
+
 #load Time series data
 function load_time_series_gentypes(s, scenario_data)
 	#keeps data from specified scenarios only
@@ -65,11 +61,11 @@ function load_time_series_gentypes(s, scenario_data)
     scenario_data["Demand"]=reduce_to_scenario_list(scenario_data["Demand"],s);
     #Keep only specified markets
 	countries=unique(vcat(s["map_gen_types"]["markets"][1],s["map_gen_types"]["markets"][2]));
-    scenario_data=reduce_to_market_list(scenario_data,countries);
+    #scenario_data=reduce_to_market_list(scenario_data,countries);
     #keep only specified weather years
     scenario_data=reduce_to_weather_year_list(scenario_data,s);
     #keep only k specified days
-    scenario_data["Generation"]["RES"], tss2keep=reduce_RES_to_k_days(scenario_data["Generation"]["RES"],s);
+    scenario_data["Generation"]["RES"], tss2keep = reduce_RES_to_k_days(scenario_data["Generation"]["RES"],s);
     scenario_data["Demand"]=reduce_DEMAND_to_k_days(scenario_data["Demand"],countries,tss2keep);
     #record number of hours
     country=first(keys(scenario_data["Generation"]["RES"]["Offshore Wind"]))
@@ -77,6 +73,7 @@ function load_time_series_gentypes(s, scenario_data)
     s["hours_length"] = length(scenario_data["Generation"]["RES"]["Offshore Wind"][country][year].time_stamp)
 	return scenario_data
 end
+#keys(scenario_data["Generation"]["RES"]["Solar PV"]["DE05"])
 ############## better copies
 ############################################################################################
 #=keep only k specified RES days
@@ -100,17 +97,18 @@ _dict_in["Base"]["2021"]
 #─────┼──────────────────────────────
 #   1 │ 2020-01-01T00:00:00  0.025
 #   2 │ 2020-01-01T01:00:00  0.14855
+
 function reduce_DEMAND_to_k_days(_dict,_countries,_tss2keep);
-    clmns2keep=[count*"_MWh" for count in _countries];
+    clmns2keep=[count for count in _countries];
     push!(clmns2keep,"time_stamp")
     for scenario in keys(_dict);
-        for yr in keys(_dict[scenario]);
-            offset2020=Dates.Year(Dates.year(_dict[scenario][yr][!,:time_stamp][1])-2020)
-            _dict[scenario][yr][!,:time_stamp]=_dict[scenario][yr][!,:time_stamp].-offset2020;
-            filter!(:time_stamp=>x->issubset([x],_tss2keep),_dict[scenario][yr]);
-            cs2delete=[name for name in names(_dict[scenario][yr]) if !(issubset([name],clmns2keep))]
-            DataFrames.select!(_dict[scenario][yr],DataFrames.Not(cs2delete))
-        end;
+        #for yr in keys(_dict[scenario]);
+            offset2020=Dates.Year(Dates.year(_dict[scenario][!,:time_stamp][1])-2020)
+            _dict[scenario][!,:time_stamp]=_dict[scenario][!,:time_stamp].-offset2020;
+            filter!(:time_stamp=>x->issubset([x],_tss2keep),_dict[scenario]);
+            cs2delete=[name for name in names(_dict[scenario]) if !(issubset([name],clmns2keep))]
+            DataFrames.select!(_dict[scenario],DataFrames.Not(cs2delete))
+        #end;
     end
     return _dict
 end
@@ -137,27 +135,38 @@ _dict_in=Dict(
 #─────┼──────────────────────────────
 #   1 │ 2020-01-01T00:00:00  0.025
 #   2 │ 2020-01-01T01:00:00  0.14855
+#_dict=scenario_data["Generation"]["RES"]
+#_dict["Offshore Wind"]["FR01"]["2014"]
+#country="DE05"
+#year="2014"
+#res_type="Onshore Wind"
 function reduce_RES_to_k_days(_dict,_s)
     #keep only k specified days, shift year to 2020 (base year for all simmulations)
-    ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4UKBEDEDK.jld2")
+    ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4EU.jld2")
     tss2keep=[]
     #RES sources
     for country in keys(_dict["Offshore Wind"])
-        for year in keys(_dict["Offshore Wind"][country])
-            ts2keep=_s["k"]<365 ? ks[year][_s["k"]] : _dict["Offshore Wind"][country][year].time_stamp
+        for year in unique(vcat(collect(keys(_dict["Offshore Wind"][country])),collect(keys(_dict["Onshore Wind"][country])),collect(keys(_dict["Solar PV"][country]))))
+            if haskey(_dict["Offshore Wind"][country],year)
+            ts2keep=_s["k"]<365 ? ks[year][_s["k"]] : _dict["Offshore Wind"][country][year].time_stamp;
+            elseif haskey(_dict["Onshore Wind"][country],year)
+                ts2keep=_s["k"]<365 ? ks[year][_s["k"]] : _dict["Onshore Wind"][country][year].time_stamp;
+            else haskey(_dict["Solar PV"][country],year)
+                ts2keep=_s["k"]<365 ? ks[year][_s["k"]] : _dict["Solar PV"][country][year].time_stamp;end
             if (haskey(_s, "test") && _s["test"]==true)
                 ts2keep=ts2keep[1:2]
             end
             for res_type in keys(_dict)
-                filter!(:time_stamp=>x->issubset([x],ts2keep),_dict[res_type][country][year]);
+                if haskey(_dict[res_type][country],year)
+                filter!(:time_stamp=>x->issubset([x],ts2keep),_dict[res_type][country][year])
                 #place common timestamp in 2020
 			    offset2020=Dates.Year(2020-parse(Int64,year))
                 _dict[res_type][country][year][!,:time_stamp]=_dict[res_type][country][year][!,:time_stamp].+offset2020
-			    tss2keep=vcat(tss2keep,ts2keep.+offset2020)
+			    tss2keep=vcat(tss2keep,ts2keep.+offset2020);end
             end
         end
     end    
-    return _dict,unique!(tss2keep) 
+    return _dict,unique!(tss2keep)
 end
 ############################################################################################
 #keep only specified weather years
@@ -178,14 +187,22 @@ Dict("Generation" => Dict(
         "Offshore Wind" => Dict("BE" => Dict("2020" => "keep"),"UK" => Dict("2020" => "keep")),
         "Solar PV" => Dict("BE" => Dict("2020" => "keep"),"UK" => Dict("2020" => "keep")),
         "Onshore Wind" => Dict("BE" => Dict("2020" => "keep"),"UK" => Dict("2020" => "keep")))))=#
+
 function reduce_to_weather_year_list(_dict,_s)
 	#keep only specified weather years
-        for country in keys(_dict["Generation"]["RES"]["Offshore Wind"])
-            for year in keys(_dict["Generation"]["RES"]["Offshore Wind"][country])
+        for country in unique(vcat(collect(keys(_dict["Generation"]["RES"]["Offshore Wind"])), collect(keys(_dict["Generation"]["RES"]["Onshore Wind"])), collect(keys(_dict["Generation"]["RES"]["Solar PV"]))))
+            years=[];
+            if (haskey(_dict["Generation"]["RES"]["Offshore Wind"], country)); years=vcat(years, collect(keys(_dict["Generation"]["RES"]["Offshore Wind"][country])));end
+            if (haskey(_dict["Generation"]["RES"]["Onshore Wind"], country)); years=vcat(years, collect(keys(_dict["Generation"]["RES"]["Onshore Wind"][country])));end
+            if (haskey(_dict["Generation"]["RES"]["Solar PV"], country)); years=vcat(years, collect(keys(_dict["Generation"]["RES"]["Solar PV"][country])));end
+            for year in unique(years)
                 if !(issubset([string(year)],_s["res_years"]));
-                    delete!(_dict["Generation"]["RES"]["Offshore Wind"][country],year);
-                    delete!(_dict["Generation"]["RES"]["Onshore Wind"][country],year);
-                    delete!(_dict["Generation"]["RES"]["Solar PV"][country],year);
+                    if (haskey(_dict["Generation"]["RES"]["Offshore Wind"], country) && haskey(_dict["Generation"]["RES"]["Offshore Wind"][country], year))
+                    delete!(_dict["Generation"]["RES"]["Offshore Wind"][country],year);end
+                    if (haskey(_dict["Generation"]["RES"]["Onshore Wind"], country) && haskey(_dict["Generation"]["RES"]["Onshore Wind"][country], year))
+                    delete!(_dict["Generation"]["RES"]["Onshore Wind"][country],year);end
+                    if (haskey(_dict["Generation"]["RES"]["Solar PV"], country) && haskey(_dict["Generation"]["RES"]["Solar PV"][country], year))
+                    delete!(_dict["Generation"]["RES"]["Solar PV"][country],year);end
                 end;
             end;
         end
@@ -219,15 +236,15 @@ Dict{String,Dict{String,Dict{String,V} where V}}
         "Solar PV" => Dict("BE" => "keep","UK" => "keep"),
         "Onshore Wind" => Dict("BE" => "keep","UK" => "keep")))) 
 =#
+
 function reduce_to_market_list(_dict,countries)
     #Keep only specified markets
     d_keys=keys(_dict["Generation"]["Scenarios"]);
-    for k in d_keys;y_keys=keys(_dict["Generation"]["Scenarios"][k]);
-        for y in y_keys;c_keys=keys(_dict["Generation"]["Scenarios"][k][y]);
-            for c in c_keys;
-                if !(issubset([string(c)],countries));
-                    delete!(_dict["Generation"]["Scenarios"][k][y],c);
-                end;
+    for k in d_keys;
+        c_keys=keys(_dict["Generation"]["Scenarios"][k]);
+        for c in c_keys;
+            if !(issubset([string(c)],countries));
+                delete!(_dict["Generation"]["Scenarios"][k],c);
             end;
         end;
     end
@@ -259,108 +276,6 @@ function reduce_to_scenario_list(_dict,s)
     end
     return _dict
 end
-##############
-############################################################################
-#=######################### Duplicate copy pre-changes
-############################################################################
-#keeps k 24 clusters and formats RES time series 
-#Test input:
-s = Dict(
-    "rt_ex"=>pwd()*"\\test\\data\\input\\UK_BE\\",#folder path
-    "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKBE.jld2",
-    ################# temperal parameters #################
-    "test"=>true,#if true smallest (2 hour) problem variation is built for testing
-    "scenario_planning_horizon"=>2,
-    "scenario_names"=>["NT"],#["NT","DE","GA"]
-    "k"=>365,#number of representative days modelled (24 hours per day)//Must add clustered time series for each k Available: 2, 5, 10, 50, 100
-    "res_years"=>["2020"],#Options: ["2012","2013","2014","2015","2016"]
-    "scenario_years"=>["2020","2021"],#Options: ["2020","2030","2040"]
-    "dr"=>0.04,#discount rate
-    "yearly_investment"=>100000,
-    ################ electrical parameters ################
-    "AC"=>"1",#0=false, 1=true
-    "owpp_mva"=>[3500],#mva of wf in MVA
-    "conv_lim_onshore"=>3500,#Max Converter size in MVA
-    "conv_lim_offshore"=>3500,#Max Converter size in MVA
-    "strg_lim_offshore"=>0.2,
-    "strg_lim_onshore"=>10,
-    "candidate_ics_ac"=>[1/10],#AC Candidate Cable sizes (fraction of full MVA)
-    "candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)
-    ################## optimization/solver setup options ###################
-    "output" => Dict("branch_flows" => false),
-    "eps"=>0.0001,#admm residual (100kW)
-    "beta"=>5.5,
-    "relax_problem" => false,
-    "conv_losses_mp" => true,
-    "process_data_internally" => false,
-    "corridor_limit" => true)
-    data, s = get_topology_data(s)#topology.m file
-    scenario_data = get_scenario_data(s)#scenario time series
-	###########################################################################
-	all_gens,s = gen_types(data,scenario_data,s)
-load_time_series_gentypes(s, scenario_data)=#
-#load Time series data
-#=function load_time_series_gentypes_old(s, scenario_data)
-	ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4UKBEDEDK.jld2")
-    #keep only specified scenarios
-    namestokeep=vcat(s["scenario_names"],"Base")
-    d_keys=keys(scenario_data["Generation"]["Scenarios"]);for k in d_keys;if !(issubset([string(k)],namestokeep));delete!(scenario_data["Generation"]["Scenarios"],k);end;end
-	d_keys=keys(scenario_data["Demand"]);for k in d_keys;if !(issubset([string(k)],namestokeep));delete!(scenario_data["Demand"],k);end;end
-	#Keep only specified markets
-	countries=unique(vcat(s["map_gen_types"]["markets"][1],s["map_gen_types"]["markets"][2]))
-	d_keys=keys(scenario_data["Generation"]["Scenarios"]);
-    for k in d_keys;y_keys=keys(scenario_data["Generation"]["Scenarios"][k]);
-	for y in y_keys;c_keys=keys(scenario_data["Generation"]["Scenarios"][k][y]);
-    for c in c_keys;if !(issubset([string(c)],countries));delete!(scenario_data["Generation"]["Scenarios"][k][y],c);end;end;end;end
-	for key in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
-		if !(issubset([string(key)],countries));
-			delete!(scenario_data["Generation"]["RES"]["Offshore Wind"],key);
-			delete!(scenario_data["Generation"]["RES"]["Onshore Wind"],key);
-			delete!(scenario_data["Generation"]["RES"]["Solar PV"],key);
-		end;end
-	#keep only specified weather years
-	for country in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
-		for year in keys(scenario_data["Generation"]["RES"]["Offshore Wind"][country])
-			if !(issubset([string(year)],s["res_years"]));
-				delete!(scenario_data["Generation"]["RES"]["Offshore Wind"][country],year);
-				delete!(scenario_data["Generation"]["RES"]["Onshore Wind"][country],year);
-				delete!(scenario_data["Generation"]["RES"]["Solar PV"][country],year);
-			end;end;end
-	#keep only k specified days
-	tss2keep=[];ls=0
-	for country in keys(scenario_data["Generation"]["RES"]["Offshore Wind"])
-		for year in keys(scenario_data["Generation"]["RES"]["Offshore Wind"][country])
-            if (s["k"]<365);
-			    ts2keep=ks[year][s["k"]]
-            else
-                ts2keep=scenario_data["Generation"]["RES"]["Offshore Wind"][country][year].time_stamp
-            end
-			if (haskey(s, "test") && s["test"]==true)
-				ts2keep=ts2keep[1:2]
-		    end
-			filter!(:time_stamp=>x->issubset([x],ts2keep),scenario_data["Generation"]["RES"]["Offshore Wind"][country][year]);
-			filter!(:time_stamp=>x->issubset([x],ts2keep),scenario_data["Generation"]["RES"]["Onshore Wind"][country][year]);
-			filter!(:time_stamp=>x->issubset([x],ts2keep),scenario_data["Generation"]["RES"]["Solar PV"][country][year]);
-			#place common timestamp in 2020
-			offset2020=Dates.Year(2020-parse(Int64,year))
-			scenario_data["Generation"]["RES"]["Offshore Wind"][country][year][!,:time_stamp]=scenario_data["Generation"]["RES"]["Offshore Wind"][country][year][!,:time_stamp].+offset2020
-			scenario_data["Generation"]["RES"]["Onshore Wind"][country][year][!,:time_stamp]=scenario_data["Generation"]["RES"]["Onshore Wind"][country][year][!,:time_stamp].+offset2020
-			scenario_data["Generation"]["RES"]["Solar PV"][country][year][!,:time_stamp]=scenario_data["Generation"]["RES"]["Solar PV"][country][year][!,:time_stamp].+offset2020;
-			ls=length(ts2keep)
-			ts2keep=ts2keep.+offset2020
-			tss2keep=vcat(tss2keep,ts2keep)
-			end;end
-	clmns2keep=[count*"_MWh" for count in countries];push!(clmns2keep,"time_stamp")
-	for scenario in keys(scenario_data["Demand"]);for yr in keys(scenario_data["Demand"][scenario]);
-		offset2020=Dates.Year(Dates.year(scenario_data["Demand"][scenario][yr][!,:time_stamp][1])-2020)
-		scenario_data["Demand"][scenario][yr][!,:time_stamp]=scenario_data["Demand"][scenario][yr][!,:time_stamp].-offset2020;
-		filter!(:time_stamp=>x->issubset([x],tss2keep),scenario_data["Demand"][scenario][yr]);
-		cs2delete=[name for name in names(scenario_data["Demand"][scenario][yr]) if !(issubset([name],clmns2keep))]
-		DataFrames.select!(scenario_data["Demand"][scenario][yr],DataFrames.Not(cs2delete))
-	end;end
-    s["hours_length"] = ls
-	return scenario_data
-end=#
 ############################################################################
 ########################## Duplicate copy pre-changes end
 ############################################################################
@@ -606,7 +521,6 @@ end
     end
     return extradata,data_orig
 end=#
-
 function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, s)
 	genz=[];wfz=[]
     pu=data_orig["baseMVA"]
@@ -616,7 +530,7 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
     extradata["dim"] = Dict{String,Any}()
     extradata["dim"] = s["dim"]
     extradata["gen"] = Dict{String,Any}()
-	demand_curve = Dict{String,Any}()
+	#demand_curve = Dict{String,Any}()
 
 	for (c,country) in all_gens["onshore"];
 		for (fuel,type) in country;
@@ -638,12 +552,12 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 		extradata["gen"][string(g)]["invest"] = Array{Float64,2}(undef, 1, s["dim"]);
         extradata["gen"][string(g)]["wf_pmax"] = Array{Float64,2}(undef, 1, s["dim"]);end
     end
-
+    
 
     for (k_sc,sc) in s["scenario"]["sc_names"]
 		for (k_yr,yr) in sc
-			#k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
-			k_sc_sd=k_yr=="2020" ? "Base" : k_sc[1:2]
+			k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
+			k_sc_sd=k_yr=="2020" ? "NT" : k_sc[1:2]
 			for (h,d) in enumerate(yr)
 		        #Day ahead BE
 		        #onshore generators
@@ -651,7 +565,7 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 		        	for (fuel, type) in country
 						for (g, gen) in type
 		            	#market generator onshore
-						S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][k_sc_sd][k_yr][xy])[!,:Capacity]
+						S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][string(k_sc_sd)*string(k_yr_sd)][xy])[!,:Capacity]
 						if isempty(S_row)
 							extradata["gen"][string(g)]["pmax"][1, d] = 0
 							extradata["gen"][string(g)]["cost"][d] = [0,0]
@@ -659,23 +573,26 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 		#					extradata["gen"][string(g)]["gen_status"][1, d] = 0
 						else
 							if issubset([fuel],keys(scenario_data["Generation"]["RES"]))
-								CF=scenario_data["Generation"]["RES"][fuel][xy][k_sc[3:6]][!,Symbol(xy*"_MWh")][h]
+								CF=scenario_data["Generation"]["RES"][fuel][xy][k_sc[3:6]][!,Symbol(xy)][h]
 								extradata["gen"][string(g)]["pmax"][1, d] = CF*S_row[1]/pu
 							else
 								extradata["gen"][string(g)]["pmax"][1, d] = S_row[1]/pu
 							end
 							extradata["gen"][string(g)]["pmin"][1, d] = 0
 			                extradata["gen"][string(g)]["cost"][d] = [scenario_data["Generation"]["costs"][fuel]/e2me,0]
-							if !(haskey(demand_curve,xy));push!(demand_curve,xy=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
-							push!(demand_curve[xy],[S_row[1]/pu,scenario_data["Generation"]["costs"][fuel]/e2me])
+							#if !(haskey(demand_curve,xy));push!(demand_curve,xy=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
+							#push!(demand_curve[xy],[S_row[1]/pu,scenario_data["Generation"]["costs"][fuel]/e2me])
 							push!(genz,(parse(Int64,g),S_row[1]/pu))
 						end
-				end;end;end
+                    end;
+                end;
+            end
+            
 				#Wind power Plants
 				for (j,(xy, country)) in enumerate(all_gens["offshore"])
 		        	for (i,(g, gen)) in enumerate(country)
 					#wind gen
-						CF=scenario_data["Generation"]["RES"]["Offshore Wind"][xy][k_sc[3:6]][!,Symbol(xy*"_MWh")][h]
+						CF=scenario_data["Generation"]["RES"]["Offshore Wind"][xy][k_sc[3:6]][!,Symbol(xy)][h]
 		                extradata["gen"][string(g)]["pmax"][1, d] = CF
 						extradata["gen"][string(g)]["pmin"][1, d] = 0
 		                extradata["gen"][string(g)]["cost"][d] = [0,0]
@@ -684,7 +601,8 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
                         extradata["gen"][string(g)]["wf_pmax"][1, d] = gen["pmax"]*pu
 						#push!(wfz,(parse(Int64,g),s["owpp_mva"][j]/pu))
                         push!(wfz,(parse(Int64,g),gen["pmax"]*pu))
-				end;end
+				    end;
+                end
 			end
         end
     end
@@ -699,7 +617,7 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 	if !(haskey(demand_curve,xy));push!(demand_curve,xy=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
 	push!(demand_curve[xy],[1,3])=#
     #adjust demand curve
-	demand_curve_reduced=Dict()
+	#=demand_curve_reduced=Dict()
 	for (cuntree, df) in demand_curve
 		#cuntree_total=sum(df[!,:generation])
 		unique_costs=unique(df[!,:fuel_cost])
@@ -717,34 +635,35 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 			#println(string(cuntree)*"|"*string(1/10)*"|"*string(top-(i-1)*step))
 
 		end
-	end
-
+	end=#
 	#add loads
 	#all_gens["onshore"]["UK"]["Gas"]["8"]=g
+
 	num_of_gens=length(data["gen"])
 	if !(haskey(s["map_gen_types"],"loads"));push!(s["map_gen_types"],"loads"=>Dict());end
 	loads=Dict{String,Any}()
-	for (cuntree,df) in demand_curve_reduced
-		if !(haskey(loads,cuntree));push!(loads,cuntree=>Dict());end
-		load=deepcopy(first(first(all_gens["onshore"][cuntree])[2])[2])
-		for row in eachrow(df)
+	for _row in eachrow(filter(:type=>x->x==1,s["nodes"]))
+		if !(haskey(loads,_row[:country]));push!(loads,_row[:country]=>Dict());end
+		load=deepcopy(first(first(all_gens["onshore"][_row[:country]])[2])[2])
+		#for row in eachrow(df)
 			#reset load parameters
 	    	load["type"]=1
 			load["gen_status"]=1
 	        load["index"]=num_of_gens+1
 	        load["source_id"][2]=num_of_gens+1
-	        load["pmin"]=deepcopy(row[:generation])*-1
-            load["pmax"]=deepcopy(row[:generation])*-1
+	        load["pmin"]=-1
+            load["pmax"]=-1
 	        #load["pmax"]=0
 			#load["cost"]=[deepcopy(row[:fuel_cost]),0]
             load["cost"]=[0.015,0]
-	        push!(loads[cuntree],string(num_of_gens+1)=>deepcopy(load))
+	        push!(loads[_row[:country]],string(num_of_gens+1)=>deepcopy(load))
 	        num_of_gens=num_of_gens+1
 
 			#map load to country
-			if !(haskey(s["map_gen_types"]["loads"],cuntree));push!(s["map_gen_types"]["loads"],cuntree=>[]);end
-			push!(s["map_gen_types"]["loads"][cuntree],num_of_gens)
-	end;end
+			if !(haskey(s["map_gen_types"]["loads"],_row[:country]));push!(s["map_gen_types"]["loads"],_row[:country]=>[]);end
+			push!(s["map_gen_types"]["loads"][_row[:country]],num_of_gens)
+	end;#end
+    
 	for (cuntree, dic) in loads
     	for (l, load) in dic
 	        extradata["gen"][string(l)] = Dict{String,Any}()
@@ -754,20 +673,28 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
     end;end
 
 	#onshore loads
+    #=k_sc="GA2014";s["scenario"]["sc_names"][k_sc]
+    k_yr="2040";yr=sc[k_yr]
+    h=1;d=yr[1]
+    cuntree="CH00";dic=loads[cuntree]
+    l="728";load=dic[l]=#
 	for (k_sc,sc) in s["scenario"]["sc_names"]
 		for (k_yr,yr) in sc
-			#k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
-			k_sc_sd=k_yr=="2020" ? "Base" : k_sc[1:2]
+			k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
+			k_sc_sd=k_yr=="2020" ? "NT" : k_sc[1:2]
 			for (h,d) in enumerate(yr)
 		        #loads
 				for (cuntree, dic) in loads
 			        for (l, load) in sort!(OrderedCollections.OrderedDict(dic), by=x->parse(Int64,x))
+                        #NOTE: Left here ts is off - 2014 time stamp vs 2020 BLNK time stamp would work but...
+                        #Just this final load to be done, however, the rest still needs to be confirmed! 
                         if (cuntree=="BLNK")
 						    ts=scenario_data["Generation"]["RES"]["Onshore Wind"][first(keys(scenario_data["Generation"]["RES"]["Onshore Wind"]))][k_sc[3:6]][!,:time_stamp][h]
                         else
                             ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
                         end
-						S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd][k_yr])[!,Symbol(cuntree*"_MWh")]
+                        #println(k_sc_sd*k_yr_sd)
+						S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd*k_yr_sd])[!,Symbol(cuntree)]
 		                extradata["gen"][string(l)]["pmax"][1, d] = load["pmax"]*S_row[1]/pu
 		                extradata["gen"][string(l)]["pmin"][1, d] = load["pmin"]*S_row[1]/pu
                         #println(string(extradata["gen"][string(l)]["pmax"][1, d])*" "*string(extradata["gen"][string(l)]["pmin"][1, d]))

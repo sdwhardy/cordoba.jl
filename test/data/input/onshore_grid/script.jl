@@ -7,7 +7,7 @@ import PowerModels; const _PM = PowerModels
 
 s = Dict(
 "rt_ex"=>pwd()*"\\test\\data\\input\\onshore_grid\\",#folder path
-"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",
+"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_4EU.jld2",
 ################# temperal parameters #################
 "test"=>false,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>30,

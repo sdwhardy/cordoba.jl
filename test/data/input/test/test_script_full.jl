@@ -7,13 +7,13 @@ import PowerModels; const _PM = PowerModels
 
 function main_test()
     s = Dict(
-    "rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path if calling test
-    #"rt_ex"=>pwd()*"\\test\\data\\input\\test\\",#folder path if directly
-    "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_for_UKFRBENLDEDKNO.jld2",
+    #"rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path if calling test
+    "rt_ex"=>pwd()*"\\test\\data\\input\\test\\",#folder path if directly
+    "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
     ################# temperal parameters #################
     "test"=>true,#if true smallest (2 hour) problem variation is built for testing
     "scenario_planning_horizon"=>30,
-    "scenario_names"=>["NT","DE","GA"],#["NT","DE","GA"]
+    "scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]
     "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
     "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
     "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
