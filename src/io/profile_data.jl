@@ -55,6 +55,7 @@ s = Dict(
 "corridor_limit" => true)=#
 
 #load Time series data
+#***#
 function load_time_series_gentypes(s, scenario_data)
 	#keeps data from specified scenarios only
     scenario_data["Generation"]["Scenarios"]=reduce_to_scenario_list(scenario_data["Generation"]["Scenarios"],s);
@@ -97,7 +98,7 @@ _dict_in["Base"]["2021"]
 #─────┼──────────────────────────────
 #   1 │ 2020-01-01T00:00:00  0.025
 #   2 │ 2020-01-01T01:00:00  0.14855
-
+#***#
 function reduce_DEMAND_to_k_days(_dict,_countries,_tss2keep);
     clmns2keep=[count for count in _countries];
     push!(clmns2keep,"time_stamp")
@@ -140,6 +141,7 @@ _dict_in=Dict(
 #country="DE05"
 #year="2014"
 #res_type="Onshore Wind"
+#***#
 function reduce_RES_to_k_days(_dict,_s)
     #keep only k specified days, shift year to 2020 (base year for all simmulations)
     ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4EU.jld2")
@@ -187,7 +189,7 @@ Dict("Generation" => Dict(
         "Offshore Wind" => Dict("BE" => Dict("2020" => "keep"),"UK" => Dict("2020" => "keep")),
         "Solar PV" => Dict("BE" => Dict("2020" => "keep"),"UK" => Dict("2020" => "keep")),
         "Onshore Wind" => Dict("BE" => Dict("2020" => "keep"),"UK" => Dict("2020" => "keep")))))=#
-
+#***#
 function reduce_to_weather_year_list(_dict,_s)
 	#keep only specified weather years
         for country in unique(vcat(collect(keys(_dict["Generation"]["RES"]["Offshore Wind"])), collect(keys(_dict["Generation"]["RES"]["Onshore Wind"])), collect(keys(_dict["Generation"]["RES"]["Solar PV"]))))
@@ -266,6 +268,7 @@ end
 #  "Base" => "in output"
 #  "NT"   => "in output"
 #  "DE"   => "in output" 
+#***#
 function reduce_to_scenario_list(_dict,s)
     namestokeep=vcat(s["scenario_names"],"Base")
     d_keys=keys(_dict);
@@ -336,8 +339,8 @@ end
 #println(keys(all_gens["onshore"]["BE"]["Solar PV"]))
 #multi period problem setup
 #data["convdc"]
-#extradata["gen"]["106"]
-
+#extradata["gen"]["1"]
+#***#
 function multi_period_setup_wgen_type(scenario_data,data, all_gens, s)
     #################### Multi-period input parameters #######################
     data, s = multi_period_stoch_year_setup_wgen_type(s,data);
@@ -389,15 +392,17 @@ function multi_period_stoch_year_setup(ls,scenario_years,scenario_names,scenario
 end
 
 #Organizes nw numbers per scenario-year
+#***#
 function multi_period_stoch_year_setup_wgen_type(s,data)
 	scenario_names=unique([sn[1:2] for sn in s["scenario_names"]])
     scenario = Dict{String, Any}("hours" => s["hours_length"],"years" => length(s["scenario_years"]), "sc_names" => Dict{String, Any}())
     data["scenario"] = Dict{String, Any}()
     data["scenario_prob"] = Dict{String, Any}()
     #set problem dimension
-    dim = scenario["hours"] * length(s["scenario_years"]) * length(s["res_years"]) * length(s["scenario_names"])
-    for _nm in scenario_names; for _by in s["res_years"]; push!(scenario["sc_names"], string(_nm)*string(_by)=> Dict{String, Any}());for _yr in s["scenario_years"]; push!(scenario["sc_names"][string(_nm)*string(_by)], _yr=> []);end;end;end
 
+    
+    for _nm in scenario_names; for _by in s["res_years"]; push!(scenario["sc_names"], string(_nm)*string(_by)=> Dict{String, Any}());for _yr in s["scenario_years"]; push!(scenario["sc_names"][string(_nm)*string(_by)], _yr=> []);end;end;end
+    dim = scenario["hours"] * length(s["scenario_years"]) * length(scenario["sc_names"])
     for (s,(k_sc,_sc)) in enumerate(scenario["sc_names"]);
 		data["scenario"][string(s)] = Dict()
         data["scenario_prob"][string(s)] = 1/length(scenario["sc_names"])
@@ -418,7 +423,7 @@ function multi_period_stoch_year_setup_wgen_type(s,data)
     return data,s
 end
 
-function multi_period_stoch_year_setup_wgen_type(ls,res_years,scenario_years,scenario_names,data)
+#=function multi_period_stoch_year_setup_wgen_type(ls,res_years,scenario_years,scenario_names,data)
 	scenario_names=unique([sn[1:2] for sn in scenario_names])
     scenario = Dict{String, Any}("hours" => ls,"years" => length(scenario_years), "sc_names" => Dict{String, Any}())
     data["scenario"] = Dict{String, Any}()
@@ -442,7 +447,7 @@ function multi_period_stoch_year_setup_wgen_type(ls,res_years,scenario_years,sce
         end;
     end
     return data,scenario, dim
-end
+end=#
 
 #loads generator cost and profile time series In multi-period simulation
 #=function create_profile_sets_mesh(number_of_hours, data_orig, zs_data, zs, inf_grid, owpp_mva)
@@ -521,6 +526,8 @@ end
     end
     return extradata,data_orig
 end=#
+#extradata["gen"]["1"]["cost"]
+#***#
 function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, s)
 	genz=[];wfz=[]
     pu=data_orig["baseMVA"]
@@ -1033,6 +1040,7 @@ end
 
 ######################## Scaling cost data ###########################
 #scale investment to hourly cost spread over the year
+#***#
 function scale_cost_data_hourly!(data, scenario)
     #rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"])) * x # scale hourly costs to the planning horizon
     rescale_hourly = x -> (8760*scenario["planning_horizon"] / (scenario["hours"]*scenario["years"])) * x # scale hourly costs to the planning horizon
@@ -1156,6 +1164,7 @@ end
 
 ##################### NPV calculations ###############################
 #translates costs (array) to yearly NPV value
+#***#
 function npvs_costs_datas_wREZ(data, scenario, _yrs, _dr)
     _scs=data["scenario"]
     base_yr=parse(Int64,_yrs[1])
@@ -1391,7 +1400,7 @@ function create_profile_sets_rest(number_of_hours, extradata, data_orig)
     return extradata
 end
 
-
+#***#
 function create_profile_sets_rest_wgen_type(extradata, data_orig, s)
     pu=data_orig["baseMVA"]
     e2me=1000000/pu#into ME/PU
@@ -2037,6 +2046,7 @@ function npv_cost_data_4mip(data0,data1)
 end
 
 #returns vector of NPV investment limits per year
+#***#
 function max_invest_per_year(argz)
     max_invest=Float64[]
     for _yr in argz["scenario_years"]

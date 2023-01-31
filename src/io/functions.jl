@@ -148,7 +148,7 @@ end
 
 ##################### Topology input data ############################
 #ACDC problem with storage main logic
-
+#***#
 function get_topology_data(s, scenario_data)
     ################# Load topology files ###################################
     topology_df(s["rt_ex"], s["relax_problem"], s["AC"], scenario_data)#creates .m file
@@ -158,6 +158,7 @@ end
 
 
 #k_sc="NT2025";scenario_data["Generation"]["Scenarios"][k_sc]
+#***#
 function get_scenario_data(s)
     ############### defines size and market of genz and wfs ###################
 	scenario_data=FileIO.load(s["scenario_data_file"])
@@ -177,7 +178,7 @@ function get_scenario_data(s)
     return scenario_data
 end
 
-
+#***#
 function freeze_offshore_expansion(nodes, scenario_data)
 	developement_zones=filter(:type=>x->x==0,nodes)[!,:country]
 	Base_offshore=Dict();for (k_cunt,cuntree) in scenario_data["Generation"]["Scenarios"]["NT2025"]
@@ -186,11 +187,15 @@ function freeze_offshore_expansion(nodes, scenario_data)
             for (k_cunt,cuntree) in sc;
                 if (issubset([k_cunt],developement_zones))
                     owf=findfirst(x->x=="Offshore Wind", cuntree[!,:Generation_Type]);
-                    scenario_data["Generation"]["Scenarios"][k_sc][k_cunt][!,:Capacity][owf]=Base_offshore[k_cunt][!,"Capacity"][1]
-                end;end;end
+                    if !(isnothing(owf))
+                        if !(isempty(Base_offshore[k_cunt][!,"Capacity"]))
+                            scenario_data["Generation"]["Scenarios"][k_sc][k_cunt][!,:Capacity][owf]=Base_offshore[k_cunt][!,"Capacity"][1]
+                        else
+                            scenario_data["Generation"]["Scenarios"][k_sc][k_cunt][!,:Capacity][owf]=0.0
+                end;end;end;end;end
                 return scenario_data
             end
-
+#***#
 function keep_only_hm_cables(s,data)
     for (b,br) in data["branchdc_ne"]
         if (is_intra_zonal(br["fbusdc"],br["tbusdc"],s["home_market"]))
@@ -239,6 +244,7 @@ end
 end=#
 
 #
+#***#
 function update_settings_wgenz(s, data)
     s["ic_lim_onshore"]=s["conv_lim_onshore"]/data["baseMVA"]
     s["ic_lim_offshore"]=s["conv_lim_offshore"]/data["baseMVA"]
@@ -461,6 +467,7 @@ end
 candidate_ics_ac=s["candidate_ics_ac"]
 ics_ac=s["ics_ac"]
 pu=data["baseMVA"]=#
+#***#
 function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
     z_base_ac=(data["bus"]["1"]["base_kv"])^2/pu
     data=additional_candidatesICS_AC(data,candidate_ics_ac,ics_ac)#adds additional candidates
@@ -523,6 +530,7 @@ function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
 end
 
 #for each AC candidate capacity an appropriate cable is selected and characteristics stored
+#***#
 function candidateIC_cost_impedance_AC(bac,z_base,s_base)
     cb=_ECO.AC_cbl(bac["rate_a"], bac["length"])
     bac["construction_cost"]=cb.costs.ttl
@@ -542,6 +550,7 @@ function IC_cost_impedance_AC(bac,z_base,s_base)
 end
 
 #Sets AC candidate dictionaries with desired candidate qualities
+#***#
 function additional_candidatesICS_AC(data,candidates,ic_data)
     #DC, IC
     ics=[]
@@ -560,7 +569,7 @@ function additional_candidatesICS_AC(data,candidates,ic_data)
     end
     return data
 end
-
+#***#
 function unique_candidateIC_AC(cand_ics)
     copy_cand_ics=deepcopy(cand_ics)
     for (i,dcb) in cand_ics
@@ -573,7 +582,7 @@ function unique_candidateIC_AC(cand_ics)
     end
     return copy_cand_ics
 end
-
+#***#
 function print_topology_data_AC(data_mip,markets_wfs)
     println("%%%%%%%%%%%%%%%%%%%%%%%%% Nodes %%%%%%%%%%%%%%%%%%%%%%%")
     for (i,n) in enumerate(markets_wfs[1])
@@ -591,6 +600,7 @@ end
 
 
 ################################# HVDC Cables
+#***#
 function DC_cable_options(data,candidate_ics_dc,ics_dc,pu)
     z_base_dc=(data["busdc"]["1"]["basekVdc"])^2/pu
     data=additional_candidatesICS_DC(data,candidate_ics_dc,ics_dc)#adds additional candidates
@@ -698,6 +708,7 @@ function filter_DClines(data,edges,nodes,edges_existing)
 end
 
 #Sets DC candidate dictionaries with desired candidate qualities
+#***#
 function additional_candidatesICS_DC(data,candidates,ic_data)
     #DC, IC
     ics=[]
@@ -718,6 +729,7 @@ function additional_candidatesICS_DC(data,candidates,ic_data)
 end
 
 #for each DC candidate capacity an appropriate cable is selected and characteristics stored
+#***#
 function candidateIC_cost_impedance_DC(bdc,z_base)
     cb=_ECO.DC_cbl(bdc["rateA"], bdc["length"])
     #bdc["cost"]=cb.costs.cpx_i+cb.costs.cpx_p
@@ -729,6 +741,7 @@ function candidateIC_cost_impedance_DC(bdc,z_base)
 end
 
 #ensures that the only candidates considered are unique cable sizes
+#***#
 function unique_candidateIC_DC(cand_ics)
     copy_cand_ics=deepcopy(cand_ics)
     for (i,dcb) in cand_ics
@@ -742,7 +755,7 @@ function unique_candidateIC_DC(cand_ics)
     return copy_cand_ics
 end
 
-
+#***#
 function print_topology_data_DC(data_mip,markets_wfs)
     println("%%%%%%%%%%%%%%%%%%%%%%%%% Nodes %%%%%%%%%%%%%%%%%%%%%%%")
     for (i,n) in enumerate(markets_wfs[1])
@@ -794,6 +807,7 @@ function divide_onshore_offshore(nodes,s)
 end=#
 
 #
+#***#
 function divide_onshore_offshore(s)
 	s["onshore_nodes"]=[];s["offshore_nodes"]=[];
     markets_wfs=[String[],String[]]#UK,DE,DK must be in same order as .m file gens
@@ -811,6 +825,7 @@ end
 
 #s["nodes"]
 #filter(:type=>x->x==1,s["nodes"])
+#***#
 function gen_types(data,scenario_data,s)
 	s, markets_wfs = divide_onshore_offshore(s)
 	base_gens=deepcopy(data["gen"])
@@ -861,7 +876,7 @@ end
 
 ################################################ Converters #####################################
 #adds DC grid to PMACDC
-
+#***#
 function additional_params_PMACDC(data)
     _PMACDC.process_additional_data!(data)#add extra DC model data
     converter_parameters_rxb(data)#sets converter parameters for loss calc
@@ -869,6 +884,7 @@ end
 
 
 #Converts parameters of a converter - left over from Jay Dave
+#***#
 function converter_parameters_rxb(data)
     for (c,conv) in data["convdc_ne"]
 
@@ -1287,8 +1303,7 @@ function data_update(s,result_mip)
 end
 
 #=s = Dict(
-    #"rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path if calling test
-    "rt_ex"=>pwd()*"\\test\\data\\input\\test\\",#folder path if directly
+    "rt_ex"=>pwd()*"\\test\\data\\input\\onshore_grid\\",#folder path if directly
     "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
     ################# temperal parameters #################
     "test"=>true,#if true smallest (2 hour) problem variation is built for testing
@@ -1317,6 +1332,7 @@ end
     "process_data_internally" => false,
     "corridor_limit" => true,
     "onshore_grid"=>true)=#
+    #***#
 function data_setup(s)
     scenario_data = get_scenario_data(s)#scenario time series
     data, s = get_topology_data(s, scenario_data)#topology.m file
@@ -1342,19 +1358,20 @@ function data_setup(s)
 	push!(s,"max_invest_per_year"=>max_invest_per_year(s))
     return  mn_data, data, s
 end
-#s["xd"]["gen"]["113"]
+#s["xd"]["gen"]["1"]
 #=scenario_data["Generation"]["costs"]
 scenario_data["Generation"]["keys"]
 scenario_data["Generation"]["RES"]["Onshore Wind"]["FR01"]["2015"]
 scenario_data["Generation"]["Scenarios"]["GA"]["2030"]["BLNK_NO1"]
 non_stoch=first(keys(new_gens_map))
 gen_type=eachrow(scenario_data["Generation"]["Scenarios"]["GA"]["2030"]["FR"])[1]=#
+#***#
 function reduce_nonstoch_gens(scenario_data)
     new_gens_map=reduce_to_nonstoch_costs_keys(scenario_data)
     reduce_to_nonstoch_scenarios(scenario_data,new_gens_map) 
 end
 
-
+#***#
 function reduce_to_nonstoch_scenarios(scenario_data,new_gens_map)
     for scene in keys(scenario_data["Generation"]["Scenarios"])
         #for year in keys(scenario_data["Generation"]["Scenarios"][scene])
@@ -1387,7 +1404,7 @@ function reduce_to_nonstoch_scenarios(scenario_data,new_gens_map)
     end
 end
 
-
+#***#
 function reduce_to_nonstoch_costs_keys(scenario_data)
     costs=unique!([scenario_data["Generation"]["costs"][k] for k in keys(scenario_data["Generation"]["costs"])])#extract unique costs
     new_gens_map=Dict()

@@ -36,5 +36,6 @@ include("io/post_process.jl")
 #economics is an external package under development
 #AC_cbl(mva,km) DC_cbl(mva, km) must be defined somewhere if not using external package
 include("C:\\Users\\shardy\\Documents\\julia\\packages\\economics\\src\\economics.jl");const _ECO = economics
+#include("C:\\Users\\shardy\\Documents\\julia\\packages\\economics\\src\\economics.jl");const _ECO = economics
 ###############################################################################################
 end # module

@@ -3,6 +3,7 @@
 #rt_ex=s["rt_ex"]
 #relax=s["relax_problem"]
 #_ac=s["AC"]
+#***#
 function topology_df(rt_ex, relax, _ac, scenario_data)
 	ac_cable_df = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "CABLES_AC_SET_UP")...)
 	dc_cable_df = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "CABLES_DC_SET_UP")...)
@@ -10,6 +11,7 @@ function topology_df(rt_ex, relax, _ac, scenario_data)
 	rem_df, scenario_data = surrounding_countries(rem_df, scenario_data)
 	ppf_mainACDCStorage2mfile(rem_df,ac_cable_df,dc_cable_df,rt_ex, relax, _ac)
 end
+#***#
 function surrounding_countries(rem_df, scenario_data)
 	start_bus=parse(Int64,rem_df[!,:bus][end])
 	_buses=[]
@@ -29,6 +31,7 @@ end
 #dc_df=dc_cable_df
 #mf=matfile
 #ACDC network with storage main logic to create topology.m file
+#***#
 function ppf_mainACDCStorage2mfile(r_df,ac_df, dc_df, cdir,relax, _ac)
 	base_mva=100
 	matfile = open(cdir*"topology.m","w")#open the .mat file
@@ -46,7 +49,7 @@ function ppf_mainACDCStorage2mfile(r_df,ac_df, dc_df, cdir,relax, _ac)
 	ppf_storage(matfile,r_df)
 	close(matfile)#close the .mat file
 end
-
+#***#
 function ppf_header(mf,base_mva)
 	println(mf, "%TNEP optimizor input file")
 	println(mf, "")
@@ -57,7 +60,7 @@ function ppf_header(mf,base_mva)
 	println(mf, ";")
 	println(mf, "")
 end
-
+#***#
 function ppf_Buss(mf,r_df)
 	println(mf,"%% bus data
 	%	bus_i	type	Pd	Qd	Gs	Bs	area	Vm	Va	baseKV	zone	Vmax	Vmin
@@ -71,7 +74,7 @@ function ppf_Buss(mf,r_df)
 	end
 	println(mf,"];")
 end
-
+#***#
 function ppf_Gens(mf,r_df)
 	println(mf,"%% generator data
 	%	bus	Pg	Qg	Qmax	Qmin	Vg	mBase	status	Pmax	Pmin	Pc1	Pc2	Qc1min	Qc1max	Qc2min	Qc2max	ramp_agc	ramp_10	ramp_30	ramp_q	apf
@@ -101,7 +104,7 @@ function ppf_Gens(mf,r_df)
 	println(mf,"];")
 end
 
-#
+#***#
 function ppf_acbranches(mf,ac_df, relax, _AC)
 	clms=filter!(x->x!="Row",names(ac_df))
 	cables=[]
@@ -152,7 +155,7 @@ function ppf_acbranches(mf,ac_df, relax, _AC)
 	println(mf,"];")
 end
 
-
+#***#
 function ppf_costs(mf,r_df)
 	println(mf,"%%-----  OPF Data  -----%%
 	%% generator cost data
@@ -168,7 +171,7 @@ function ppf_costs(mf,r_df)
 	println(mf,"];")
 end
 
-
+#***#
 function ppf_BussDC(mf,r_df)
 	println(mf,"%% existing dc bus data
 	%column_names%   busdc_i grid    Pdc     Vdc     basekVdc    Vdcmax  Vdcmin Cdc
@@ -180,7 +183,7 @@ function ppf_BussDC(mf,r_df)
 	println(mf,"];")
 end
 
-
+#***#
 function ppf_BussDC_ne_blank(mf)
 	println(mf,"%% All Candidate equipment has equivalent existing infrastructure field as well ie  mpc.branchdc_ne <->  mpc.branchdc similar to AC
 	%% Candidate DC buses here - refer to MATACDC 1.0 User’s Manual for description of fields
@@ -191,7 +194,7 @@ function ppf_BussDC_ne_blank(mf)
 	];")
 end
 
-
+#***#
 function ppf_dcbranches(mf,dc_df, relax)
 	clms=filter!(x->x!="Row",names(dc_df))
 	cables=[]
@@ -224,7 +227,7 @@ function ppf_dcbranches(mf,dc_df, relax)
 	println(mf,"];")
 end
 
-
+#***#
 function ppf_convs(mf,r_df)
 	println(mf,"
 	%% existing converters
@@ -242,7 +245,7 @@ function ppf_convs(mf,r_df)
 	end
 	println(mf,"];")
 end
-
+#***#
 function ppf_dc_blank_conv_ne(mf)
 	println(mf,"
 	%trans, filter, reactor, vmin vmax same as conv
@@ -253,7 +256,7 @@ function ppf_dc_blank_conv_ne(mf)
 	];")
 end
 
-
+#***#
 function ppf_storage(mf,r_df)
 	println(mf, " % hours
 	 mpc.time_elapsed = 1.0
