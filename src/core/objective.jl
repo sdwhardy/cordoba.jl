@@ -1,5 +1,7 @@
 #Complete cordoba objective function
 #binary AC and DC transmission lines, continuous converter, continuous storage, wind farm expansion (NPV considered)
+#**#
+#=Unaltered
 function objective_min_cost_acdc_convex_conv_strg_npv(pm::_PM.AbstractPowerModel)
     return JuMP.@objective(pm.model, Min,
         sum(pm.ref[:scenario_prob][s] *
@@ -13,9 +15,36 @@ function objective_min_cost_acdc_convex_conv_strg_npv(pm::_PM.AbstractPowerModel
             for (sc, n) in scenario)
         for (s, scenario) in pm.ref[:scenario])
     )
+end=#
+function objective_min_cost_acdc_convex_conv_strg_npv(pm::_PM.AbstractPowerModel)
+    exp=0;
+    for (i0,(s, scenario)) in enumerate(pm.ref[:scenario])
+        for (i1,(sc, n)) in enumerate(scenario)
+            if (i0==1 && i1==1)
+                exp=pm.ref[:scenario_prob][s]*(
+                    calc_gen_cost(pm, n)
+                    + calc_convdc_convexafy_cost_npv(pm, n)
+                    + calc_ne_branch_cost(pm, n)
+                    + calc_branchdc_ne_cost(pm, n)
+                    + calc_storage_cost_cordoba_npv(pm, n)
+                    + calc_wf_cost_npv(pm, n))
+            else
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_gen_cost(pm, n)) 
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_convdc_convexafy_cost_npv(pm, n))  
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_ne_branch_cost(pm, n)) 
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_branchdc_ne_cost(pm, n)) 
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_storage_cost_cordoba_npv(pm, n))
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_wf_cost_npv(pm, n))
+            end
+        end
+    end
+        
+    return JuMP.@objective(pm.model, Min, exp)
 end
 
 #Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
+#**#
+#=Unaltered
 function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerModel)
     return JuMP.@objective(pm.model, Min,
         sum(pm.ref[:scenario_prob][s] *
@@ -29,8 +58,35 @@ function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerM
             for (sc, n) in scenario)
         for (s, scenario) in pm.ref[:scenario])
     )
-end
+end=#
 
+#**#
+function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerModel)
+    exp=0;
+    for (i0,(s, scenario)) in enumerate(pm.ref[:scenario])
+        for (i1,(sc, n)) in enumerate(scenario)
+            if (i0==1 && i1==1)
+                exp=pm.ref[:scenario_prob][s]*(
+                    calc_gen_cost(pm, n)
+                    + calc_convdc_convexafy_cost_npv(pm, n)
+                    + calc_branch_cost_npv(pm, n)
+                    + calc_branchdc_cost_npv(pm, n)
+                    + calc_storage_cost_cordoba_npv(pm, n)
+                    + calc_wf_cost_npv(pm, n))
+            else
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_gen_cost(pm, n)) 
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_convdc_convexafy_cost_npv(pm, n))  
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_branch_cost_npv(pm, n)) 
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_branchdc_cost_npv(pm, n)) 
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_storage_cost_cordoba_npv(pm, n))
+                JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_wf_cost_npv(pm, n))
+            end
+        end
+    end
+        
+    return JuMP.@objective(pm.model, Min, exp)
+end
+#=
 #Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
 function objective_min_cost_acdc_convex_allcble_strg_npv(pm::_PM.AbstractPowerModel)
     return JuMP.@objective(pm.model, Min,
@@ -48,9 +104,10 @@ function objective_min_cost_acdc_convex_allcble_strg_npv(pm::_PM.AbstractPowerMo
         for (s, scenario) in pm.ref[:scenario])
     )
 end
-
+=#
 ################################### Convex variable costs #######################################
 #cost of generation
+#**#
 function calc_gen_cost(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_gen_cost(i, g_cost)
@@ -72,7 +129,7 @@ function calc_gen_cost(pm::_PM.AbstractPowerModel, n::Int)
 end
 
 #cost of generation
-function calc_gen_cost_wgentypes(pm::_PM.AbstractPowerModel, n::Int)
+#=function calc_gen_cost_wgentypes(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_gen_cost(i, g_cost)
         len = length(g_cost)
@@ -98,9 +155,10 @@ function calc_gen_cost_wgentypes(pm::_PM.AbstractPowerModel, n::Int)
     cost_gen = sum(calc_single_gen_cost(i,pm.setting["xd"]["gen"][string(i)]["cost"][n]) for (i,g) in gen if (i<=maximum(first.(pm.setting["wfz"]))))
     cost_load = sum(calc_single_load_cost(i,666) for (i,g) in gen if (i>maximum(first.(pm.setting["wfz"]))))
     return cost_gen+cost_load
-end
+end=#
 
 #convex converter considering NPV
+#**#
 function calc_convdc_convexafy_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_convdc_cost_npv(i, b_cost, nw)
@@ -126,6 +184,7 @@ end
 
 
 #cost of expanding storage year by year NPV
+#**#
 function calc_storage_cost_cordoba_npv(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_storage_cost_npv(i, b_cost, nw)
@@ -150,6 +209,7 @@ function calc_storage_cost_cordoba_npv(pm::_PM.AbstractPowerModel, n::Int)
 end
 
 #cost of expanding a wind farm year by year NPV
+#**#
 function calc_wf_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_wf_cost_npv(i, b_cost,nw)
@@ -174,6 +234,7 @@ function calc_wf_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
 end
 
 #convex ac branch
+#**#
 function calc_branch_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branch_cost_npv(i, b_cost, nw)
@@ -201,6 +262,7 @@ function calc_branch_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
 end
 
 #convex dc branch
+#**#
 function calc_branchdc_cost_npv(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branchdc_cost_npv(i, b_cost, nw)
@@ -225,6 +287,7 @@ end
 
 ################################## Binary variable costs ###############################
 #cost of an AC branch
+#**#
 function calc_ne_branch_cost(pm::_PM.AbstractPowerModel, n::Int)
     cost = 0.0
     if haskey(_PM.ref(pm, n), :ne_branch)
@@ -237,6 +300,7 @@ function calc_ne_branch_cost(pm::_PM.AbstractPowerModel, n::Int)
 end
 
 #cost of a dc branch
+#**#
 function calc_branchdc_ne_cost(pm::_PM.AbstractPowerModel, n::Int)
     cost = 0.0
     if haskey(_PM.ref(pm, n), :branchdc_ne)

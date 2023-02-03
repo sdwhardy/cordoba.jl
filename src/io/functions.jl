@@ -1,4 +1,4 @@
-
+#**#
 function zonal_market_main(mn_data, data, s)
     hm=deepcopy(s["home_market"]);
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 36000);#select solver
@@ -30,7 +30,7 @@ function zonal_market_main(mn_data, data, s)
     return results
 end
 #####################
-
+#**#
 function nodal_market_main(mn_data, data, s)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 54000)#, "MIPGap"=>9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
@@ -49,6 +49,7 @@ function nodal_market_main(mn_data, data, s)
 end
 
 ############
+#=
 function print_mn_data(mn_data,s)
     println(s["onshore_nodes"])
     println(s["offshore_nodes"])
@@ -111,40 +112,8 @@ function print_mn_data(mn_data,s)
         println("busdc_i "*string(cv["busdc_i"])*" busac_i "*" grid "*string(cv["grid"])*" ID "*string(cv["source_id"]))    
        # println(mn_data["nw"]["1"]["busdc"][string(c)]==mn_data["nw"]["2"]["busdc"][string(c)]==mn_data["nw"]["3"]["busdc"][string(c)]==mn_data["nw"]["4"]["busdc"][string(c)])
     end
-end
+end=#
 ###########
-
-function nodal2zonal(s,result_mip,zones)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
-    s["home_market"]=zones
-    s["rebalancing"]=true
-    s["relax_problem"]=true
-    s["output"]["duals"]=true
-    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
-    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
-    s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
-    result_mip_hm_prices = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-    s["home_market"]=[]
-    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
-    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
-    s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
-    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-    result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
-    return result_mip, data, mn_data, s, result_mip_hm_prices
-end
-
-function zonal2nodal(s,result_mip)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
-    s["rebalancing"]=true
-    s["relax_problem"]=true
-    s["output"]["duals"]=true
-    s["home_market"]=[]
-    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
-    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
-    s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
-    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-    return result_mip, data, mn_data, s
-end
 
 ##################### Topology input data ############################
 #ACDC problem with storage main logic
@@ -210,6 +179,7 @@ function keep_only_hm_cables(s,data)
     return data
 end
 
+#**#
 function is_intra_zonal(f,t,zms)
     for zm in zms
         if (issubset([f,t],zm))
@@ -219,7 +189,7 @@ function is_intra_zonal(f,t,zms)
     end
     return false
 end
-
+#=
 function update_settings(s, argz, data)
     s["genz"]=argz["genz"]
     s["wfz"]=argz["wfz"]
@@ -231,7 +201,7 @@ function update_settings(s, argz, data)
     s["hours_length"] = argz["ls"]
     return s
 end
-
+=#
 
 #=function update_settings_wgenz(s, argz, data)
     s["ic_lim_onshore"]=argz["conv_lim_onshore"]/data["baseMVA"]
@@ -257,6 +227,7 @@ end
 ########################################## Cables ###############################################
 ###################### HVAC/HVDC
 #loads .m result and filters candidates
+#**#
 function filter_mfile_cables(rt_ex, scenario_data)
     nodes = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "node_generation")...)
 	edges = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "connections_acdc")...)
@@ -270,7 +241,7 @@ function filter_mfile_cables(rt_ex, scenario_data)
 	data,ics_dc=filter_DClines(data,edges,nodes,edges_existing)
     return data, ics_ac, ics_dc, nodes
 end
-
+#**#
 function add_ntc_nodes(nodes,scenario_data)
     nodes
     nodes_existing = DataFrames.DataFrame("node"=>[], "gen"=>[], "load"=>[], "node_price"=>[], "type"=>[], "country"=>[], "lat"=>[], "long"=>[], "gen_invest"=>[], "storage"=>[])
@@ -284,7 +255,7 @@ function add_ntc_nodes(nodes,scenario_data)
     nodes=vcat(nodes,nodes_existing)
     return nodes
 end
-
+#**#
 function add_ntc_edges(nodes,scenario_data)
     edges_existing = DataFrames.DataFrame("DC_from"=>[], "DC_to"=>[], "DC_mva"=>[], "AC_from"=>[], "AC_to"=>[], "AC_mva"=>[])
     #adds TYNPD grid
@@ -311,7 +282,7 @@ function add_ntc_edges(nodes,scenario_data)
     end
     return edges_existing
 end
-
+#**#
 function add_ntcs(data,edges_existing)
     for r in eachrow(edges_existing)  
         if !(ismissing(r[:DC_from]))
@@ -326,7 +297,7 @@ function add_ntcs(data,edges_existing)
     end
     return data, edges_existing
 end
-
+#**#
 function addDCNTC(brchs,mva,dc_busFR,dc_busTO)
     brch=maximum(parse.(Int64,keys(brchs)))
     br=deepcopy(brchs[string(brch)])
@@ -340,7 +311,7 @@ function addDCNTC(brchs,mva,dc_busFR,dc_busTO)
     push!(brchs,string(brch+1)=>deepcopy(br))
     return brchs 
 end
-
+#**#
 function addDCconv(convdcs,mva,ac_bus,dc_bus)
     convdc=maximum(parse.(Int64,keys(convdcs)))
     cv=deepcopy(convdcs[string(convdc)])
@@ -361,7 +332,7 @@ function addDCconv(convdcs,mva,ac_bus,dc_bus)
     push!(convdcs,string(convdc+1)=>deepcopy(cv))
     return convdcs 
 end
-
+#**#
 function addDCbuses(db)
     dcbuses=maximum(parse.(Int64,keys(db)))
     bd=deepcopy(db[string(dcbuses)])
@@ -376,6 +347,7 @@ end
 
 
 #utm coordinates from gps
+#**#
 function utm_gps2xy(lla,north_south::Bool=true,zone_utm::Int64=31)
     utm_desired = Geodesy.UTMfromLLA(zone_utm, north_south, Geodesy.wgs84)#sets UTM zone
     utm = utm_desired(Geodesy.LLA(first(lla),last(lla)))#coverts to cartesian
@@ -383,6 +355,7 @@ function utm_gps2xy(lla,north_south::Bool=true,zone_utm::Int64=31)
 end
 
 ################################# HVAC ##############################
+#**#
 function filter_AClines(data,edges,nodes)
     #size and length
     z_base_ac=(data["bus"]["1"]["base_kv"])^2/data["baseMVA"]
@@ -394,13 +367,6 @@ function filter_AClines(data,edges,nodes)
         push!(ics_ac,(s,round(Int64,Geodesy.euclidean_distance(from_xy, to_xy, 31, true, Geodesy.wgs84)/1000*1.25)))
     end
 
-    #=ics_ac_x=Tuple{Int64,Int64}[]
-    acc_x=filter(x->!ismissing(x),edges_existing[!,"AC_mva"])
-    for (k, s) in enumerate(acc_x)
-        from_xy=utm_gps2xy((nodes[!,"lat"][edges_existing[!,"AC_from"][k]],nodes[!,"long"][edges_existing[!,"AC_from"][k]]))
-        to_xy=utm_gps2xy((nodes[!,"lat"][edges_existing[!,"AC_to"][k]],nodes[!,"long"][edges_existing[!,"AC_to"][k]]))
-        push!(ics_ac_x,(s,round(Int64,Geodesy.euclidean_distance(from_xy, to_xy, 31, true, Geodesy.wgs84)/1000*1.25)))
-    end=#
 
     #filter candidate ac connections
     accbles2keep_ne=Dict[];
@@ -429,30 +395,6 @@ function filter_AClines(data,edges,nodes)
         end
     end
 
-    #existing onshore grid
-    #=if (DataFrames.columnindex(edges_existing,:AC_mva) > 0)
-        acc_ex=filter!(x->!ismissing(x),edges_existing[!,"AC_mva"])
-        for (r,s) in enumerate(ics_ac_x)
-            for (k,b) in data["branch"]
-                if (edges_existing[!,"AC_from"][r]==b["f_bus"] && edges_existing[!,"AC_to"][r]==b["t_bus"])
-                    push!(b,"rateA"=>first(s))
-                    push!(b,"rateB"=>first(s))
-                    push!(b,"rateC"=>first(s))
-                    push!(b,"length"=>1)
-                    temp_c=IC_cost_impedance_AC(deepcopy(b),z_base_ac,data["baseMVA"])
-                    println(temp_c)
-                    b["rateA"]=b["rateB"]=b["rateC"]=first(s)/data["baseMVA"]
-                    push!(b,"br_r"=>deepcopy(temp_c["br_r"]))
-                    push!(b,"br_x"=>deepcopy(temp_c["br_x"]))
-                    b["cost"]=0
-                    b["br_status"]=1
-                    push!(accbles2keep,deepcopy(b))
-                    break;
-                end
-            end
-        end
-    end=#
-
     #existing branches to keep
     data["branch"]=Dict{String,Any}()
     for (k,c) in enumerate(accbles2keep)
@@ -463,10 +405,6 @@ function filter_AClines(data,edges,nodes)
     return data, ics_ac
 end
 
-#=data["branch"]["1"]
-candidate_ics_ac=s["candidate_ics_ac"]
-ics_ac=s["ics_ac"]
-pu=data["baseMVA"]=#
 #***#
 function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
     z_base_ac=(data["bus"]["1"]["base_kv"])^2/pu
@@ -540,14 +478,15 @@ function candidateIC_cost_impedance_AC(bac,z_base,s_base)
     return bac
 end
 #for each existing AC line capacity an appropriate cable is selected and characteristics stored
-function IC_cost_impedance_AC(bac,z_base,s_base)
+#NOTE does not apppear in test case - but may if at somepoint an existing AC grid is desired - so don't delete
+#=function IC_cost_impedance_AC(bac,z_base,s_base)
     cb=_ECO.AC_cbl(bac["rateA"], bac["length"])
     bac["construction_cost"]=0.0
     bac["br_r"]=((cb.elec.ohm/cb.num)*cb.length)/z_base
     bac["br_x"]=((cb.elec.xl/cb.num)*cb.length)/z_base
     bac["rateC"]=bac["rateB"]=bac["rateA"]=(cb.num*cb.elec.mva)/s_base
     return bac
-end
+end=#
 
 #Sets AC candidate dictionaries with desired candidate qualities
 #***#
@@ -614,7 +553,6 @@ function DC_cable_options(data,candidate_ics_dc,ics_dc,pu)
     cable_rateA=Dict{String,Any}()
 	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(data["branchdc_ne"]), by=x->parse(Int64,x)))
 		last(acb)["source_id"][2]=i
-		#last(acb)["status"]=0
 		push!(temp_cables_ne,string(i)=>last(acb))
 		for (j,acb_con) in enumerate(sort(OrderedCollections.OrderedDict(data["branchdc"]), by=x->parse(Int64,x)))
 			if (last(acb)["fbusdc"]==last(acb_con)["fbusdc"] && last(acb)["tbusdc"]==last(acb_con)["tbusdc"])
@@ -638,11 +576,9 @@ function DC_cable_options(data,candidate_ics_dc,ics_dc,pu)
 	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(temp_cables), by=x->parse(Int64,x)))
 		trms=length(cable_pu_costs[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
 		trms_total=sum(b for b in cable_pu_costs[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
-		#trms_max=minimum(b for b in cable_pu_costs[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
 		trms_R=length(cable_pu_r[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
 		trms_total_R=sum(r for r in cable_pu_r[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
 		last(acb)["cost"]=trms_total/trms
-		#last(acb)["cost"]=trms_max
 		last(acb)["r"]=trms_total_R/trms_R
 		last(acb)["source_id"][2]=i
         last(acb)["rateA"]=maximum(r for r in cable_rateA[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
@@ -656,7 +592,7 @@ function DC_cable_options(data,candidate_ics_dc,ics_dc,pu)
 	data["branchdc"]=temp_cables2
     return data
 end
-
+#**#
 function filter_DClines(data,edges,nodes,edges_existing)
     #size and length
     ics_dc=Tuple{Int64,Int64}[]
@@ -732,9 +668,7 @@ end
 #***#
 function candidateIC_cost_impedance_DC(bdc,z_base)
     cb=_ECO.DC_cbl(bdc["rateA"], bdc["length"])
-    #bdc["cost"]=cb.costs.cpx_i+cb.costs.cpx_p
     bdc["cost"]=cb.costs.ttl
-    #bdc["r"]=((cb.elec.ohm*10^3/cb.num)*cb.length)/z_base
     bdc["r"]=((cb.elec.ohm/cb.num)*cb.length)/z_base
     bdc["rateC"]=bdc["rateB"]=bdc["rateA"]=cb.num*cb.elec.mva
     return bdc
@@ -775,36 +709,7 @@ function print_topology_data_DC(data_mip,markets_wfs)
     println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 end
 ########################################## Onshore Grid ############################################################
-#data,edges_existing,nodes
-#function add_onshoreGrid(data,edges_existing,nodes)
-#    data["branch"]["1"]
-
-#    return data,existing_AClines
-#end
 ########################################## Generators ##############################################################
-
-#seperates wfs from genz and defines markets/wfs zones
-#=function genz_n_wfs(owpp_mva,nodes,pu,s)
-	s["onshore_nodes"]=[];s["offshore_nodes"]=[];
-	infinite_grid=sum(owpp_mva)*3
-	s,markets_wfs=divide_onshore_offshore(nodes,s)
-    genz=[];wfz=[]
-    for i=1:1:length(markets_wfs[1]); push!(genz,(i,infinite_grid/pu));end
-    for i=1:1:length(markets_wfs[1]); push!(genz,(i+length(markets_wfs[1])+length(markets_wfs[2]),infinite_grid/pu));end
-    for i=1:1:length(markets_wfs[2]); push!(wfz,(i+length(markets_wfs[1]),owpp_mva[i]/pu));end
-    return infinite_grid, genz, wfz, markets_wfs
-end=#
-#=
-function divide_onshore_offshore(nodes,s)
-	s["onshore_nodes"]=[];s["offshore_nodes"]=[];
-    markets_wfs=[String[],String[]]#UK,DE,DK must be in same order as .m file gens
-    for (k,cuntree) in enumerate(nodes[!,"country"])
-        if (nodes[!,"type"][k]>0)
-        push!(markets_wfs[1],cuntree);push!(s["onshore_nodes"],k);else
-        push!(markets_wfs[2],cuntree);push!(s["offshore_nodes"],k);end
-    end
-	return s,markets_wfs
-end=#
 
 #
 #***#
@@ -823,8 +728,7 @@ function divide_onshore_offshore(s)
 	return s, markets_wfs
 end
 
-#s["nodes"]
-#filter(:type=>x->x==1,s["nodes"])
+
 #***#
 function gen_types(data,scenario_data,s)
 	s, markets_wfs = divide_onshore_offshore(s)
@@ -839,8 +743,7 @@ function gen_types(data,scenario_data,s)
 			push!(all_gens["offshore"],_row[:country]=>Dict());end
 		if !(haskey(s["map_gen_types"],"offshore"));push!(s["map_gen_types"],"offshore"=>Dict());end
 		if !(haskey(s["map_gen_types"]["offshore"],_row[:country]));push!(s["map_gen_types"]["offshore"],_row[:country]=>[]);end
-		#generator_number=string(length(all_gens["onshore"])*length(scenario_data["Generation"]["keys"])+gen)
-        generator_number=string(gen)
+		generator_number=string(gen)
 		push!(all_gens["offshore"][_row[:country]],generator_number=>copy(base_gens[string(gen)]))
 		all_gens["offshore"][_row[:country]][generator_number]["source_id"]=["gen",parse(Int64,generator_number)]
 		all_gens["offshore"][_row[:country]][generator_number]["index"]=parse(Int64,generator_number)
@@ -942,6 +845,7 @@ end
 
 
 ############################################# Convex solution to MIP ###############################################
+#=
 function convex2mip(result_mip, data, mn_data, s)
     s["agent"]=""
     s["relax_problem"]=false
@@ -978,9 +882,9 @@ function convex2mip(result_mip, data, mn_data, s)
     data["ne_branch"]=mn_data["nw"]["1"]["ne_branch"]
     data["branchdc_ne"]=mn_data["nw"]["1"]["branchdc_ne"]
     return mn_data, data, s
-end
+end=#
 
-
+#=
 function convex2mip_DC(result_mip, data)
     dc_cables=Dict{String,Any}()
     for (j,dc_br) in result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branchdc"]
@@ -1005,8 +909,8 @@ function convex2mip_DC(result_mip, data)
     end
     dc_cables=unique_candidateIC_DC(dc_cables)
     return dc_cables
-end
-
+end=#
+#=
 function convex2mip_AC(result_mip, data)
     ac_cables=Dict{String,Any}()
     for (j,ac_br) in result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branch"]
@@ -1031,8 +935,8 @@ function convex2mip_AC(result_mip, data)
     end
     ac_cables=unique_candidateIC_AC(ac_cables)
     return ac_cables
-end
-
+end=#
+#**#
 function remove_integers(result_mip,mn_data,data,s)
     for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
@@ -1070,49 +974,7 @@ function remove_integers(result_mip,mn_data,data,s)
     end;end
     return s, mn_data
 end
-
-function remove_integers_new_market(result_mip,mn_data,data,s)
-    for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
-        for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
-            
-            #dc cables
-            for (bs,brs) in result_mip["solution"]["nw"][string(ts)]["branchdc"];
-                if (brs["p_rateA"]>0.5)
-                    brd=data["branchdc"][bs]
-                    for (b_ne,br_ne) in data["branchdc_ne"]
-                        if (brd["fbusdc"]==br_ne["fbusdc"] && brd["tbusdc"]==br_ne["tbusdc"] && (brs["p_rateA"] <= br_ne["rateA"]+1 && br_ne["rateA"]-1 <= brs["p_rateA"]))
-                            s["xd"]["branchdc"][bs]["rateA"][1,ts]=brs["p_rateA"]
-                            s["xd"]["branchdc"][bs]["r"][1,ts]=br_ne["r"]
-                            s["xd"]["branchdc"][bs]["cost"][1,ts]=0.0;
-                        end
-                    end;
-                else
-                    s["xd"]["branchdc"][bs]["rateA"][1,ts]=0.0
-                    s["xd"]["branchdc"][bs]["cost"][1,ts]=0.0;
-                end;
-            end;
-
-            #ac cables
-            for (bs,brs) in result_mip["solution"]["nw"][string(ts)]["branch"];
-                if (brs["p_rateAC"]>0.5)
-                    brd=data["branch"][bs]
-                    for (b_ne,br_ne) in data["ne_branch"]
-                        if (brd["f_bus"]==br_ne["f_bus"] && brd["t_bus"]==br_ne["t_bus"] && (brs["p_rateAC"] <= br_ne["rate_a"]+1 && br_ne["rate_a"]-1 <= brs["p_rateAC"]))
-                            s["xd"]["branch"][bs]["rateA"][1,ts]=brs["p_rateAC"]
-                            s["xd"]["branch"][bs]["br_r"][1,ts]=br_ne["br_r"]
-                            s["xd"]["branch"][bs]["cost"][1,ts]=0.0;
-                        end
-                    end;
-                else
-                    s["xd"]["branch"][bs]["rateA"][1,ts]=0.0
-                    s["xd"]["branch"][bs]["cost"][1,ts]=0.0;
-                end;
-            end;
-    end;end
-    return s, mn_data
-end
-
-
+#=
 function set_intra_zonal_grid(result_mip,mn_data,s)
     for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
@@ -1144,8 +1006,8 @@ function set_intra_zonal_grid(result_mip,mn_data,s)
                     end;end;end
     end;end
     return mn_data, s
-end
-
+end=#
+#**#
 function set_inter_zonal_grid(result_mip,mn_data,s)
     for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
@@ -1169,17 +1031,11 @@ function set_inter_zonal_grid(result_mip,mn_data,s)
                     s["xd"]["ne_branch"][b]["construction_cost"][1,ts]=s["xd"]["ne_branch"][b]["construction_cost"][1,ts]*100;
                 end;end;
             end;end
-            #converters
-           #= if (haskey(result_mip["solution"]["nw"][string(ts)],"convdc"))
-                for (c,cnv) in result_mip["solution"]["nw"][string(ts)]["convdc"];
-                    if (cnv["p_pacmax"]>0)
-                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=cnv["p_pacmax"];
-                    end;end;end=#
     end;end
     return mn_data, s
 end
 
-
+#**#
 function set_rebalancing_grid(result_mip,mn_data,s)
     for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
@@ -1218,12 +1074,11 @@ function set_rebalancing_grid(result_mip,mn_data,s)
                     end;end;end
             for wf in s["wfz"]
                 s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=round(result_mip["solution"]["nw"][string(ts)]["gen"][string(first(wf))]["wf_pacmax"]);end;
-                #s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=result_mip["solution"]["nw"][string(1)]["gen"][string(first(wf))]["wf_pacmax"];end;
     end;end
     return mn_data, s
 end
 
-
+#=
 function combine_solutions(result_mip_hm,result_mip_wf)
     for (n,nw) in result_mip_wf["solution"]["nw"]
         for (b,br) in nw["branchdc_ne"]
@@ -1238,8 +1093,8 @@ function combine_solutions(result_mip_hm,result_mip_wf)
         end
     end
     return result_mip_hm
-end
-
+end=#
+#**#
 function hm_market_prices(result_mip, result_mip_hm_prices)
     for (n,nw) in result_mip_hm_prices["solution"]["nw"]
         for (b,bs) in nw["bus"]
@@ -1248,7 +1103,7 @@ function hm_market_prices(result_mip, result_mip_hm_prices)
     end
     return result_mip
 end
-
+#**#
 function set_cable_impedance(data,result_mip)
     last_step=result_mip["solution"]["nw"][string(maximum(parse.(Int64,keys(result_mip["solution"]["nw"]))))]
     #DC cables
@@ -1275,6 +1130,7 @@ function set_cable_impedance(data,result_mip)
     return data
 end
 #seperates wfs from genz and defines markets/wfs zones
+#**#
 function data_update(s,result_mip)
     scenario_data = get_scenario_data(s)#scenario time series
     data, s = get_topology_data(s, scenario_data)#topology.m file
@@ -1332,7 +1188,7 @@ end
     "process_data_internally" => false,
     "corridor_limit" => true,
     "onshore_grid"=>true)=#
-    #***#
+#***#
 function data_setup(s)
     scenario_data = get_scenario_data(s)#scenario time series
     data, s = get_topology_data(s, scenario_data)#topology.m file

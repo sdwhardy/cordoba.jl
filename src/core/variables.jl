@@ -1,5 +1,6 @@
 ################################### Conventional Generators and wind farms ##############################
 #creates variables for WFs
+#**#
 function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     wf_pacmax = _PM.var(pm, nw)[:wf_pacmax] = JuMP.@variable(pm.model,
     [i in intersect(_PM.ids(pm, nw, :gen),first.(pm.setting["wfz"]))], base_name="$(nw)_wf_pacmax",
@@ -24,12 +25,14 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
 end
 
 #sets real and imaginary power for a generator
+#**#
 function variable_gen_power(pm::_PM.AbstractPowerModel; kwargs...)
     variable_gen_power_real(pm; kwargs...)
     variable_gen_power_imaginary(pm; kwargs...)
 end
 
 #real power variable for generators (both conventional and wind)
+#**#
 function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     pg = _PM.var(pm, nw)[:pg] = JuMP.@variable(pm.model,
         [i in _PM.ids(pm, nw, :gen)], base_name="$(nw)_pg",
@@ -52,6 +55,7 @@ function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bou
 end
 
 #generator imaginary power + constraints
+#**#
 function variable_gen_power_imaginary(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     qg = _PM.var(pm, nw)[:qg] = JuMP.@variable(pm.model,
         [i in _PM.ids(pm, nw, :gen)], base_name="$(nw)_qg",
@@ -70,6 +74,7 @@ end
 
 ############################# Converters #####################
 #Creates converter max capacity variable and sets  upper/lower limit
+#**#
 function variable_convdc_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     p_pacmax = _PM.var(pm, nw)[:p_pacmax] = JuMP.@variable(pm.model,
     [i in _PM.ids(pm, nw, :convdc)], base_name="$(nw)_p_pacmax",
@@ -91,6 +96,7 @@ function variable_convdc_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounde
 end
 
 #Creates required variables for HVDC converter. All are same as PMACDC except active power as it must be less than a variable max  capacity
+#**#
 function variable_dc_converter(pm::_PM.AbstractDCPModel; kwargs...)
 
     variable_converter_active_power(pm; kwargs...)
@@ -105,6 +111,7 @@ end
 
 
 #constraint on convexified converter AC side power
+#**#
 function variable_converter_active_power(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     pc = _PM.var(pm, nw)[:pconv_ac] = JuMP.@variable(pm.model,
     [i in _PM.ids(pm, nw, :convdc)], base_name="$(nw)_pconv_ac",
@@ -119,6 +126,7 @@ function variable_converter_active_power(pm::_PM.AbstractPowerModel; nw::Int=pm.
 end
 
 ############################# Storage ########################
+#**#
 function variable_storage_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     e_absmax = _PM.var(pm, nw)[:e_absmax] = JuMP.@variable(pm.model,
     [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_e_absmax",
@@ -139,6 +147,7 @@ function variable_storage_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bound
     return (nw,e_absmax)
 end
 
+#**#
 function variable_absorbed_energy(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     e_abs = _PM.var(pm, nw)[:e_abs] = JuMP.@variable(pm.model,
     [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_e_abs",
@@ -152,7 +161,7 @@ function variable_absorbed_energy(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bo
     report && _IM.sol_component_value(pm, nw, :storage, :e_abs, _PM.ids(pm, nw, :storage), e_abs)
 end
 
-
+#**#
 function variable_storage_power(pm::_PM.AbstractPowerModel; kwargs...)
     variable_storage_power_real(pm; kwargs...)
     variable_storage_power_imaginary(pm; kwargs...)
@@ -163,7 +172,7 @@ function variable_storage_power(pm::_PM.AbstractPowerModel; kwargs...)
     variable_storage_discharge(pm; kwargs...)
 end
 
-
+#**#
 function variable_storage_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     ps = _PM.var(pm, nw)[:ps] = JuMP.@variable(pm.model,
         [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_ps",
@@ -177,7 +186,7 @@ function variable_storage_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw,
     end
     report && _IM.sol_component_value(pm, nw, :storage, :ps, _PM.ids(pm, nw, :storage), ps)
 end
-
+#**#
 function variable_storage_power_imaginary(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     qs = _PM.var(pm, nw)[:qs] = JuMP.@variable(pm.model,
         [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_qs",
@@ -192,7 +201,7 @@ function variable_storage_power_imaginary(pm::_PM.AbstractPowerModel; nw::Int=pm
 
     report && _IM.sol_component_value(pm, nw, :storage, :qs, _PM.ids(pm, nw, :storage), qs)
 end
-
+#**#
 function variable_storage_power_control_imaginary(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     qsc = _PM.var(pm, nw)[:qsc] = JuMP.@variable(pm.model,
         [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_qsc",
@@ -206,7 +215,7 @@ function variable_storage_power_control_imaginary(pm::_PM.AbstractPowerModel; nw
         end
     report && _IM.sol_component_value(pm, nw, :storage, :qsc, _PM.ids(pm, nw, :storage), qsc)
 end
-
+#**#
 function variable_storage_energy(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     se = _PM.var(pm, nw)[:se] = JuMP.@variable(pm.model,
         [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_se",
@@ -222,7 +231,7 @@ function variable_storage_energy(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bou
     report && _IM.sol_component_value(pm, nw, :storage, :se, _PM.ids(pm, nw, :storage), se)
 end
 
-
+#**#
 function variable_storage_discharge(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     sd = _PM.var(pm, nw)[:sd] = JuMP.@variable(pm.model,
         [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_sd",
@@ -236,7 +245,7 @@ function variable_storage_discharge(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, 
 
     report && _IM.sol_component_value(pm, nw, :storage, :sd, _PM.ids(pm, nw, :storage), sd)
 end
-
+#**#
 function variable_storage_charge(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     sc = _PM.var(pm, nw)[:sc] = JuMP.@variable(pm.model,
         [i in _PM.ids(pm, nw, :storage)], base_name="$(nw)_sc",
@@ -253,6 +262,7 @@ end
 
 ############################# Branches ########################
 # same as that in FlexPlan but variable with nw number is returned for time based constraints
+#**#
 function variable_branch_ne(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, relax::Bool=false, report::Bool=true)
     if !relax
         Z_dc_branch_ne = _PM.var(pm, nw)[:branchdc_ne] = JuMP.@variable(pm.model, #branch_ne is also name in PowerModels, branchdc_ne is candidate branches
@@ -273,7 +283,7 @@ function variable_branch_ne(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, relax::B
 end
 
 ############################ Binary DC branch constraints #####################################
-"variable: `0 <= branch_ne[l] <= 1` for `l` in `branch`es"
+#**#
 function variable_ne_branch_indicator(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, relax::Bool=false, report::Bool=true)
     if !relax
         z_branch_ne = _PM.var(pm, nw)[:branch_ne] = JuMP.@variable(pm.model,
@@ -297,6 +307,7 @@ end
 
 ############################### constraints for dc branch convexafy ###############################
 #Upper limit for convexafied dc branch
+#**#
 function variable_dcbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     p_rateA = _PM.var(pm, nw)[:p_rateA] = JuMP.@variable(pm.model,
     [i in _PM.ids(pm, nw, :branchdc)], base_name="$(nw)_p_rateA",
@@ -317,6 +328,7 @@ function variable_dcbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
 end
 
 #DC branch flow for continuous transmission line - convex approximation
+#**#
 function variable_active_dcbranch_flow(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     p = _PM.var(pm, nw)[:p_dcgrid] = JuMP.@variable(pm.model,
     [(l,i,j) in _PM.ref(pm, nw, :arcs_dcgrid)], base_name="$(nw)_pdcgrid",
@@ -335,6 +347,7 @@ end
 
 ############################### constraints for ac branch convexafy ###############################
 #Upper limit for convexafied dc branch
+#**#
 function variable_acbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool = true, report::Bool=true)
     p_rateAC = _PM.var(pm, nw)[:p_rateAC] = JuMP.@variable(pm.model,
     [i in _PM.ids(pm, nw, :branch)], base_name="$(nw)_p_rateAC",
@@ -355,6 +368,7 @@ function variable_acbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
 end
 
 #Upper limit for convexafied ac branch
+#**#
 function variable_branch_power(pm::_PM.AbstractPowerModel; kwargs...)
     variable_branch_power_real(pm; kwargs...)
     _PM.variable_branch_power_imaginary(pm; kwargs...)
@@ -362,6 +376,7 @@ end
 
 
 "variable: `p[l,i,j]` for `(l,i,j)` in `arcs`"
+#**#
 function variable_branch_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::Bool=true, report::Bool=true)
     p = _PM.var(pm, nw)[:p] = JuMP.@variable(pm.model,
         [(l,i,j) in _PM.ref(pm, nw, :arcs)], base_name="$(nw)_p",

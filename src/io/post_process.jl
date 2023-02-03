@@ -1,4 +1,301 @@
+
+################################################# tabulating solution ####################################################
+#**#
+function print_solution_wcost_data(result_mip, argz, data)
+    #result_mip["solution"]["nw"]=VOLL_clearing_price(result_mip["solution"]["nw"],argz)
+    costs=Dict();insert=DataFrames.DataFrame(:from=>[],:to=>[],:mva=>[]);#template=Dict("ac"=>deepcopy(insert),"dc"=>deepcopy(insert))
+    argz["topology"]=Dict("t0"=>Dict(),"t2"=>Dict(),"tinf"=>Dict())
+    push!(argz["topology"]["t0"],"ac"=>deepcopy(insert));push!(argz["topology"]["t2"],"ac"=>deepcopy(insert));push!(argz["topology"]["tinf"],"ac"=>deepcopy(insert))
+    push!(argz["topology"]["t0"],"dc"=>deepcopy(insert));push!(argz["topology"]["t2"],"dc"=>deepcopy(insert));push!(argz["topology"]["tinf"],"dc"=>deepcopy(insert))
+
+    println("Description: test-"*string(argz["test"])*" k-"*string(argz["k"])*" years-"*string(argz["scenario_years"])*" scenarios-"*string(argz["scenario_names"]))
+    if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
+        println("%%%%%%% CONVEX SOLUTION %%%%%%%")
+        push!(costs,"branch"=>print_branch(result_mip,argz,data))
+        push!(costs,"branchdc"=>print_branchdc(result_mip,argz,data))
+    else
+        println("%%%%%%% MIP SOLUTION %%%%%%%")
+        print_branch_ne(result_mip,argz,data)
+        print_branchdc_ne(result_mip,argz,data)
+    end
+    push!(costs,"owpp"=>print_owpps(result_mip,argz, data))
+    push!(costs,"converters"=>print_converters(result_mip,argz,data))
+    push!(costs,"storage"=>print_storage(result_mip,argz,data))
+    println("objective: "*string(result_mip["objective"])*" achieved in: "*string(result_mip["solve_time"]))
+    costs_temp=deepcopy(costs)
+    costs["capex_all"]=sum(c["all"] for (k,c) in costs_temp)
+    costs["capex_t0"]=sum(c["t0"]["all"] for (k,c) in costs_temp)
+    costs["capex_t2"]=sum(c["t2"]["all"] for (k,c) in costs_temp)
+    costs["capex_tinf"]=sum(c["tinf"]["all"] for (k,c) in costs_temp)
+    costs["transmission"]=sum(c["all"] for (k,c) in costs_temp if (k != "storage" && k != "owpp"))
+    argz["cost_summary"]=costs
+end
+
+#**#
+function print_branch_ne(result_mip,argz,data_mip)
+    if (haskey(result_mip["solution"]["nw"]["1"],"ne_branch"))
+        println("%%%% Cables HVAC t0 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["ne_branch"]), by=x->parse(Int64,x))
+            if (br["built"]==1)
+                println(string(i)*": "*string(data_mip["ne_branch"][i]["f_bus"])*" - "*string(data_mip["ne_branch"][i]["t_bus"])*" MVA: "*string(data_mip["ne_branch"][i]["rate_a"])*" cost: "*string(data_mip["ne_branch"][i]["construction_cost"]))
+        end;end
+        println("%%%% Cables HVAC t2 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["ne_branch"]), by=x->parse(Int64,x))
+            if (br["built"]==1)
+                println(string(i)*": "*string(data_mip["ne_branch"][i]["f_bus"])*" - "*string(data_mip["ne_branch"][i]["t_bus"])*" MVA: "*string(data_mip["ne_branch"][i]["rate_a"])*" cost: "*string(data_mip["ne_branch"][i]["construction_cost"]))
+        end;end
+        println("%%%% Cables HVAC tinf %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["ne_branch"]), by=x->parse(Int64,x))
+            if (br["built"]==1)
+                println(string(i)*": "*string(data_mip["ne_branch"][i]["f_bus"])*" - "*string(data_mip["ne_branch"][i]["t_bus"])*" MVA: "*string(data_mip["ne_branch"][i]["rate_a"])*" cost: "*string(data_mip["ne_branch"][i]["construction_cost"]))
+        end;end
+    end
+end
+#**#
+function print_branchdc_ne(result_mip,argz,data_mip)
+    if (haskey(result_mip["solution"]["nw"]["1"],"branchdc_ne"))
+        println("%%%% Cables HVDC t0 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branchdc_ne"]), by=x->parse(Int64,x))
+            if (br["isbuilt"]==1)
+                println(string(i)*": "*string(data_mip["branchdc_ne"][i]["fbusdc"])*" - "*string(data_mip["branchdc_ne"][i]["tbusdc"])*" MVA: "*string(data_mip["branchdc_ne"][i]["rateA"])*" cost: "*string(data_mip["branchdc_ne"][i]["cost"]))
+        end;end
+        println("%%%% Cables HVDC t2 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branchdc_ne"]), by=x->parse(Int64,x))
+            if (br["isbuilt"]==1)
+                println(string(i)*": "*string(data_mip["branchdc_ne"][i]["fbusdc"])*" - "*string(data_mip["branchdc_ne"][i]["tbusdc"])*" MVA: "*string(data_mip["branchdc_ne"][i]["rateA"])*" cost: "*string(data_mip["branchdc_ne"][i]["cost"]))
+        end;end
+        println("%%%% Cables HVDC tinf %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branchdc_ne"]), by=x->parse(Int64,x))
+            if (br["isbuilt"]==1)
+                println(string(i)*": "*string(data_mip["branchdc_ne"][i]["fbusdc"])*" - "*string(data_mip["branchdc_ne"][i]["tbusdc"])*" MVA: "*string(data_mip["branchdc_ne"][i]["rateA"])*" cost: "*string(data_mip["branchdc_ne"][i]["cost"]))
+        end;end
+    end
+end
+
+#**#
+function print_storage(result_mip,argz,data)
+    storage_cost=Dict("all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
+    if (haskey(result_mip["solution"]["nw"]["1"],"storage"))
+        println("%%%% Storage t0 %%%%")
+        for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["storage"]), by=x->parse(Int64,x))
+#Equipment tabulation
+            s_bus=string(data["storage"][string(i)]["storage_bus"])
+            if !(haskey(argz["topology"]["t0"],s_bus));push!(argz["topology"]["t0"],s_bus=>Dict());end
+            if !(haskey(argz["topology"]["t0"][s_bus],"strg"));push!(argz["topology"]["t0"][s_bus],"strg"=>s["e_absmax"]);end
+#Cost tabulation
+            cst=s["e_absmax"]*data["storage"][i]["cost"]
+            if !(haskey(storage_cost["t0"],string(i)));push!(storage_cost["t0"],string(i)=>cst);end
+            if !(haskey(storage_cost["t0"],"all"));push!(storage_cost["t0"],"all"=>cst);else;storage_cost["t0"]["all"]=storage_cost["t0"]["all"]+cst;end
+            storage_cost["all"]=storage_cost["all"]+cst
+            println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst))
+        end
+        println("%%%% Storage t2 %%%%")
+        for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["storage"]), by=x->parse(Int64,x))
+#Equipment tabulation
+            s_bus=string(data["storage"][string(i)]["storage_bus"])
+            if !(haskey(argz["topology"]["t2"],s_bus));push!(argz["topology"]["t2"],s_bus=>Dict());end
+            if !(haskey(argz["topology"]["t2"][s_bus],"strg"));push!(argz["topology"]["t2"][s_bus],"strg"=>s["e_absmax"]);end
+#Cost tabulation
+            cst=(s["e_absmax"]-result_mip["solution"]["nw"]["1"]["storage"][i]["e_absmax"])*data["storage"][i]["cost"]*2/3*(1/((1+argz["dr"])^(10)))
+            if !(haskey(storage_cost["t2"],string(i)));push!(storage_cost["t2"],string(i)=>cst);end
+            if !(haskey(storage_cost["t2"],"all"));push!(storage_cost["t2"],"all"=>cst);else;storage_cost["t2"]["all"]=storage_cost["t2"]["all"]+cst;end
+            storage_cost["all"]=storage_cost["all"]+cst
+                println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst))
+        end
+        println("%%%% Storage tinf %%%%")
+        for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["storage"]), by=x->parse(Int64,x))
+#Equipment tabulation
+            s_bus=string(data["storage"][string(i)]["storage_bus"])
+            if !(haskey(argz["topology"]["tinf"],s_bus));push!(argz["topology"]["tinf"],s_bus=>Dict());end
+            if !(haskey(argz["topology"]["tinf"][s_bus],"strg"));push!(argz["topology"]["tinf"][s_bus],"strg"=>s["e_absmax"]);end
+#Cost tabulation
+            cst=(s["e_absmax"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["storage"][i]["e_absmax"])*data["storage"][i]["cost"]*1/3*(1/((1+argz["dr"])^(20)))
+            if !(haskey(storage_cost["tinf"],string(i)));push!(storage_cost["tinf"],string(i)=>cst);end
+            if !(haskey(storage_cost["tinf"],"all"));push!(storage_cost["tinf"],"all"=>cst);else;storage_cost["tinf"]["all"]=storage_cost["tinf"]["all"]+cst;end
+            storage_cost["all"]=storage_cost["all"]+cst
+            println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst))
+        end
+    end
+    return storage_cost
+end
+
+#**#
+function print_converters(result_mip,argz,data)
+    converter_cost=Dict("all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
+    if (haskey(result_mip["solution"]["nw"]["1"],"convdc"))
+        println("%%%% Converters t0 %%%%")
+        for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["convdc"]), by=x->parse(Int64,x))
+#Equipment tabulation
+            cv_bus=string(data["convdc"][string(i)]["busdc_i"])
+            if !(haskey(argz["topology"]["t0"],cv_bus));push!(argz["topology"]["t0"],cv_bus=>Dict());end
+            if !(haskey(argz["topology"]["t0"][cv_bus],"conv"));push!(argz["topology"]["t0"][cv_bus],"conv"=>cv["p_pacmax"]);end
+#Cost tabulation
+                cst=cv["p_pacmax"]*data["convdc"][i]["cost"]
+                if !(haskey(converter_cost["t0"],string(i)));push!(converter_cost["t0"],string(i)=>cst);end
+                if !(haskey(converter_cost["t0"],"all"));push!(converter_cost["t0"],"all"=>cst);else;converter_cost["t0"]["all"]=converter_cost["t0"]["all"]+cst;end
+                converter_cost["all"]=converter_cost["all"]+cst
+                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst))
+        end;
+        println("%%%% Converters t2 %%%%")
+        for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["convdc"]), by=x->parse(Int64,x))
+#Equipment tabulation
+                cv_bus=string(data["convdc"][string(i)]["busdc_i"])
+                if !(haskey(argz["topology"]["t2"],cv_bus));push!(argz["topology"]["t2"],cv_bus=>Dict());end
+                if !(haskey(argz["topology"]["t2"][cv_bus],"conv"));push!(argz["topology"]["t2"][cv_bus],"conv"=>cv["p_pacmax"]);end
+#Cost tabulation
+                cst=(cv["p_pacmax"]-result_mip["solution"]["nw"]["1"]["convdc"][i]["p_pacmax"])*data["convdc"][i]["cost"]*2/3*(1/((1+argz["dr"])^(10)))
+                if !(haskey(converter_cost["t2"],string(i)));push!(converter_cost["t2"],string(i)=>cst);end
+                if !(haskey(converter_cost["t2"],"all"));push!(converter_cost["t2"],"all"=>cst);else;converter_cost["t2"]["all"]=converter_cost["t2"]["all"]+cst;end
+                converter_cost["all"]=converter_cost["all"]+cst
+                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst))
+        end;
+        println("%%%% Converters tinf %%%%")
+        for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["convdc"]), by=x->parse(Int64,x))
+#Equipment tabulation
+                cv_bus=string(data["convdc"][string(i)]["busdc_i"])
+                if !(haskey(argz["topology"]["tinf"],cv_bus));push!(argz["topology"]["tinf"],cv_bus=>Dict());end
+                if !(haskey(argz["topology"]["tinf"][cv_bus],"conv"));push!(argz["topology"]["tinf"][cv_bus],"conv"=>cv["p_pacmax"]);end
+#Cost tabulation
+                cst=(cv["p_pacmax"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["convdc"][i]["p_pacmax"])*data["convdc"][i]["cost"]*1/3*(1/((1+argz["dr"])^(20)))
+                if !(haskey(converter_cost["tinf"],string(i)));push!(converter_cost["tinf"],string(i)=>cst);end
+                if !(haskey(converter_cost["tinf"],"all"));push!(converter_cost["tinf"],"all"=>cst);else;converter_cost["tinf"]["all"]=converter_cost["tinf"]["all"]+cst;end
+                converter_cost["all"]=converter_cost["all"]+cst
+                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst))
+        end;
+    end
+    return converter_cost
+end
+#**#
+function print_owpps(result_mip,argz,data)
+    owpp_cost=Dict("totals"=>Dict(),"all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
+    if (haskey(result_mip["solution"]["nw"]["1"],"gen"))
+        println("%%%% OWPPS T0 %%%%")
+        for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["gen"]), by=x->parse(Int64,x))
+            if (haskey(wf,"wf_pacmax"))
+#Equipment tabulation
+                wf_bus=string(data["gen"][string(i)]["gen_bus"])
+                if !(haskey(argz["topology"]["t0"],wf_bus));push!(argz["topology"]["t0"],wf_bus=>Dict());end
+                if !(haskey(argz["topology"]["t0"][wf_bus],"wf"));push!(argz["topology"]["t0"][wf_bus],"wf"=>wf["wf_pacmax"]);end
+#Cost tabulation
+                cst=wf["wf_pacmax"]*data["gen"][i]["invest"]
+                if !(haskey(owpp_cost["totals"],string(i)));push!(owpp_cost["totals"],string(i)=>cst);else;owpp_cost["totals"][string(i)]=owpp_cost["totals"][string(i)]+cst;end
+                if !(haskey(owpp_cost["t0"],string(i)));push!(owpp_cost["t0"],string(i)=>cst);end
+                if !(haskey(owpp_cost["t0"],"all"));push!(owpp_cost["t0"],"all"=>cst);else;owpp_cost["t0"]["all"]=owpp_cost["t0"]["all"]+cst;end
+                owpp_cost["all"]=owpp_cost["all"]+cst
+                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst))
+        end;end
+        println("%%%% OWPPS T2 %%%%")
+        for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["gen"]), by=x->parse(Int64,x))
+            if (haskey(wf,"wf_pacmax"))
+#Equipment tabulation
+                wf_bus=string(data["gen"][string(i)]["gen_bus"])
+                if !(haskey(argz["topology"]["t2"],wf_bus));push!(argz["topology"]["t2"],wf_bus=>Dict());end
+                if !(haskey(argz["topology"]["t2"][wf_bus],"wf"));push!(argz["topology"]["t2"][wf_bus],"wf"=>wf["wf_pacmax"]);end
+#Cost tabulation
+                cst=(wf["wf_pacmax"]-result_mip["solution"]["nw"]["1"]["gen"][i]["wf_pacmax"])*data["gen"][i]["invest"]*2/3*(1/((1+argz["dr"])^(10)))
+                if !(haskey(owpp_cost["totals"],string(i)));push!(owpp_cost["totals"],string(i)=>cst);else;owpp_cost["totals"][string(i)]=owpp_cost["totals"][string(i)]+cst;end
+                if !(haskey(owpp_cost["t2"],string(i)));push!(owpp_cost["t2"],string(i)=>cst);end
+                if !(haskey(owpp_cost["t2"],"all"));push!(owpp_cost["t2"],"all"=>cst);else;owpp_cost["t2"]["all"]=owpp_cost["t2"]["all"]+cst;end
+                owpp_cost["all"]=owpp_cost["all"]+cst
+                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst))
+        end;end
+        println("%%%% OWPPS Tinf %%%%")
+        for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["gen"]), by=x->parse(Int64,x))
+            if (haskey(wf,"wf_pacmax"))
+#Equipment tabulation
+                wf_bus=string(data["gen"][string(i)]["gen_bus"])
+                if !(haskey(argz["topology"]["tinf"],wf_bus));push!(argz["topology"]["tinf"],wf_bus=>Dict());end
+                if !(haskey(argz["topology"]["tinf"][wf_bus],"wf"));push!(argz["topology"]["tinf"][wf_bus],"wf"=>wf["wf_pacmax"]);end
+#Cost tabulation
+                cst=(wf["wf_pacmax"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["gen"][i]["wf_pacmax"])*data["gen"][i]["invest"]*1/3*(1/((1+argz["dr"])^(20)))
+                if !(haskey(owpp_cost["totals"],string(i)));push!(owpp_cost["totals"],string(i)=>cst);else;owpp_cost["totals"][string(i)]=owpp_cost["totals"][string(i)]+cst;end
+                if !(haskey(owpp_cost["tinf"],string(i)));push!(owpp_cost["tinf"],string(i)=>cst);end
+                if !(haskey(owpp_cost["tinf"],"all"));push!(owpp_cost["tinf"],"all"=>cst);else;owpp_cost["tinf"]["all"]=owpp_cost["tinf"]["all"]+cst;end
+                owpp_cost["all"]=owpp_cost["all"]+cst
+                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst))
+        end;end
+    end
+    return owpp_cost
+end
+#**#
+function print_branch(result_mip,argz,data)
+    branch_cost=Dict("all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
+    if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
+        println("%%%% Cables HVAC t0 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branch"]), by=x->parse(Int64,x))
+            if (br["p_rateAC"]>0)
+            cst=br["p_rateAC"]*data["branch"][i]["cost"]
+                if !(haskey(branch_cost["t0"],string(i)));push!(branch_cost["t0"],string(i)=>cst);end
+                if !(haskey(branch_cost["t0"],"all"));push!(branch_cost["t0"],"all"=>cst);else;branch_cost["t0"]["all"]=branch_cost["t0"]["all"]+cst;end
+                branch_cost["all"]=branch_cost["all"]+cst
+            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
+            push!(argz["topology"]["t0"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
+        end;end
+        println("%%%% Cables HVAC t2 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branch"]), by=x->parse(Int64,x))
+            if (br["p_rateAC"]>0)
+            cst=((br["p_rateAC"]-result_mip["solution"]["nw"]["1"]["branch"][i]["p_rateAC"])*data["branch"][i]["cost"])*2/3*(1/((1+argz["dr"])^(10)))
+                if !(haskey(branch_cost["t2"],string(i)));push!(branch_cost["t2"],string(i)=>cst);end
+                if !(haskey(branch_cost["t2"],"all"));push!(branch_cost["t2"],"all"=>cst);else;branch_cost["t2"]["all"]=branch_cost["t2"]["all"]+cst;end
+                branch_cost["all"]=branch_cost["all"]+cst
+            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
+            push!(argz["topology"]["t2"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
+        end;end
+        println("%%%% Cables HVAC tinf %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branch"]), by=x->parse(Int64,x))
+            if (br["p_rateAC"]>0)
+            cst=((br["p_rateAC"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branch"][i]["p_rateAC"])*data["branch"][i]["cost"])*1/3*(1/((1+argz["dr"])^(20)))
+                if !(haskey(branch_cost["tinf"],string(i)));push!(branch_cost["tinf"],string(i)=>cst);end
+                if !(haskey(branch_cost["tinf"],"all"));push!(branch_cost["tinf"],"all"=>cst);else;branch_cost["tinf"]["all"]=branch_cost["tinf"]["all"]+cst;end
+                branch_cost["all"]=branch_cost["all"]+cst
+            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
+            push!(argz["topology"]["tinf"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
+        end;end
+    end
+    return branch_cost
+end
+
+
+#**#
+function print_branchdc(result_mip,argz,data)
+    branch_cost=Dict("all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
+    if (haskey(result_mip["solution"]["nw"]["1"],"branchdc"))
+        println("%%%% Cables HVDC t0 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branchdc"]), by=x->parse(Int64,x))
+            if (br["p_rateA"]>0)
+            cst=br["p_rateA"]*data["branchdc"][i]["cost"]
+                if !(haskey(branch_cost["t0"],string(i)));push!(branch_cost["t0"],string(i)=>cst);end
+                if !(haskey(branch_cost["t0"],"all"));push!(branch_cost["t0"],"all"=>cst);else;branch_cost["t0"]["all"]=branch_cost["t0"]["all"]+cst;end
+                branch_cost["all"]=branch_cost["all"]+cst
+            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
+            push!(argz["topology"]["t0"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
+        end;end
+        println("%%%% Cables HVDC t2 %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branchdc"]), by=x->parse(Int64,x))
+            if (br["p_rateA"]>0)
+            cst=((br["p_rateA"]-result_mip["solution"]["nw"]["1"]["branchdc"][i]["p_rateA"])*data["branchdc"][i]["cost"])*2/3*(1/((1+argz["dr"])^(10)))
+                if !(haskey(branch_cost["t2"],string(i)));push!(branch_cost["t2"],string(i)=>cst);end
+                if !(haskey(branch_cost["t2"],"all"));push!(branch_cost["t2"],"all"=>cst);else;branch_cost["t2"]["all"]=branch_cost["t2"]["all"]+cst;end
+                branch_cost["all"]=branch_cost["all"]+cst
+            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
+            push!(argz["topology"]["t2"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
+        end;end
+        println("%%%% Cables HVDC tinf %%%%")
+        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branchdc"]), by=x->parse(Int64,x))
+            if (br["p_rateA"]>0)
+            cst=((br["p_rateA"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branchdc"][i]["p_rateA"])*data["branchdc"][i]["cost"])*1/3*(1/((1+argz["dr"])^(20)))
+                if !(haskey(branch_cost["tinf"],string(i)));push!(branch_cost["tinf"],string(i)=>cst);end
+                if !(haskey(branch_cost["tinf"],"all"));push!(branch_cost["tinf"],"all"=>cst);else;branch_cost["tinf"]["all"]=branch_cost["tinf"]["all"]+cst;end
+                branch_cost["all"]=branch_cost["all"]+cst
+            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
+            push!(argz["topology"]["tinf"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
+        end;end
+    end
+    return branch_cost
+end
+
 ############################ figures ##################################
+#=
 ############### post simulation 
 function post_map_Of_Connections_ACDCNTC(results)
     number_keys=parse.(Int64,keys(results["result_mip"]["solution"]["nw"]))
@@ -197,6 +494,7 @@ function problemOUTPUT_map(results, lat_offset, long_offset, lo, la, txt_x=1)
 
     #country legend
     traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
+    textposition="top center",text=string([row[:node]]),
                 lat=[row[:lat]],lon=[row[:long]],
                 marker=markerCNT)  for row in eachrow(countries)]
 
@@ -207,6 +505,7 @@ function problemOUTPUT_map(results, lat_offset, long_offset, lo, la, txt_x=1)
 
     #windfarm legend
     traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
+    textposition="top center",text=string([row[:node]])*" "*string([row[:gen]]),
                 lat=[row[:lat]],lon=[row[:long]],
                 marker=markerWF)  for row in eachrow(owpps)]
 
@@ -302,7 +601,8 @@ function problemINPUT_map(data, s, txt_x=1)
                 color="green")
 
     #country legend
-    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x),
+    textposition="top center",text=string(row[:node][1]),
                 lat=[row[:lat]],lon=[row[:long]],
                 marker=markerCNT)  for row in eachrow(countries)]
 
@@ -311,13 +611,10 @@ function problemINPUT_map(data, s, txt_x=1)
     markerWF = PlotlyJS.attr(size=[15*txt_x],
                 color="navy")
 
-    #windfarm legend
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
-                lat=[row[:lat]],lon=[row[:long]],
-                marker=markerWF)  for row in eachrow(owpps)]
 
     #windfarm legend
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x),
+    textposition="top center",text=string(row[:node][1])*" "*string(row[:gen][1]),
                 lat=[row[:lat]],lon=[row[:long]],
                 marker=markerWF)  for row in eachrow(owpps)]
     
@@ -350,8 +647,8 @@ function problemINPUT_map(data, s, txt_x=1)
 
     #combine plot data                
     #trace=vcat(traceCNT,traceWF,traceDC,traceAC)
-    #trace=vcat(traceCNT,traceWF,traceNTC,traceDC,traceAC)
-    trace=vcat(traceCNT,traceWF,traceNTC)
+    trace=vcat(traceCNT,traceWF,traceNTC,traceDC,traceAC)
+    #trace=vcat(traceCNT,traceWF,traceNTC)
 
     #set map location
     geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
@@ -1565,38 +1862,8 @@ function build_generator_tables(result_mip, data)
 		push!(gen_per_scenario,s=>df)
 	end
 	return gen_per_scenario
-end
-################################################# tabulating solution ####################################################
-function print_solution_wcost_data(result_mip, argz, data)
-    #result_mip["solution"]["nw"]=VOLL_clearing_price(result_mip["solution"]["nw"],argz)
-    costs=Dict();insert=DataFrames.DataFrame(:from=>[],:to=>[],:mva=>[]);#template=Dict("ac"=>deepcopy(insert),"dc"=>deepcopy(insert))
-    argz["topology"]=Dict("t0"=>Dict(),"t2"=>Dict(),"tinf"=>Dict())
-    push!(argz["topology"]["t0"],"ac"=>deepcopy(insert));push!(argz["topology"]["t2"],"ac"=>deepcopy(insert));push!(argz["topology"]["tinf"],"ac"=>deepcopy(insert))
-    push!(argz["topology"]["t0"],"dc"=>deepcopy(insert));push!(argz["topology"]["t2"],"dc"=>deepcopy(insert));push!(argz["topology"]["tinf"],"dc"=>deepcopy(insert))
-
-    println("Description: test-"*string(argz["test"])*" k-"*string(argz["k"])*" years-"*string(argz["scenario_years"])*" scenarios-"*string(argz["scenario_names"]))
-    if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
-        println("%%%%%%% CONVEX SOLUTION %%%%%%%")
-        push!(costs,"branch"=>print_branch(result_mip,argz,data))
-        push!(costs,"branchdc"=>print_branchdc(result_mip,argz,data))
-    else
-        println("%%%%%%% MIP SOLUTION %%%%%%%")
-        print_branch_ne(result_mip,argz,data)
-        print_branchdc_ne(result_mip,argz,data)
-    end
-    push!(costs,"owpp"=>print_owpps(result_mip,argz, data))
-    push!(costs,"converters"=>print_converters(result_mip,argz,data))
-    push!(costs,"storage"=>print_storage(result_mip,argz,data))
-    println("objective: "*string(result_mip["objective"])*" achieved in: "*string(result_mip["solve_time"]))
-    costs_temp=deepcopy(costs)
-    costs["capex_all"]=sum(c["all"] for (k,c) in costs_temp)
-    costs["capex_t0"]=sum(c["t0"]["all"] for (k,c) in costs_temp)
-    costs["capex_t2"]=sum(c["t2"]["all"] for (k,c) in costs_temp)
-    costs["capex_tinf"]=sum(c["tinf"]["all"] for (k,c) in costs_temp)
-    costs["transmission"]=sum(c["all"] for (k,c) in costs_temp if (k != "storage" && k != "owpp"))
-    argz["cost_summary"]=costs
-end
-
+end=#
+#=
 function VOLL_clearing_price(rez,s, price_cap::Float64=180.0)
     #constants
     e2me=1000000/rez["1"]["baseMVA"]
@@ -1647,266 +1914,6 @@ function VOLL_clearing_price(rez,s, price_cap::Float64=180.0)
         
     end
     return rez
-end
-
-function print_branch_ne(result_mip,argz,data_mip)
-    if (haskey(result_mip["solution"]["nw"]["1"],"ne_branch"))
-        println("%%%% Cables HVAC t0 %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["ne_branch"]), by=x->parse(Int64,x))
-            if (br["built"]==1)
-                println(string(i)*": "*string(data_mip["ne_branch"][i]["f_bus"])*" - "*string(data_mip["ne_branch"][i]["t_bus"])*" MVA: "*string(data_mip["ne_branch"][i]["rate_a"])*" cost: "*string(data_mip["ne_branch"][i]["construction_cost"]))
-        end;end
-        println("%%%% Cables HVAC t2 %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["ne_branch"]), by=x->parse(Int64,x))
-            if (br["built"]==1)
-                println(string(i)*": "*string(data_mip["ne_branch"][i]["f_bus"])*" - "*string(data_mip["ne_branch"][i]["t_bus"])*" MVA: "*string(data_mip["ne_branch"][i]["rate_a"])*" cost: "*string(data_mip["ne_branch"][i]["construction_cost"]))
-        end;end
-        println("%%%% Cables HVAC tinf %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["ne_branch"]), by=x->parse(Int64,x))
-            if (br["built"]==1)
-                println(string(i)*": "*string(data_mip["ne_branch"][i]["f_bus"])*" - "*string(data_mip["ne_branch"][i]["t_bus"])*" MVA: "*string(data_mip["ne_branch"][i]["rate_a"])*" cost: "*string(data_mip["ne_branch"][i]["construction_cost"]))
-        end;end
-    end
-end
-
-function print_branchdc_ne(result_mip,argz,data_mip)
-    if (haskey(result_mip["solution"]["nw"]["1"],"branchdc_ne"))
-        println("%%%% Cables HVDC t0 %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branchdc_ne"]), by=x->parse(Int64,x))
-            if (br["isbuilt"]==1)
-                println(string(i)*": "*string(data_mip["branchdc_ne"][i]["fbusdc"])*" - "*string(data_mip["branchdc_ne"][i]["tbusdc"])*" MVA: "*string(data_mip["branchdc_ne"][i]["rateA"])*" cost: "*string(data_mip["branchdc_ne"][i]["cost"]))
-        end;end
-        println("%%%% Cables HVDC t2 %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branchdc_ne"]), by=x->parse(Int64,x))
-            if (br["isbuilt"]==1)
-                println(string(i)*": "*string(data_mip["branchdc_ne"][i]["fbusdc"])*" - "*string(data_mip["branchdc_ne"][i]["tbusdc"])*" MVA: "*string(data_mip["branchdc_ne"][i]["rateA"])*" cost: "*string(data_mip["branchdc_ne"][i]["cost"]))
-        end;end
-        println("%%%% Cables HVDC tinf %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branchdc_ne"]), by=x->parse(Int64,x))
-            if (br["isbuilt"]==1)
-                println(string(i)*": "*string(data_mip["branchdc_ne"][i]["fbusdc"])*" - "*string(data_mip["branchdc_ne"][i]["tbusdc"])*" MVA: "*string(data_mip["branchdc_ne"][i]["rateA"])*" cost: "*string(data_mip["branchdc_ne"][i]["cost"]))
-        end;end
-    end
-end
-
-function print_storage(result_mip,argz,data)
-    storage_cost=Dict("all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
-    if (haskey(result_mip["solution"]["nw"]["1"],"storage"))
-        println("%%%% Storage t0 %%%%")
-        for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["storage"]), by=x->parse(Int64,x))
-#Equipment tabulation
-            s_bus=string(data["storage"][string(i)]["storage_bus"])
-            if !(haskey(argz["topology"]["t0"],s_bus));push!(argz["topology"]["t0"],s_bus=>Dict());end
-            if !(haskey(argz["topology"]["t0"][s_bus],"strg"));push!(argz["topology"]["t0"][s_bus],"strg"=>s["e_absmax"]);end
-#Cost tabulation
-            cst=s["e_absmax"]*data["storage"][i]["cost"]
-            if !(haskey(storage_cost["t0"],string(i)));push!(storage_cost["t0"],string(i)=>cst);end
-            if !(haskey(storage_cost["t0"],"all"));push!(storage_cost["t0"],"all"=>cst);else;storage_cost["t0"]["all"]=storage_cost["t0"]["all"]+cst;end
-            storage_cost["all"]=storage_cost["all"]+cst
-            println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst))
-        end
-        println("%%%% Storage t2 %%%%")
-        for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["storage"]), by=x->parse(Int64,x))
-#Equipment tabulation
-            s_bus=string(data["storage"][string(i)]["storage_bus"])
-            if !(haskey(argz["topology"]["t2"],s_bus));push!(argz["topology"]["t2"],s_bus=>Dict());end
-            if !(haskey(argz["topology"]["t2"][s_bus],"strg"));push!(argz["topology"]["t2"][s_bus],"strg"=>s["e_absmax"]);end
-#Cost tabulation
-            cst=(s["e_absmax"]-result_mip["solution"]["nw"]["1"]["storage"][i]["e_absmax"])*data["storage"][i]["cost"]*2/3*(1/((1+argz["dr"])^(10)))
-            if !(haskey(storage_cost["t2"],string(i)));push!(storage_cost["t2"],string(i)=>cst);end
-            if !(haskey(storage_cost["t2"],"all"));push!(storage_cost["t2"],"all"=>cst);else;storage_cost["t2"]["all"]=storage_cost["t2"]["all"]+cst;end
-            storage_cost["all"]=storage_cost["all"]+cst
-                println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst))
-        end
-        println("%%%% Storage tinf %%%%")
-        for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["storage"]), by=x->parse(Int64,x))
-#Equipment tabulation
-            s_bus=string(data["storage"][string(i)]["storage_bus"])
-            if !(haskey(argz["topology"]["tinf"],s_bus));push!(argz["topology"]["tinf"],s_bus=>Dict());end
-            if !(haskey(argz["topology"]["tinf"][s_bus],"strg"));push!(argz["topology"]["tinf"][s_bus],"strg"=>s["e_absmax"]);end
-#Cost tabulation
-            cst=(s["e_absmax"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["storage"][i]["e_absmax"])*data["storage"][i]["cost"]*1/3*(1/((1+argz["dr"])^(20)))
-            if !(haskey(storage_cost["tinf"],string(i)));push!(storage_cost["tinf"],string(i)=>cst);end
-            if !(haskey(storage_cost["tinf"],"all"));push!(storage_cost["tinf"],"all"=>cst);else;storage_cost["tinf"]["all"]=storage_cost["tinf"]["all"]+cst;end
-            storage_cost["all"]=storage_cost["all"]+cst
-            println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst))
-        end
-    end
-    return storage_cost
-end
-
-function print_converters(result_mip,argz,data)
-    converter_cost=Dict("all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
-    if (haskey(result_mip["solution"]["nw"]["1"],"convdc"))
-        println("%%%% Converters t0 %%%%")
-        for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["convdc"]), by=x->parse(Int64,x))
-#Equipment tabulation
-            cv_bus=string(data["convdc"][string(i)]["busdc_i"])
-            if !(haskey(argz["topology"]["t0"],cv_bus));push!(argz["topology"]["t0"],cv_bus=>Dict());end
-            if !(haskey(argz["topology"]["t0"][cv_bus],"conv"));push!(argz["topology"]["t0"][cv_bus],"conv"=>cv["p_pacmax"]);end
-#Cost tabulation
-                cst=cv["p_pacmax"]*data["convdc"][i]["cost"]
-                if !(haskey(converter_cost["t0"],string(i)));push!(converter_cost["t0"],string(i)=>cst);end
-                if !(haskey(converter_cost["t0"],"all"));push!(converter_cost["t0"],"all"=>cst);else;converter_cost["t0"]["all"]=converter_cost["t0"]["all"]+cst;end
-                converter_cost["all"]=converter_cost["all"]+cst
-                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst))
-        end;
-        println("%%%% Converters t2 %%%%")
-        for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["convdc"]), by=x->parse(Int64,x))
-#Equipment tabulation
-                cv_bus=string(data["convdc"][string(i)]["busdc_i"])
-                if !(haskey(argz["topology"]["t2"],cv_bus));push!(argz["topology"]["t2"],cv_bus=>Dict());end
-                if !(haskey(argz["topology"]["t2"][cv_bus],"conv"));push!(argz["topology"]["t2"][cv_bus],"conv"=>cv["p_pacmax"]);end
-#Cost tabulation
-                cst=(cv["p_pacmax"]-result_mip["solution"]["nw"]["1"]["convdc"][i]["p_pacmax"])*data["convdc"][i]["cost"]*2/3*(1/((1+argz["dr"])^(10)))
-                if !(haskey(converter_cost["t2"],string(i)));push!(converter_cost["t2"],string(i)=>cst);end
-                if !(haskey(converter_cost["t2"],"all"));push!(converter_cost["t2"],"all"=>cst);else;converter_cost["t2"]["all"]=converter_cost["t2"]["all"]+cst;end
-                converter_cost["all"]=converter_cost["all"]+cst
-                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst))
-        end;
-        println("%%%% Converters tinf %%%%")
-        for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["convdc"]), by=x->parse(Int64,x))
-#Equipment tabulation
-                cv_bus=string(data["convdc"][string(i)]["busdc_i"])
-                if !(haskey(argz["topology"]["tinf"],cv_bus));push!(argz["topology"]["tinf"],cv_bus=>Dict());end
-                if !(haskey(argz["topology"]["tinf"][cv_bus],"conv"));push!(argz["topology"]["tinf"][cv_bus],"conv"=>cv["p_pacmax"]);end
-#Cost tabulation
-                cst=(cv["p_pacmax"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["convdc"][i]["p_pacmax"])*data["convdc"][i]["cost"]*1/3*(1/((1+argz["dr"])^(20)))
-                if !(haskey(converter_cost["tinf"],string(i)));push!(converter_cost["tinf"],string(i)=>cst);end
-                if !(haskey(converter_cost["tinf"],"all"));push!(converter_cost["tinf"],"all"=>cst);else;converter_cost["tinf"]["all"]=converter_cost["tinf"]["all"]+cst;end
-                converter_cost["all"]=converter_cost["all"]+cst
-                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst))
-        end;
-    end
-    return converter_cost
-end
-
-function print_owpps(result_mip,argz,data)
-    owpp_cost=Dict("totals"=>Dict(),"all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
-    if (haskey(result_mip["solution"]["nw"]["1"],"gen"))
-        println("%%%% OWPPS T0 %%%%")
-        for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["gen"]), by=x->parse(Int64,x))
-            if (haskey(wf,"wf_pacmax"))
-#Equipment tabulation
-                wf_bus=string(data["gen"][string(i)]["gen_bus"])
-                if !(haskey(argz["topology"]["t0"],wf_bus));push!(argz["topology"]["t0"],wf_bus=>Dict());end
-                if !(haskey(argz["topology"]["t0"][wf_bus],"wf"));push!(argz["topology"]["t0"][wf_bus],"wf"=>wf["wf_pacmax"]);end
-#Cost tabulation
-                cst=wf["wf_pacmax"]*data["gen"][i]["invest"]
-                if !(haskey(owpp_cost["totals"],string(i)));push!(owpp_cost["totals"],string(i)=>cst);else;owpp_cost["totals"][string(i)]=owpp_cost["totals"][string(i)]+cst;end
-                if !(haskey(owpp_cost["t0"],string(i)));push!(owpp_cost["t0"],string(i)=>cst);end
-                if !(haskey(owpp_cost["t0"],"all"));push!(owpp_cost["t0"],"all"=>cst);else;owpp_cost["t0"]["all"]=owpp_cost["t0"]["all"]+cst;end
-                owpp_cost["all"]=owpp_cost["all"]+cst
-                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst))
-        end;end
-        println("%%%% OWPPS T2 %%%%")
-        for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["gen"]), by=x->parse(Int64,x))
-            if (haskey(wf,"wf_pacmax"))
-#Equipment tabulation
-                wf_bus=string(data["gen"][string(i)]["gen_bus"])
-                if !(haskey(argz["topology"]["t2"],wf_bus));push!(argz["topology"]["t2"],wf_bus=>Dict());end
-                if !(haskey(argz["topology"]["t2"][wf_bus],"wf"));push!(argz["topology"]["t2"][wf_bus],"wf"=>wf["wf_pacmax"]);end
-#Cost tabulation
-                cst=(wf["wf_pacmax"]-result_mip["solution"]["nw"]["1"]["gen"][i]["wf_pacmax"])*data["gen"][i]["invest"]*2/3*(1/((1+argz["dr"])^(10)))
-                if !(haskey(owpp_cost["totals"],string(i)));push!(owpp_cost["totals"],string(i)=>cst);else;owpp_cost["totals"][string(i)]=owpp_cost["totals"][string(i)]+cst;end
-                if !(haskey(owpp_cost["t2"],string(i)));push!(owpp_cost["t2"],string(i)=>cst);end
-                if !(haskey(owpp_cost["t2"],"all"));push!(owpp_cost["t2"],"all"=>cst);else;owpp_cost["t2"]["all"]=owpp_cost["t2"]["all"]+cst;end
-                owpp_cost["all"]=owpp_cost["all"]+cst
-                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst))
-        end;end
-        println("%%%% OWPPS Tinf %%%%")
-        for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["gen"]), by=x->parse(Int64,x))
-            if (haskey(wf,"wf_pacmax"))
-#Equipment tabulation
-                wf_bus=string(data["gen"][string(i)]["gen_bus"])
-                if !(haskey(argz["topology"]["tinf"],wf_bus));push!(argz["topology"]["tinf"],wf_bus=>Dict());end
-                if !(haskey(argz["topology"]["tinf"][wf_bus],"wf"));push!(argz["topology"]["tinf"][wf_bus],"wf"=>wf["wf_pacmax"]);end
-#Cost tabulation
-                cst=(wf["wf_pacmax"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["gen"][i]["wf_pacmax"])*data["gen"][i]["invest"]*1/3*(1/((1+argz["dr"])^(20)))
-                if !(haskey(owpp_cost["totals"],string(i)));push!(owpp_cost["totals"],string(i)=>cst);else;owpp_cost["totals"][string(i)]=owpp_cost["totals"][string(i)]+cst;end
-                if !(haskey(owpp_cost["tinf"],string(i)));push!(owpp_cost["tinf"],string(i)=>cst);end
-                if !(haskey(owpp_cost["tinf"],"all"));push!(owpp_cost["tinf"],"all"=>cst);else;owpp_cost["tinf"]["all"]=owpp_cost["tinf"]["all"]+cst;end
-                owpp_cost["all"]=owpp_cost["all"]+cst
-                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst))
-        end;end
-    end
-    return owpp_cost
-end
-
-function print_branch(result_mip,argz,data)
-    branch_cost=Dict("all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
-    if (haskey(result_mip["solution"]["nw"]["1"],"branch"))
-        println("%%%% Cables HVAC t0 %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branch"]), by=x->parse(Int64,x))
-            if (br["p_rateAC"]>0)
-            cst=br["p_rateAC"]*data["branch"][i]["cost"]
-                if !(haskey(branch_cost["t0"],string(i)));push!(branch_cost["t0"],string(i)=>cst);end
-                if !(haskey(branch_cost["t0"],"all"));push!(branch_cost["t0"],"all"=>cst);else;branch_cost["t0"]["all"]=branch_cost["t0"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
-            push!(argz["topology"]["t0"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
-        end;end
-        println("%%%% Cables HVAC t2 %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branch"]), by=x->parse(Int64,x))
-            if (br["p_rateAC"]>0)
-            cst=((br["p_rateAC"]-result_mip["solution"]["nw"]["1"]["branch"][i]["p_rateAC"])*data["branch"][i]["cost"])*2/3*(1/((1+argz["dr"])^(10)))
-                if !(haskey(branch_cost["t2"],string(i)));push!(branch_cost["t2"],string(i)=>cst);end
-                if !(haskey(branch_cost["t2"],"all"));push!(branch_cost["t2"],"all"=>cst);else;branch_cost["t2"]["all"]=branch_cost["t2"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
-            push!(argz["topology"]["t2"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
-        end;end
-        println("%%%% Cables HVAC tinf %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branch"]), by=x->parse(Int64,x))
-            if (br["p_rateAC"]>0)
-            cst=((br["p_rateAC"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branch"][i]["p_rateAC"])*data["branch"][i]["cost"])*1/3*(1/((1+argz["dr"])^(20)))
-                if !(haskey(branch_cost["tinf"],string(i)));push!(branch_cost["tinf"],string(i)=>cst);end
-                if !(haskey(branch_cost["tinf"],"all"));push!(branch_cost["tinf"],"all"=>cst);else;branch_cost["tinf"]["all"]=branch_cost["tinf"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
-            push!(argz["topology"]["tinf"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
-        end;end
-    end
-    return branch_cost
-end
-
-
-
-function print_branchdc(result_mip,argz,data)
-    branch_cost=Dict("all"=>0.0,"t0"=>Dict("all"=>0.0),"t2"=>Dict("all"=>0.0),"tinf"=>Dict("all"=>0.0));
-    if (haskey(result_mip["solution"]["nw"]["1"],"branchdc"))
-        println("%%%% Cables HVDC t0 %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"]["1"]["branchdc"]), by=x->parse(Int64,x))
-            if (br["p_rateA"]>0)
-            cst=br["p_rateA"]*data["branchdc"][i]["cost"]
-                if !(haskey(branch_cost["t0"],string(i)));push!(branch_cost["t0"],string(i)=>cst);end
-                if !(haskey(branch_cost["t0"],"all"));push!(branch_cost["t0"],"all"=>cst);else;branch_cost["t0"]["all"]=branch_cost["t0"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
-            push!(argz["topology"]["t0"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
-        end;end
-        println("%%%% Cables HVDC t2 %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branchdc"]), by=x->parse(Int64,x))
-            if (br["p_rateA"]>0)
-            cst=((br["p_rateA"]-result_mip["solution"]["nw"]["1"]["branchdc"][i]["p_rateA"])*data["branchdc"][i]["cost"])*2/3*(1/((1+argz["dr"])^(10)))
-                if !(haskey(branch_cost["t2"],string(i)));push!(branch_cost["t2"],string(i)=>cst);end
-                if !(haskey(branch_cost["t2"],"all"));push!(branch_cost["t2"],"all"=>cst);else;branch_cost["t2"]["all"]=branch_cost["t2"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
-            push!(argz["topology"]["t2"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
-        end;end
-        println("%%%% Cables HVDC tinf %%%%")
-        for (i,br) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["branchdc"]), by=x->parse(Int64,x))
-            if (br["p_rateA"]>0)
-            cst=((br["p_rateA"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["branchdc"][i]["p_rateA"])*data["branchdc"][i]["cost"])*1/3*(1/((1+argz["dr"])^(20)))
-                if !(haskey(branch_cost["tinf"],string(i)));push!(branch_cost["tinf"],string(i)=>cst);end
-                if !(haskey(branch_cost["tinf"],"all"));push!(branch_cost["tinf"],"all"=>cst);else;branch_cost["tinf"]["all"]=branch_cost["tinf"]["all"]+cst;end
-                branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
-            push!(argz["topology"]["tinf"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
-        end;end
-    end
-    return branch_cost
 end
 
 function plot_clearing_price(time_series)
@@ -2070,6 +2077,78 @@ function InitialD_FinalD_ReDispatch(results)
 end
 #######################################################################
 
+function nodal2zonal(s,result_mip,zones)
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+    s["home_market"]=zones
+    s["rebalancing"]=true
+    s["relax_problem"]=true
+    s["output"]["duals"]=true
+    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
+    s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
+    result_mip_hm_prices = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    s["home_market"]=[]
+    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
+    s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
+    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
+    return result_mip, data, mn_data, s, result_mip_hm_prices
+end
+
+function zonal2nodal(s,result_mip)
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
+    s["rebalancing"]=true
+    s["relax_problem"]=true
+    s["output"]["duals"]=true
+    s["home_market"]=[]
+    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
+    s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
+    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    return result_mip, data, mn_data, s
+end
+
+function remove_integers_new_market(result_mip,mn_data,data,s)
+    for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
+        for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
+            
+            #dc cables
+            for (bs,brs) in result_mip["solution"]["nw"][string(ts)]["branchdc"];
+                if (brs["p_rateA"]>0.5)
+                    brd=data["branchdc"][bs]
+                    for (b_ne,br_ne) in data["branchdc_ne"]
+                        if (brd["fbusdc"]==br_ne["fbusdc"] && brd["tbusdc"]==br_ne["tbusdc"] && (brs["p_rateA"] <= br_ne["rateA"]+1 && br_ne["rateA"]-1 <= brs["p_rateA"]))
+                            s["xd"]["branchdc"][bs]["rateA"][1,ts]=brs["p_rateA"]
+                            s["xd"]["branchdc"][bs]["r"][1,ts]=br_ne["r"]
+                            s["xd"]["branchdc"][bs]["cost"][1,ts]=0.0;
+                        end
+                    end;
+                else
+                    s["xd"]["branchdc"][bs]["rateA"][1,ts]=0.0
+                    s["xd"]["branchdc"][bs]["cost"][1,ts]=0.0;
+                end;
+            end;
+
+            #ac cables
+            for (bs,brs) in result_mip["solution"]["nw"][string(ts)]["branch"];
+                if (brs["p_rateAC"]>0.5)
+                    brd=data["branch"][bs]
+                    for (b_ne,br_ne) in data["ne_branch"]
+                        if (brd["f_bus"]==br_ne["f_bus"] && brd["t_bus"]==br_ne["t_bus"] && (brs["p_rateAC"] <= br_ne["rate_a"]+1 && br_ne["rate_a"]-1 <= brs["p_rateAC"]))
+                            s["xd"]["branch"][bs]["rateA"][1,ts]=brs["p_rateAC"]
+                            s["xd"]["branch"][bs]["br_r"][1,ts]=br_ne["br_r"]
+                            s["xd"]["branch"][bs]["cost"][1,ts]=0.0;
+                        end
+                    end;
+                else
+                    s["xd"]["branch"][bs]["rateA"][1,ts]=0.0
+                    s["xd"]["branch"][bs]["cost"][1,ts]=0.0;
+                end;
+            end;
+    end;end
+    return s, mn_data
+end
 ################### deprecated ###########################
 
 #=function SocialWelfare(s, result_mip, mn_data, data)
@@ -2283,3 +2362,4 @@ end
 	PlotlyJS.plot(
 	scatter_vec, PlotlyJS.Layout(yaxis_range=(low_rng, high_rng),yaxis_title="€/MWh",xaxis_title="time steps",title=country))
 end=#
+=#

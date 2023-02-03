@@ -1,19 +1,20 @@
 
 ###################################### Storage #########################################
+#**#
 function constraint_storage_losses(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     storage = _PM.ref(pm, nw, :storage, i)
 
     _PM.constraint_storage_losses(pm, nw, i, storage["storage_bus"], storage["r"], storage["x"], storage["p_loss"], storage["q_loss"])
 end
 
-
+#**#
 function constraint_storage_thermal_limit(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     ps = _PM.var(pm, nw, :ps, i)
     e_absmax = _PM.var(pm, nw, :e_absmax, i)
     JuMP.@constraint(pm.model, ps-e_absmax/2  <= 0)
     JuMP.@constraint(pm.model, ps+e_absmax/4  >= 0)
 end
-
+#**#
 function constraint_storage_excl_slack(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     sc = _PM.var(pm, nw, :sc, i)
     sd = _PM.var(pm, nw, :sd, i)
@@ -29,6 +30,7 @@ end
 ################################################################################
 ## New storage to reference model
 ################################################################################
+#**#
 function add_candidate_storage!(ref::Dict{Symbol,<:Any}, data::Dict{String,<:Any})
     for (n, nw_ref) in ref[:nw]
         if haskey(nw_ref, :ne_storage)
@@ -41,7 +43,7 @@ function add_candidate_storage!(ref::Dict{Symbol,<:Any}, data::Dict{String,<:Any
     end
 end
 
-
+#**#
 function constraint_storage_state(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     storage = _PM.ref(pm, nw, :storage, i)
 
@@ -54,7 +56,7 @@ function constraint_storage_state(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm
     constraint_storage_state_initial(pm, nw, i, storage["energy"], storage["charge_efficiency"], storage["discharge_efficiency"], storage["stationary_energy_inflow"], storage["stationary_energy_outflow"], storage["self_discharge_rate"], time_elapsed)
 end
 
-
+#**#
 function constraint_storage_state(pm::_PM.AbstractPowerModel, i::Int, nw_1::Int, nw_2::Int)
     storage = _PM.ref(pm, nw_2, :storage, i)
 
@@ -73,7 +75,7 @@ function constraint_storage_state(pm::_PM.AbstractPowerModel, i::Int, nw_1::Int,
         constraint_storage_state_initial(pm, nw_2, i, storage["energy"], storage["charge_efficiency"], storage["discharge_efficiency"], storage["stationary_energy_inflow"], storage["stationary_energy_outflow"], storage["self_discharge_rate"], time_elapsed)
     end
 end
-
+#**#
 function constraint_storage_state(pm::_PM.AbstractPowerModel, n_1::Int, n_2::Int, i::Int, charge_eff, discharge_eff, inflow, outflow, self_discharge_rate, time_elapsed)
     sc_2 = _PM.var(pm, n_2, :sc, i)
     sd_2 = _PM.var(pm, n_2, :sd, i)
@@ -82,7 +84,7 @@ function constraint_storage_state(pm::_PM.AbstractPowerModel, n_1::Int, n_2::Int
 
     JuMP.@constraint(pm.model, se_2 == ((1-self_discharge_rate)^time_elapsed)*se_1 + time_elapsed*(charge_eff*sc_2 - sd_2/discharge_eff + inflow - outflow))
 end
-
+#**#
 function constraint_storage_state_initial(pm::_PM.AbstractPowerModel, n::Int, i::Int, energy, charge_eff, discharge_eff, inflow, outflow, self_discharge_rate, time_elapsed)
     sc = _PM.var(pm, n, :sc, i)
     sd = _PM.var(pm, n, :sd, i)
@@ -90,18 +92,18 @@ function constraint_storage_state_initial(pm::_PM.AbstractPowerModel, n::Int, i:
 
     JuMP.@constraint(pm.model, se == ((1-self_discharge_rate)^time_elapsed)*energy + time_elapsed*(charge_eff*sc - sd/discharge_eff + inflow - outflow))
 end
-
+#**#
 function constraint_storage_state_final(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     storage = _PM.ref(pm, nw, :storage, i)
     constraint_storage_state_final(pm, nw, i, storage["energy"])
 end
-
+#**#
 function constraint_storage_state_final(pm::_PM.AbstractPowerModel, n::Int, i::Int, energy)
     se = _PM.var(pm, n, :se, i)
 
     JuMP.@constraint(pm.model, se >= energy)
 end
-
+#**#
 function constraint_maximum_absorption(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     storage = _PM.ref(pm, nw, :storage, i)
 
@@ -113,7 +115,7 @@ function constraint_maximum_absorption(pm::_PM.AbstractPowerModel, i::Int; nw::I
     end
     constraint_maximum_absorption_initial(pm, nw, i, time_elapsed)
 end
-
+#**#
 function  constraint_maximum_absorption(pm::_PM.AbstractPowerModel, i::Int, nw_1::Int, nw_2::Int)
     storage = _PM.ref(pm, nw_2, :storage, i)
 
@@ -132,7 +134,7 @@ function  constraint_maximum_absorption(pm::_PM.AbstractPowerModel, i::Int, nw_1
         constraint_maximum_absorption_initial(pm, nw_2, i, time_elapsed)
     end
 end
-
+#**#
 function constraint_maximum_absorption(pm::_PM.AbstractPowerModel, n_1::Int, n_2::Int, i::Int, time_elapsed)
     sc_2 = _PM.var(pm, n_2, :sc, i)
     e_abs_2 = _PM.var(pm, n_2, :e_abs, i)
@@ -140,7 +142,7 @@ function constraint_maximum_absorption(pm::_PM.AbstractPowerModel, n_1::Int, n_2
 
     JuMP.@constraint(pm.model, e_abs_2 - e_abs_1 == time_elapsed * sc_2)
 end
-
+#**#
 function constraint_maximum_absorption_initial(pm::_PM.AbstractPowerModel, n::Int, i::Int, time_elapsed)
     sc = _PM.var(pm, n, :sc, i)
     e_abs = _PM.var(pm, n, :e_abs, i)

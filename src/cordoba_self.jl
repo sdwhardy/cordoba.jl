@@ -19,7 +19,7 @@ import InfrastructureModels;const _IM = InfrastructureModels
 import MathOptInterface;const _MOI = MathOptInterface
 
 include("prob/cordoba_acdc_wf_strg.jl")
-include("prob/cordoba_acdc_wgentypes.jl")
+#include("prob/cordoba_acdc_wgentypes.jl")
 include("core/objective.jl")
 include("core/constraints.jl")
 #include("core/admm.jl")

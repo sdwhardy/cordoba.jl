@@ -1,5 +1,6 @@
 ####################################### power balance ############################################
 ############## Nodal Market clearing
+#**#
 function constraint_power_balance_acne_dcne_strg(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     bus_arcs = PowerModels.ref(pm, nw, :bus_arcs, i)
     bus_arcs_ne = PowerModels.ref(pm, nw, :ne_bus_arcs, i)
@@ -17,16 +18,17 @@ function constraint_power_balance_acne_dcne_strg(pm::_PM.AbstractPowerModel, i::
 
     gs = Dict(k => PowerModels.ref(pm, nw, :shunt, k, "gs") for k in bus_shunts)
     bs = Dict(k => PowerModels.ref(pm, nw, :shunt, k, "bs") for k in bus_shunts)
-    if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
-        cost=constraint_power_balance_acne_dcne_strg_admm(pm, nw, i, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
-        return cost
-    else
+   # if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
+   #     cost=constraint_power_balance_acne_dcne_strg_admm(pm, nw, i, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
+   #     return cost
+   # else
         constraint_power_balance_acne_dcne_strg(pm, nw, i, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
-    end
+   # end
 end
 
 
 #Power balance constraint including candidate storage
+#**#
 function constraint_power_balance_acne_dcne_strg(pm::_PM.AbstractDCPModel, n::Int, i::Int, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
     p = _PM.var(pm, n, :p)
     pg = _PM.var(pm, n, :pg)
@@ -48,7 +50,7 @@ end
 
 
 ########### Zonal Market clearing
-
+#=
 ##################### node in zone
 function constraint_power_balance_dc_dcne_hm_node(pm::_PM.AbstractPowerModel, i, is::Set{Int64}; nw::Int=pm.cnw)
 
@@ -132,7 +134,9 @@ function constraint_power_balance_acne_dcne_strg_hm_node(pm::_PM.AbstractDCPMode
     cstr1=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  - sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) + sum(pd[d] for d in bus_loads) + sum(gs[s] for s in bus_shunts)*v^2 - ne_bus_arcs_inner <= 0)
     cstr2=JuMP.@constraint(pm.model, sum(p[a] for a in bus_arcs) + sum(p_ne[a] for a in bus_arcs_ne) + sum(pconv_grid_ac[c] for c in bus_convs_ac) + sum(pconv_grid_ac_ne[c] for c in bus_convs_ac_ne)  - sum(pg[g] for g in bus_gens) - sum(ps[s] for s in bus_storage) + sum(pd[d] for d in bus_loads) + sum(gs[s] for s in bus_shunts)*v^2 + ne_bus_arcs_inner >= 0)
 end
+=#
 
+#**#
 function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, is::Set{Int64}; nw::Int=pm.cnw)
     bus_arcs_dcgrid=[];for (i,v) in enumerate(is);
         if (i==1);bus_arcs_dcgrid=PowerModels.ref(pm, nw, :bus_arcs_dcgrid, v)
@@ -169,6 +173,7 @@ function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, is::Set
 end
 
 #Power balance constraint including candidate storage
+#**#
 function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, n::Int, is::Set{Int64}, bus_arcs_dcgrid, bus_arcs_dcgrid_ne, bus_convs_dc, bus_convs_dc_ne, pd)
     p_dcgrid = _PM.var(pm, n, :p_dcgrid)
     p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
@@ -176,7 +181,7 @@ function constraint_power_balance_dc_dcne_hm(pm::_PM.AbstractPowerModel, n::Int,
     pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
     cstr=JuMP.@constraint(pm.model, sum(p_dcgrid[a] for a in bus_arcs_dcgrid) + sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc[c] for c in bus_convs_dc) + sum(pconv_dc_ne[c] for c in bus_convs_dc_ne)  == -1*sum(pd))
 end
-
+#**#
 function constraint_power_balance_dcne_dcne_hm(pm::_PM.AbstractPowerModel, is::Set{Int64}; nw::Int=pm.cnw)
 
     bus_i=[];for (i,v) in enumerate(is);
@@ -204,7 +209,7 @@ function constraint_power_balance_dcne_dcne_hm(pm::_PM.AbstractPowerModel, is::S
             constraint_power_balance_dcne_dcne_hm(pm, nw, is, bus_arcs_dcgrid_ne, bus_ne_convs_dc_ne, pd_ne);end
 end
 
-
+#**#
 function constraint_power_balance_dcne_dcne_hm(pm::_PM.AbstractPowerModel, n::Int, is::Set{Int64}, bus_arcs_dcgrid_ne, bus_ne_convs_dc_ne, pd_ne)
 p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
 pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
@@ -219,6 +224,7 @@ cstr = JuMP.@constraint(pm.model, sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne
     end
 end
 
+#**#
 function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractPowerModel, is::Set{Int64}; nw::Int=pm.cnw)
 
     bus_arcs=[];for (i,v) in enumerate(is);
@@ -269,15 +275,16 @@ function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractPowerModel, 
 
     gs = Dict(k => PowerModels.ref(pm, nw, :shunt, k, "gs") for k in bus_shunts)
     bs = Dict(k => PowerModels.ref(pm, nw, :shunt, k, "bs") for k in bus_shunts)
-    if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
-        cost=constraint_power_balance_acne_dcne_strg_hm_admm(pm, nw, is, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
-        return cost
-    else
+    #if (haskey(pm.setting,"agent") && pm.setting["agent"]!="")
+   #     cost=constraint_power_balance_acne_dcne_strg_hm_admm(pm, nw, is, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
+    #    return cost
+    #else
         constraint_power_balance_acne_dcne_strg_hm(pm, nw, is, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
-    end
+    #end
 end
 
 #Power balance constraint including candidate storage
+#**#
 function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractDCPModel, n::Int, is::Set{Int64}, bus_arcs, bus_arcs_ne, bus_arcs_dc, bus_gens, bus_convs_ac, bus_convs_ac_ne, bus_loads, bus_shunts, bus_storage, bus_storage_ne, pd, qd, gs, bs)
     p = _PM.var(pm, n, :p)
     pg = _PM.var(pm, n, :pg)
@@ -297,7 +304,7 @@ function constraint_power_balance_acne_dcne_strg_hm(pm::_PM.AbstractDCPModel, n:
         end
     end
 end
-
+#**#
 function constraint_power_balance_dc_dcne(pm::_PM.AbstractPowerModel, i::Int; nw::Int=_PM.nw_id_default)
     bus_arcs_dcgrid = PowerModels.ref(pm, nw, :bus_arcs_dcgrid, i)
     if haskey(PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne), i)
@@ -310,7 +317,7 @@ function constraint_power_balance_dc_dcne(pm::_PM.AbstractPowerModel, i::Int; nw
     pd = PowerModels.ref(pm, nw, :busdc, i)["Pdc"]
     constraint_power_balance_dc_dcne(pm, nw, i, bus_arcs_dcgrid, bus_arcs_dcgrid_ne, bus_convs_dc, bus_convs_dc_ne, pd)
 end
-
+#**#
 function constraint_power_balance_dc_dcne(pm::_PM.AbstractPowerModel, n::Int, i::Int, bus_arcs_dcgrid, bus_arcs_dcgrid_ne, bus_convs_dc, bus_convs_dc_ne, pd)
     p_dcgrid = _PM.var(pm, n, :p_dcgrid)
     p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
@@ -319,7 +326,7 @@ function constraint_power_balance_dc_dcne(pm::_PM.AbstractPowerModel, n::Int, i:
 
     cstr=JuMP.@constraint(pm.model, sum(p_dcgrid[a] for a in bus_arcs_dcgrid) + sum(p_dcgrid_ne[a] for a in bus_arcs_dcgrid_ne) + sum(pconv_dc[c] for c in bus_convs_dc) + sum(pconv_dc_ne[c] for c in bus_convs_dc_ne)  == (-pd))
 end
-
+#**#
 function constraint_power_balance_dcne_dcne(pm::_PM.AbstractPowerModel, i::Int; nw::Int=_PM.nw_id_default)
     bus_i = PowerModels.ref(pm, nw, :busdc_ne, i)["busdc_i"]
     if haskey(PowerModels.ref(pm, nw, :bus_arcs_dcgrid_ne), bus_i)
@@ -331,7 +338,7 @@ function constraint_power_balance_dcne_dcne(pm::_PM.AbstractPowerModel, i::Int; 
     pd_ne = PowerModels.ref(pm, nw, :busdc_ne, i)["Pdc"]
     constraint_power_balance_dcne_dcne(pm, nw, i, bus_arcs_dcgrid_ne, bus_ne_convs_dc_ne, pd_ne)
 end
-
+#**#
 function constraint_power_balance_dcne_dcne(pm::_PM.AbstractPowerModel, n::Int, i::Int, bus_arcs_dcgrid_ne, bus_ne_convs_dc_ne, pd_ne)
     p_dcgrid_ne = _PM.var(pm, n, :p_dcgrid_ne)
     pconv_dc_ne = _PM.var(pm, n, :pconv_dc_ne)
@@ -342,6 +349,7 @@ end
 
 ############################ Fixing branch variables for MIP vs Convex approx ###########################
 ############################# HVDC
+#=
 function fix_dc_lines2zero(pm)
     for n in _PM.nw_ids(pm)
         if haskey(_PM.ref(pm, n), :branchdc)
@@ -355,8 +363,8 @@ function fix_dc_lines2zero(pm)
         end
     end
 end
-
-
+=#
+#**#
 function fix_dc_ne_lines2zero(pm)
     for n in _PM.nw_ids(pm)
         if haskey(_PM.ref(pm, n), :branchdc_ne)
@@ -374,6 +382,7 @@ function fix_dc_ne_lines2zero(pm)
 end
 
 ############################## HVAC
+#=
 function fix_ac_lines2zero(pm)
     for n in _PM.nw_ids(pm)
         if haskey(_PM.ref(pm, n), :branch)
@@ -386,8 +395,8 @@ function fix_ac_lines2zero(pm)
             end
         end
     end
-end
-
+end=#
+#**#
 function fix_ac_ne_lines2zero(pm)
     for n in _PM.nw_ids(pm)
         if haskey(_PM.ref(pm, n), :branch_ne)
@@ -404,6 +413,7 @@ end
 
 ########################### Ohms law for Market model, in Nodal same as PMACDC #######################
 ######################## HVDC #######################
+#**#
 function constraint_ohms_dc_branch_ne(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     branch = PowerModels.ref(pm, nw, :branchdc_ne, i)
     f_bus = branch["fbusdc"]
@@ -414,13 +424,13 @@ function constraint_ohms_dc_branch_ne(pm::_PM.AbstractPowerModel, i::Int; nw::In
     p = PowerModels.ref(pm, nw, :dcpol)
     constraint_ohms_dc_branch_ne(pm, nw, f_bus, t_bus, f_idx, t_idx, branch["r"], p, rate_a)
 end
-
+#**#
 function constraint_ohms_dc_branch_ne(pm::_PM.AbstractDCPModel, n::Int, f_bus, t_bus, f_idx, t_idx, r, p, rate_a)
     p_dc_fr_ne = _PM.var(pm, n, :p_dcgrid_ne, f_idx)
     p_dc_to_ne = _PM.var(pm, n, :p_dcgrid_ne, t_idx)
     cstr=JuMP.@constraint(pm.model, p_dc_fr_ne + p_dc_to_ne == 0)
 end
-
+#**#
 function constraint_ohms_dc_branch(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     branch = _PM.ref(pm, nw, :branchdc, i)
     f_bus = branch["fbusdc"]
@@ -432,7 +442,7 @@ function constraint_ohms_dc_branch(pm::_PM.AbstractPowerModel, i::Int; nw::Int=p
     p = _PM.ref(pm, nw, :dcpol)
     constraint_ohms_dc_branch(pm, nw, f_bus, t_bus, f_idx, t_idx, branch["r"], p, p_rateA)
 end
-
+#**#
 function constraint_ohms_dc_branch(pm::_PM.AbstractDCPModel, n::Int,  f_bus, t_bus, f_idx, t_idx, r, p, p_rateA)
     p_dc_fr = _PM.var(pm, n, :p_dcgrid, f_idx)
     p_dc_to = _PM.var(pm, n, :p_dcgrid, t_idx)
@@ -440,6 +450,7 @@ function constraint_ohms_dc_branch(pm::_PM.AbstractDCPModel, n::Int,  f_bus, t_b
 end
 
 ######################## HVAC #######################
+#**#
 function constraint_ohms_ac_branch(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     branch = _PM.ref(pm, nw, :branch, i)
     rate_a =_PM.var(pm, nw, :p_rateAC, i)
@@ -450,12 +461,13 @@ function constraint_ohms_ac_branch(pm::_PM.AbstractPowerModel, i::Int; nw::Int=p
     constraint_ohms_ac_branch(pm, nw, f_idx, t_idx, f_bus, t_bus, rate_a)
 end
 
+#**#
 function constraint_ohms_ac_branch(pm::_PM.AbstractDCPModel, n::Int, f_idx, t_idx, f_bus, t_bus, rate_a)
     p_fr  = _PM.var(pm, n,  :p, f_idx)
     p_to  = _PM.var(pm, n,  :p, t_idx)
     JuMP.@constraint(pm.model, p_fr + p_to == 0)
 end
-
+#**#
 function constraint_ohms_ac_branch_ne(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     branch = _PM.ref(pm, nw, :ne_branch, i)
     rate_a = branch["rate_a"]
@@ -465,7 +477,7 @@ function constraint_ohms_ac_branch_ne(pm::_PM.AbstractPowerModel, i::Int; nw::In
     t_idx = (i, t_bus, f_bus)
     constraint_ohms_ac_branch_ne(pm, nw, f_idx, t_idx, f_bus, t_bus, rate_a)
 end
-
+#**#
 function constraint_ohms_ac_branch_ne(pm::_PM.AbstractDCPModel, n::Int, f_idx, t_idx, f_bus, t_bus, rate_a)
     p_fr  = _PM.var(pm, n,  :p_ne, f_idx)
     p_to  = _PM.var(pm, n,  :p_ne, t_idx)
@@ -476,6 +488,7 @@ end
 ##################################### Max investment constraints
 #Constraint on size of yearly investment possible
 #main logic
+#**#
 function max_investment_per_year(pm::_PM.AbstractPowerModel)
     s1=pm.setting["scenarios_length"]
     y1=pm.setting["years_length"]
@@ -514,6 +527,7 @@ end
 
 ################## Convex variables
 #max investment per year for wind farms
+#**#
 function calc_wf_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_wf_cost_npv(i, b_cost, nw)
@@ -551,6 +565,7 @@ function calc_wf_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
     return cost
 end
 #max investment per year for storage
+#**#
 function calc_storage_cost_cordoba_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_storage_cost_npv(i, b_cost, nw)
@@ -589,6 +604,7 @@ function calc_storage_cost_cordoba_max_invest(pm::_PM.AbstractPowerModel, n::Int
 end
 
 #max investment per year for converters
+#**#
 function calc_convdc_convexafy_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_convdc_cost_npv(i, b_cost, nw)
@@ -627,6 +643,7 @@ function calc_convdc_convexafy_cost_max_invest(pm::_PM.AbstractPowerModel, n::In
 end
 
 #HVDC branches
+#**#
 function calc_branchdc_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branchdc_cost_npv(i, b_cost, nw)
@@ -665,6 +682,7 @@ function calc_branchdc_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 end
 
 # HVAC branches
+#**#
 function calc_branch_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branch_cost_npv(i, b_cost, nw)
@@ -705,6 +723,7 @@ end
 
 ##################### Binary variables
 #HVDC cables
+#**#
 function calc_branch_ne_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branch_ne_cost_npv(i, b_cost, nw)
@@ -744,6 +763,7 @@ function calc_branch_ne_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 end
 
 #HVAC Cables
+#**#
 function calc_branchdc_ne_cost_max_invest(pm::_PM.AbstractPowerModel, n::Int)
 
     function calc_single_branchdc_ne_cost_npv(i, b_cost, nw)
@@ -779,6 +799,7 @@ end
 
 ############################ Constraint on number of TLs per corridor ##############################
 #HVDC lines
+#**#
 function collect_4_constraint_candidate_corridor_limit_dc(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     branch = _PM.ref(pm, nw, :branchdc_ne, i)
     ft_bus = [branch["fbusdc"],branch["tbusdc"]]
@@ -787,6 +808,7 @@ function collect_4_constraint_candidate_corridor_limit_dc(pm::_PM.AbstractPowerM
 end
 
 #HVAC lines
+#**#
 function collect_4_constraint_candidate_corridor_limit_ac(pm::_PM.AbstractPowerModel, i::Int; nw::Int=pm.cnw)
     branch = _PM.ref(pm, nw, :ne_branch, i)
     ft_bus = [branch["f_bus"],branch["t_bus"]]
@@ -795,6 +817,7 @@ function collect_4_constraint_candidate_corridor_limit_ac(pm::_PM.AbstractPowerM
 end
 
 #corridor Constraint
+#**#
 function constraint_candidate_corridor_limit(pm::_PM.AbstractPowerModel, cs_in_cs; nw::Int=pm.cnw)
     corridors=Dict{String,Any}()
     ks=first.(cs_in_cs)
@@ -814,6 +837,7 @@ end
 
 ################################### Step wise constraints ###############################
 #generalized time based constraint on variables (can only expand capacity each year and only once) - for wfs see below
+#**#
 function constraint_t0t1(vss, pm)
     sl=pm.setting["scenarios_length"]
     yl=pm.setting["years_length"]
@@ -843,6 +867,7 @@ function constraint_t0t1(vss, pm)
 end
 
 #time based constraint on wf variables (can only expand capacity each year and only once)
+#**#
 function constraint_t0t1_wfz(vss, pm)
     sl=pm.setting["scenarios_length"]
     yl=pm.setting["years_length"]

@@ -86,6 +86,9 @@ mpc.baseMVA = 100;
 77 1 0 0 0 0 1 1 0 220 1 1.1 0.9;
 78 1 0 0 0 0 1 1 0 220 1 1.1 0.9;
 79 1 0 0 0 0 1 1 0 220 1 1.1 0.9;
+80 1 0 0 0 0 1 1 0 220 1 1.1 0.9;
+81 1 0 0 0 0 1 1 0 220 1 1.1 0.9;
+82 1 0 0 0 0 1 1 0 220 1 1.1 0.9;
 ];
 %% generator data
 	%	bus	Pg	Qg	Qmax	Qmin	Vg	mBase	status	Pmax	Pmin	Pc1	Pc2	Qc1min	Qc1max	Qc2min	Qc2max	ramp_agc	ramp_10	ramp_30	ramp_q	apf
@@ -154,6 +157,9 @@ mpc.baseMVA = 100;
 77 0 0 0 0 1 100 1 1 0 0 0 0 0 0 0 0 0 0 0 1;
 78 0 0 0 0 1 100 1 1 0 0 0 0 0 0 0 0 0 0 0 1;
 79 0 0 0 0 1 100 1 1 0 0 0 0 0 0 0 0 0 0 0 1;
+80 0 0 0 0 1 100 1 1 0 0 0 0 0 0 0 0 0 0 0 1;
+81 0 0 0 0 1 100 1 1 0 0 0 0 0 0 0 0 0 0 0 1;
+82 0 0 0 0 1 100 1 1 0 0 0 0 0 0 0 0 0 0 0 1;
 ];
 %%Additional generator fields, type=0(wind generator), type=1(onshore market ie load and generator created)
 	%column_names% 		type invest
@@ -174,6 +180,9 @@ mpc.baseMVA = 100;
 0 210
 0 210
 0 210
+1 0
+1 0
+1 0
 1 0
 1 0
 1 0
@@ -1701,6 +1710,9 @@ mpc.baseMVA = 100;
 2 0 0 2 0 0
 2 0 0 2 0 0
 2 0 0 2 0 0
+2 0 0 2 0 0
+2 0 0 2 0 0
+2 0 0 2 0 0
 ];
 %% existing dc bus data
 	%column_names%   busdc_i grid    Pdc     Vdc     basekVdc    Vdcmax  Vdcmin Cdc
@@ -1784,6 +1796,9 @@ mpc.baseMVA = 100;
 77 77 0 1 300 1.1 0.9 0;
 78 78 0 1 300 1.1 0.9 0;
 79 79 0 1 300 1.1 0.9 0;
+80 80 0 1 300 1.1 0.9 0;
+81 81 0 1 300 1.1 0.9 0;
+82 82 0 1 300 1.1 0.9 0;
 ];
 %% All Candidate equipment has equivalent existing infrastructure field as well ie  mpc.branchdc_ne <->  mpc.branchdc similar to AC
 	%% Candidate DC buses here - refer to MATACDC 1.0 User’s Manual for description of fields
@@ -2814,6 +2829,9 @@ mpc.baseMVA = 100;
 77 77 3 2 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 220 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 4000 -4000 4000 -4000 19.25;
 78 78 3 2 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 220 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 4000 -4000 4000 -4000 19.25;
 79 79 3 2 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 220 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 4000 -4000 4000 -4000 19.25;
+80 80 3 2 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 220 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 4000 -4000 4000 -4000 19.25;
+81 81 3 2 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 220 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 4000 -4000 4000 -4000 19.25;
+82 82 3 2 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 220 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 4000 -4000 4000 -4000 19.25;
 ];
 
 	%trans, filter, reactor, vmin vmax same as conv
@@ -2907,11 +2925,17 @@ mpc.baseMVA = 100;
 77 0 0 0 0 0 0 0.9 0.9 0 0 0 0 0 0 0 1;
 78 0 0 0 0 0 0 0.9 0.9 0 0 0 0 0 0 0 1;
 79 0 0 0 0 0 0 0.9 0.9 0 0 0 0 0 0 0 1;
+80 0 0 0 0 0 0 0.9 0.9 0 0 0 0 0 0 0 1;
+81 0 0 0 0 0 0 0.9 0.9 0 0 0 0 0 0 0 1;
+82 0 0 0 0 0 0 0.9 0.9 0 0 0 0 0 0 0 1;
 ];
 %% cost 36.6
 	 %% storage additional data
 	 %column_names% max_energy_absorption stationary_energy_inflow stationary_energy_outflow self_discharge_rate cost
 	 mpc.storage_extra = [
+0 0 0 0.0001 39;
+0 0 0 0.0001 39;
+0 0 0 0.0001 39;
 0 0 0 0.0001 39;
 0 0 0 0.0001 39;
 0 0 0 0.0001 39;
