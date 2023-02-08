@@ -87,7 +87,8 @@ function print_storage(result_mip,argz,data)
             if !(haskey(storage_cost["t0"],string(i)));push!(storage_cost["t0"],string(i)=>cst);end
             if !(haskey(storage_cost["t0"],"all"));push!(storage_cost["t0"],"all"=>cst);else;storage_cost["t0"]["all"]=storage_cost["t0"]["all"]+cst;end
             storage_cost["all"]=storage_cost["all"]+cst
-            println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst))
+            if (s["e_absmax"] != 0.0 && cst != 0.0)
+            println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst));end
         end
         println("%%%% Storage t2 %%%%")
         for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["storage"]), by=x->parse(Int64,x))
@@ -100,7 +101,8 @@ function print_storage(result_mip,argz,data)
             if !(haskey(storage_cost["t2"],string(i)));push!(storage_cost["t2"],string(i)=>cst);end
             if !(haskey(storage_cost["t2"],"all"));push!(storage_cost["t2"],"all"=>cst);else;storage_cost["t2"]["all"]=storage_cost["t2"]["all"]+cst;end
             storage_cost["all"]=storage_cost["all"]+cst
-                println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst))
+            if (s["e_absmax"] != 0.0 && cst != 0.0)
+                println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst));end
         end
         println("%%%% Storage tinf %%%%")
         for (i,s) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["storage"]), by=x->parse(Int64,x))
@@ -113,7 +115,8 @@ function print_storage(result_mip,argz,data)
             if !(haskey(storage_cost["tinf"],string(i)));push!(storage_cost["tinf"],string(i)=>cst);end
             if !(haskey(storage_cost["tinf"],"all"));push!(storage_cost["tinf"],"all"=>cst);else;storage_cost["tinf"]["all"]=storage_cost["tinf"]["all"]+cst;end
             storage_cost["all"]=storage_cost["all"]+cst
-            println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst))
+            if (s["e_absmax"] != 0.0 && cst != 0.0)
+            println(string(i)*": "*" MWh: "*string(s["e_absmax"])*" Cost: "*string(cst));end
         end
     end
     return storage_cost
@@ -134,7 +137,8 @@ function print_converters(result_mip,argz,data)
                 if !(haskey(converter_cost["t0"],string(i)));push!(converter_cost["t0"],string(i)=>cst);end
                 if !(haskey(converter_cost["t0"],"all"));push!(converter_cost["t0"],"all"=>cst);else;converter_cost["t0"]["all"]=converter_cost["t0"]["all"]+cst;end
                 converter_cost["all"]=converter_cost["all"]+cst
-                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst))
+                if (cv["p_pacmax"] != 0.0 && cst != 0.0)
+                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst));end
         end;
         println("%%%% Converters t2 %%%%")
         for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["convdc"]), by=x->parse(Int64,x))
@@ -147,7 +151,8 @@ function print_converters(result_mip,argz,data)
                 if !(haskey(converter_cost["t2"],string(i)));push!(converter_cost["t2"],string(i)=>cst);end
                 if !(haskey(converter_cost["t2"],"all"));push!(converter_cost["t2"],"all"=>cst);else;converter_cost["t2"]["all"]=converter_cost["t2"]["all"]+cst;end
                 converter_cost["all"]=converter_cost["all"]+cst
-                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst))
+                if (cv["p_pacmax"] != 0.0 && cst != 0.0)
+                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst));end
         end;
         println("%%%% Converters tinf %%%%")
         for (i,cv) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["convdc"]), by=x->parse(Int64,x))
@@ -160,7 +165,8 @@ function print_converters(result_mip,argz,data)
                 if !(haskey(converter_cost["tinf"],string(i)));push!(converter_cost["tinf"],string(i)=>cst);end
                 if !(haskey(converter_cost["tinf"],"all"));push!(converter_cost["tinf"],"all"=>cst);else;converter_cost["tinf"]["all"]=converter_cost["tinf"]["all"]+cst;end
                 converter_cost["all"]=converter_cost["all"]+cst
-                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst))
+                if (cv["p_pacmax"] != 0.0 && cst != 0.0)
+                println(string(i)*": "*string(cv["p_pacmax"])*" Cost: "*string(cst));end
         end;
     end
     return converter_cost
@@ -182,7 +188,8 @@ function print_owpps(result_mip,argz,data)
                 if !(haskey(owpp_cost["t0"],string(i)));push!(owpp_cost["t0"],string(i)=>cst);end
                 if !(haskey(owpp_cost["t0"],"all"));push!(owpp_cost["t0"],"all"=>cst);else;owpp_cost["t0"]["all"]=owpp_cost["t0"]["all"]+cst;end
                 owpp_cost["all"]=owpp_cost["all"]+cst
-                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst))
+                if (wf["wf_pacmax"] != 0.0 && cst != 0.0)
+                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst));end
         end;end
         println("%%%% OWPPS T2 %%%%")
         for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["gen"]), by=x->parse(Int64,x))
@@ -197,7 +204,8 @@ function print_owpps(result_mip,argz,data)
                 if !(haskey(owpp_cost["t2"],string(i)));push!(owpp_cost["t2"],string(i)=>cst);end
                 if !(haskey(owpp_cost["t2"],"all"));push!(owpp_cost["t2"],"all"=>cst);else;owpp_cost["t2"]["all"]=owpp_cost["t2"]["all"]+cst;end
                 owpp_cost["all"]=owpp_cost["all"]+cst
-                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst))
+                if (wf["wf_pacmax"] != 0.0 && cst != 0.0)
+                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst));end
         end;end
         println("%%%% OWPPS Tinf %%%%")
         for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["gen"]), by=x->parse(Int64,x))
@@ -212,7 +220,8 @@ function print_owpps(result_mip,argz,data)
                 if !(haskey(owpp_cost["tinf"],string(i)));push!(owpp_cost["tinf"],string(i)=>cst);end
                 if !(haskey(owpp_cost["tinf"],"all"));push!(owpp_cost["tinf"],"all"=>cst);else;owpp_cost["tinf"]["all"]=owpp_cost["tinf"]["all"]+cst;end
                 owpp_cost["all"]=owpp_cost["all"]+cst
-                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst))
+                if (wf["wf_pacmax"] != 0.0 && cst != 0.0)
+                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst));end
         end;end
     end
     return owpp_cost
@@ -228,7 +237,8 @@ function print_branch(result_mip,argz,data)
                 if !(haskey(branch_cost["t0"],string(i)));push!(branch_cost["t0"],string(i)=>cst);end
                 if !(haskey(branch_cost["t0"],"all"));push!(branch_cost["t0"],"all"=>cst);else;branch_cost["t0"]["all"]=branch_cost["t0"]["all"]+cst;end
                 branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
+            if (br["p_rateAC"] != 0.0 && cst != 0.0)
+            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst));end
             push!(argz["topology"]["t0"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
         end;end
         println("%%%% Cables HVAC t2 %%%%")
@@ -238,7 +248,8 @@ function print_branch(result_mip,argz,data)
                 if !(haskey(branch_cost["t2"],string(i)));push!(branch_cost["t2"],string(i)=>cst);end
                 if !(haskey(branch_cost["t2"],"all"));push!(branch_cost["t2"],"all"=>cst);else;branch_cost["t2"]["all"]=branch_cost["t2"]["all"]+cst;end
                 branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
+                if (br["p_rateAC"] != 0.0 && cst != 0.0)
+            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst));end
             push!(argz["topology"]["t2"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
         end;end
         println("%%%% Cables HVAC tinf %%%%")
@@ -248,7 +259,8 @@ function print_branch(result_mip,argz,data)
                 if !(haskey(branch_cost["tinf"],string(i)));push!(branch_cost["tinf"],string(i)=>cst);end
                 if !(haskey(branch_cost["tinf"],"all"));push!(branch_cost["tinf"],"all"=>cst);else;branch_cost["tinf"]["all"]=branch_cost["tinf"]["all"]+cst;end
                 branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst))
+                if (br["p_rateAC"] != 0.0 && cst != 0.0)
+            println(string(i)*": "*string(data["branch"][i]["f_bus"])*" - "*string(data["branch"][i]["t_bus"])*" MVA: "*string(br["p_rateAC"])*" Cost: "*string(cst));end
             push!(argz["topology"]["tinf"]["ac"],[data["branch"][i]["f_bus"],data["branch"][i]["t_bus"],br["p_rateAC"]])
         end;end
     end
@@ -267,7 +279,8 @@ function print_branchdc(result_mip,argz,data)
                 if !(haskey(branch_cost["t0"],string(i)));push!(branch_cost["t0"],string(i)=>cst);end
                 if !(haskey(branch_cost["t0"],"all"));push!(branch_cost["t0"],"all"=>cst);else;branch_cost["t0"]["all"]=branch_cost["t0"]["all"]+cst;end
                 branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
+            if (br["p_rateA"] != 0.0 && cst != 0.0)    
+            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst));end
             push!(argz["topology"]["t0"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
         end;end
         println("%%%% Cables HVDC t2 %%%%")
@@ -277,7 +290,8 @@ function print_branchdc(result_mip,argz,data)
                 if !(haskey(branch_cost["t2"],string(i)));push!(branch_cost["t2"],string(i)=>cst);end
                 if !(haskey(branch_cost["t2"],"all"));push!(branch_cost["t2"],"all"=>cst);else;branch_cost["t2"]["all"]=branch_cost["t2"]["all"]+cst;end
                 branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
+                if (br["p_rateA"] != 0.0 && cst != 0.0)
+            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst));end
             push!(argz["topology"]["t2"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
         end;end
         println("%%%% Cables HVDC tinf %%%%")
@@ -287,7 +301,8 @@ function print_branchdc(result_mip,argz,data)
                 if !(haskey(branch_cost["tinf"],string(i)));push!(branch_cost["tinf"],string(i)=>cst);end
                 if !(haskey(branch_cost["tinf"],"all"));push!(branch_cost["tinf"],"all"=>cst);else;branch_cost["tinf"]["all"]=branch_cost["tinf"]["all"]+cst;end
                 branch_cost["all"]=branch_cost["all"]+cst
-            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst))
+                if (br["p_rateA"] != 0.0 && cst != 0.0)
+            println(string(i)*": "*string(data["branchdc"][i]["fbusdc"])*" - "*string(data["branchdc"][i]["tbusdc"])*" MVA: "*string(br["p_rateA"])*" Cost: "*string(cst));end
             push!(argz["topology"]["tinf"]["dc"],[data["branchdc"][i]["fbusdc"],data["branchdc"][i]["tbusdc"],br["p_rateA"]])
         end;end
     end
@@ -295,139 +310,6 @@ function print_branchdc(result_mip,argz,data)
 end
 
 ############################ figures ##################################
-#=
-############### post simulation 
-function post_map_Of_Connections_ACDCNTC(results)
-    number_keys=parse.(Int64,keys(results["result_mip"]["solution"]["nw"]))
-    t0=results["result_mip"]["solution"]["nw"][string(minimum(number_keys))]
-    t1=results["result_mip"]["solution"]["nw"][string(minimum(number_keys)+results["s"]["hours_length"])]
-    t2=results["result_mip"]["solution"]["nw"][string(maximum(number_keys))]
-    data=results["data"]
-    nodes = results["s"]["nodes"]
-    cvs=data["convdc"]
-    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
-    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
-    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
-    for (t,t_sol) in enumerate([t0,t1,t2])   
-        for (key_sol,br_sol) in t_sol["branch"] 
-            if (br_sol["p_rateAC"]>0.1)
-                br=data["branch"][key_sol]
-                df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
-                df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
-                mva=last(results["s"]["xd"]["branch"][key_sol]["rateA"])
-                from=string(df_fr_ac.country)*string(df_fr_ac.type)
-                to=string(df_to_ac.country)*string(df_to_ac.type)
-                if (t==1)
-                    push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
-                elseif (t==2)
-                    push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
-                else
-                    push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
-                end
-            end
-        end
-        for (key_sol,br_sol) in t_sol["branchdc"]
-            if (br_sol["p_rateA"]>0.1)
-                br=data["branchdc"][key_sol]
-                df_fr_dc=DataFrames.DataFrame()
-                df_to_dc=DataFrames.DataFrame()
-                for (key_cv,cv) in cvs; 
-                    if (br["fbusdc"]==cv["busdc_i"]==cv["busac_i"]);
-                        df_fr_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :];
-                    elseif (br["tbusdc"]==cv["busdc_i"]==cv["busac_i"]);
-                        df_to_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :]; 
-                    end
-                end
-                
-                if (!(isempty(df_fr_dc)) && !(isempty(df_to_dc)))
-                    mva=last(results["s"]["xd"]["branchdc"][key_sol]["rateA"])
-                    from=string(df_fr_dc.country)*string(df_fr_dc.type)
-                    to=string(df_to_dc.country)*string(df_to_dc.type)
-                    if (t==1)
-                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
-                    elseif (t==2)
-                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
-                    else
-                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
-                    end
-                end
-            end
-        end
-    end
-    _map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:from, :to, :mva, :type], makeunique = false, validate = (false, false))
-    _map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:from, :to, :mva, :type], makeunique = false, validate = (false, false))
-    #_map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:from, :to], makeunique = false, validate = (false, false))
-    #_map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:from, :to], makeunique = false, validate = (false, false))
-    _map_of_connections=Dict("0"=>_map_of_connections_ACDCNTC0,"1"=>_map_of_connections_ACDCNTC1,"2"=>_map_of_connections_ACDCNTC2)
-    return _map_of_connections
-end
-
-#############################################
-################# AC grid as NTC in solution - depricated but still needed for old solutions
-function post_map_Of_Connections_ACDCNTC_ACgrid(results)
-    number_keys=parse.(Int64,keys(results["result_mip"]["solution"]["nw"]))
-    t0=results["result_mip"]["solution"]["nw"][string(minimum(number_keys))]
-    t1=results["result_mip"]["solution"]["nw"][string(minimum(number_keys)+results["s"]["hours_length"])]
-    t2=results["result_mip"]["solution"]["nw"][string(maximum(number_keys))]
-    data=results["data"]
-    nodes = results["s"]["nodes"]
-    cvs=data["convdc"]
-    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
-    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
-    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
-    for (t,t_sol) in enumerate([t0,t1,t2])   
-        for (key_sol,br_sol) in t_sol["branch"] 
-            if (br_sol["p_rateAC"]>0.1)
-                br=data["branch"][key_sol]
-                df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
-                df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
-                mva=last(results["s"]["xd"]["branch"][key_sol]["rateA"])
-                from=string(df_fr_ac.country)*string(df_fr_ac.type)
-                to=string(df_to_ac.country)*string(df_to_ac.type)
-                if (t==1)
-                    push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
-                elseif (t==2)
-                    push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
-                else
-                    push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
-                end
-            end
-        end
-        for (key_sol,br_sol) in t_sol["branchdc"]
-            if (br_sol["p_rateA"]>0.1)
-                br=data["branchdc"][key_sol]
-                df_fr_dc=DataFrames.DataFrame()
-                df_to_dc=DataFrames.DataFrame()
-                for (key_cv,cv) in cvs; 
-                    if (br["fbusdc"]==cv["busdc_i"]==cv["busac_i"]);
-                        df_fr_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :];
-                    elseif (br["tbusdc"]==cv["busdc_i"]==cv["busac_i"]);
-                        df_to_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :]; 
-                    end
-                end
-                
-                if (!(isempty(df_fr_dc)) && !(isempty(df_to_dc)))
-                    mva=last(results["s"]["xd"]["branchdc"][key_sol]["rateA"])
-                    from=string(df_fr_dc.country)*string(df_fr_dc.type)
-                    to=string(df_to_dc.country)*string(df_to_dc.type)
-                    if (t==1)
-                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
-                    elseif (t==2)
-                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
-                    else
-                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
-                    end
-                end
-            end
-        end
-    end
-    _map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:from, :to, :mva, :type], makeunique = false, validate = (false, false))
-    _map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:from, :to, :mva, :type], makeunique = false, validate = (false, false))
-    _map_of_connections_ACDCNTC0=filter(:type=>x->x!="AC",_map_of_connections_ACDCNTC0)
-    _map_of_connections=Dict("0"=>_map_of_connections_ACDCNTC0,"1"=>_map_of_connections_ACDCNTC1,"2"=>_map_of_connections_ACDCNTC2)
-    return _map_of_connections
-end
-
 ############### pre simulation 
 #***#
 function map_Of_Connections_ACDCNTC(data, s)
@@ -701,6 +583,138 @@ function problemINPUT_mapNTCs(data, s, txt_x=1)
 
     #display plot
     PlotlyJS.plot(trace, layout)
+end
+#=
+############### post simulation 
+function post_map_Of_Connections_ACDCNTC(results)
+    number_keys=parse.(Int64,keys(results["result_mip"]["solution"]["nw"]))
+    t0=results["result_mip"]["solution"]["nw"][string(minimum(number_keys))]
+    t1=results["result_mip"]["solution"]["nw"][string(minimum(number_keys)+results["s"]["hours_length"])]
+    t2=results["result_mip"]["solution"]["nw"][string(maximum(number_keys))]
+    data=results["data"]
+    nodes = results["s"]["nodes"]
+    cvs=data["convdc"]
+    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
+    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
+    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
+    for (t,t_sol) in enumerate([t0,t1,t2])   
+        for (key_sol,br_sol) in t_sol["branch"] 
+            if (br_sol["p_rateAC"]>0.1)
+                br=data["branch"][key_sol]
+                df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
+                df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
+                mva=last(results["s"]["xd"]["branch"][key_sol]["rateA"])
+                from=string(df_fr_ac.country)*string(df_fr_ac.type)
+                to=string(df_to_ac.country)*string(df_to_ac.type)
+                if (t==1)
+                    push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+                elseif (t==2)
+                    push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+                else
+                    push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+                end
+            end
+        end
+        for (key_sol,br_sol) in t_sol["branchdc"]
+            if (br_sol["p_rateA"]>0.1)
+                br=data["branchdc"][key_sol]
+                df_fr_dc=DataFrames.DataFrame()
+                df_to_dc=DataFrames.DataFrame()
+                for (key_cv,cv) in cvs; 
+                    if (br["fbusdc"]==cv["busdc_i"]==cv["busac_i"]);
+                        df_fr_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :];
+                    elseif (br["tbusdc"]==cv["busdc_i"]==cv["busac_i"]);
+                        df_to_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :]; 
+                    end
+                end
+                
+                if (!(isempty(df_fr_dc)) && !(isempty(df_to_dc)))
+                    mva=last(results["s"]["xd"]["branchdc"][key_sol]["rateA"])
+                    from=string(df_fr_dc.country)*string(df_fr_dc.type)
+                    to=string(df_to_dc.country)*string(df_to_dc.type)
+                    if (t==1)
+                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+                    elseif (t==2)
+                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+                    else
+                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+                    end
+                end
+            end
+        end
+    end
+    _map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:from, :to, :mva, :type], makeunique = false, validate = (false, false))
+    _map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:from, :to, :mva, :type], makeunique = false, validate = (false, false))
+    #_map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:from, :to], makeunique = false, validate = (false, false))
+    #_map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:from, :to], makeunique = false, validate = (false, false))
+    _map_of_connections=Dict("0"=>_map_of_connections_ACDCNTC0,"1"=>_map_of_connections_ACDCNTC1,"2"=>_map_of_connections_ACDCNTC2)
+    return _map_of_connections
+end
+
+#############################################
+################# AC grid as NTC in solution - depricated but still needed for old solutions
+function post_map_Of_Connections_ACDCNTC_ACgrid(results)
+    number_keys=parse.(Int64,keys(results["result_mip"]["solution"]["nw"]))
+    t0=results["result_mip"]["solution"]["nw"][string(minimum(number_keys))]
+    t1=results["result_mip"]["solution"]["nw"][string(minimum(number_keys)+results["s"]["hours_length"])]
+    t2=results["result_mip"]["solution"]["nw"][string(maximum(number_keys))]
+    data=results["data"]
+    nodes = results["s"]["nodes"]
+    cvs=data["convdc"]
+    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
+    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
+    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
+    for (t,t_sol) in enumerate([t0,t1,t2])   
+        for (key_sol,br_sol) in t_sol["branch"] 
+            if (br_sol["p_rateAC"]>0.1)
+                br=data["branch"][key_sol]
+                df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
+                df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
+                mva=last(results["s"]["xd"]["branch"][key_sol]["rateA"])
+                from=string(df_fr_ac.country)*string(df_fr_ac.type)
+                to=string(df_to_ac.country)*string(df_to_ac.type)
+                if (t==1)
+                    push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+                elseif (t==2)
+                    push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+                else
+                    push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+                end
+            end
+        end
+        for (key_sol,br_sol) in t_sol["branchdc"]
+            if (br_sol["p_rateA"]>0.1)
+                br=data["branchdc"][key_sol]
+                df_fr_dc=DataFrames.DataFrame()
+                df_to_dc=DataFrames.DataFrame()
+                for (key_cv,cv) in cvs; 
+                    if (br["fbusdc"]==cv["busdc_i"]==cv["busac_i"]);
+                        df_fr_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :];
+                    elseif (br["tbusdc"]==cv["busdc_i"]==cv["busac_i"]);
+                        df_to_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :]; 
+                    end
+                end
+                
+                if (!(isempty(df_fr_dc)) && !(isempty(df_to_dc)))
+                    mva=last(results["s"]["xd"]["branchdc"][key_sol]["rateA"])
+                    from=string(df_fr_dc.country)*string(df_fr_dc.type)
+                    to=string(df_to_dc.country)*string(df_to_dc.type)
+                    if (t==1)
+                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+                    elseif (t==2)
+                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+                    else
+                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+                    end
+                end
+            end
+        end
+    end
+    _map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:from, :to, :mva, :type], makeunique = false, validate = (false, false))
+    _map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:from, :to, :mva, :type], makeunique = false, validate = (false, false))
+    _map_of_connections_ACDCNTC0=filter(:type=>x->x!="AC",_map_of_connections_ACDCNTC0)
+    _map_of_connections=Dict("0"=>_map_of_connections_ACDCNTC0,"1"=>_map_of_connections_ACDCNTC1,"2"=>_map_of_connections_ACDCNTC2)
+    return _map_of_connections
 end
 #######################################################################
 #input results_nodal=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\nodal_results_VOLL5000b_rc.jld2")

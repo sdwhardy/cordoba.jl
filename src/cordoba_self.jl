@@ -1,6 +1,7 @@
 module Cordoba_self
 import PlotlyJS
 import Gurobi
+#import Ipopt
 import JuMP
 import JSON
 import CSV
