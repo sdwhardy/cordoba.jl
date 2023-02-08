@@ -43,6 +43,8 @@ function main_test()
     #NOTE only very basic intuitive check passed on functions wgen_type
     s["home_market"]=[]
     mn_data, data, s = _CBD.data_setup(s);
+    #_CBD.problemINPUT_mapNTCs(data, s)
+    #_CBD.problemINPUT_map(data, s)
     result = _CBD.nodal_market_main(mn_data, data, s)
     s["cost_summary"]=_CBD.print_solution_wcost_data(result["result_mip"], result["s"], result["data"])
     
