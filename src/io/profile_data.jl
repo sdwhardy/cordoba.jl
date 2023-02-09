@@ -233,7 +233,9 @@ end
 #Organizes nw numbers per scenario-year
 #***#
 function multi_period_stoch_year_setup_wgen_type(s,data)
-	scenario_names=unique([sn[1:2] for sn in s["scenario_names"]])
+    _sn=deepcopy(s["scenario_names"])
+    deleteat!(_sn,[findfirst(x->x=="NT2025",_sn)])
+	scenario_names=unique([sn[1:2] for sn in _sn])
     scenario = Dict{String, Any}("hours" => s["hours_length"],"years" => length(s["scenario_years"]), "sc_names" => Dict{String, Any}())
     data["scenario"] = Dict{String, Any}()
     data["scenario_prob"] = Dict{String, Any}()
@@ -294,57 +296,56 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
         extradata["gen"][string(g)]["wf_pmax"] = Array{Float64,2}(undef, 1, s["dim"]);end
     end
     
-
+    
     for (k_sc,sc) in s["scenario"]["sc_names"]
 		for (k_yr,yr) in sc
 			k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
 			k_sc_sd=k_yr=="2020" ? "NT" : k_sc[1:2]
-			for (h,d) in enumerate(yr)
-		        #Day ahead BE
-		        #onshore generators
-				for (xy, country) in all_gens["onshore"]
-		        	for (fuel, type) in country
-						for (g, gen) in type
-		            	#market generator onshore
-						S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][string(k_sc_sd)*string(k_yr_sd)][xy])[!,:Capacity]
-						if isempty(S_row)
-							extradata["gen"][string(g)]["pmax"][1, d] = 0
-							extradata["gen"][string(g)]["cost"][d] = [0,0]
-							extradata["gen"][string(g)]["pmin"][1, d] = 0
-		#					extradata["gen"][string(g)]["gen_status"][1, d] = 0
-						else
-							if issubset([fuel],keys(scenario_data["Generation"]["RES"]))
-								CF=scenario_data["Generation"]["RES"][fuel][xy][k_sc[3:6]][!,Symbol(xy)][h]
-								extradata["gen"][string(g)]["pmax"][1, d] = CF*S_row[1]/pu
-							else
-								extradata["gen"][string(g)]["pmax"][1, d] = S_row[1]/pu
-							end
-							extradata["gen"][string(g)]["pmin"][1, d] = 0
-			                extradata["gen"][string(g)]["cost"][d] = [scenario_data["Generation"]["costs"][fuel]/e2me,0]
-							#if !(haskey(demand_curve,xy));push!(demand_curve,xy=>DataFrames.DataFrame(:generation=>[],:fuel_cost=>[]));end
-							#push!(demand_curve[xy],[S_row[1]/pu,scenario_data["Generation"]["costs"][fuel]/e2me])
-							push!(genz,(parse(Int64,g),S_row[1]/pu))
-						end
-                    end;
-                end;
-            end
-            
-				#Wind power Plants
-				for (j,(xy, country)) in enumerate(all_gens["offshore"])
-		        	for (i,(g, gen)) in enumerate(country)
-					#wind gen
-						CF=scenario_data["Generation"]["RES"]["Offshore Wind"][xy][k_sc[3:6]][!,Symbol(xy)][h]
-		                extradata["gen"][string(g)]["pmax"][1, d] = CF
-						extradata["gen"][string(g)]["pmin"][1, d] = 0
-		                extradata["gen"][string(g)]["cost"][d] = [0,0]
-						extradata["gen"][string(g)]["invest"][1, d] = gen["invest"]
-                        #extradata["gen"][string(g)]["wf_pmax"][1, d] = s["owpp_mva"][j]/pu
-                        extradata["gen"][string(g)]["wf_pmax"][1, d] = gen["pmax"]*pu
-						#push!(wfz,(parse(Int64,g),s["owpp_mva"][j]/pu))
-                        push!(wfz,(parse(Int64,g),gen["pmax"]*pu))
-				    end;
+            if (issubset([string(k_sc_sd)*string(k_yr_sd)],s["scenario_names"]))
+                for (h,d) in enumerate(yr)
+                    #Day ahead BE
+                    #onshore generators
+                    for (xy, country) in all_gens["onshore"]
+                        for (fuel, type) in country
+                            for (g, gen) in type
+                                #market generator onshore
+                                S_row=filter(:Generation_Type=>x->x==fuel, scenario_data["Generation"]["Scenarios"][string(k_sc_sd)*string(k_yr_sd)][xy])[!,:Capacity]
+                                if isempty(S_row)
+                                    extradata["gen"][string(g)]["pmax"][1, d] = 0
+                                    extradata["gen"][string(g)]["cost"][d] = [0,0]
+                                    extradata["gen"][string(g)]["pmin"][1, d] = 0
+                                else
+                                    if issubset([fuel],keys(scenario_data["Generation"]["RES"]))
+                                        CF=scenario_data["Generation"]["RES"][fuel][xy][k_sc[3:6]][!,Symbol(xy)][h]
+                                        extradata["gen"][string(g)]["pmax"][1, d] = CF*S_row[1]/pu
+                                    else
+                                        extradata["gen"][string(g)]["pmax"][1, d] = S_row[1]/pu
+                                    end
+                                    extradata["gen"][string(g)]["pmin"][1, d] = 0
+                                    extradata["gen"][string(g)]["cost"][d] = [scenario_data["Generation"]["costs"][fuel]/e2me,0]
+                                    push!(genz,(parse(Int64,g),S_row[1]/pu))
+                                end
+                            end;
+                        end;
+                    end
+                
+                    #Wind power Plants
+                    for (j,(xy, country)) in enumerate(all_gens["offshore"])
+                        for (i,(g, gen)) in enumerate(country)
+                            #wind gen
+                            CF=scenario_data["Generation"]["RES"]["Offshore Wind"][xy][k_sc[3:6]][!,Symbol(xy)][h]
+                            extradata["gen"][string(g)]["pmax"][1, d] = CF
+                            extradata["gen"][string(g)]["pmin"][1, d] = 0
+                            extradata["gen"][string(g)]["cost"][d] = [0,0]
+                            extradata["gen"][string(g)]["invest"][1, d] = gen["invest"]
+                            #extradata["gen"][string(g)]["wf_pmax"][1, d] = s["owpp_mva"][j]/pu
+                            extradata["gen"][string(g)]["wf_pmax"][1, d] = gen["pmax"]*pu
+                            #push!(wfz,(parse(Int64,g),s["owpp_mva"][j]/pu))
+                            push!(wfz,(parse(Int64,g),gen["pmax"]*pu))
+                        end;
+                    end
                 end
-			end
+            end
         end
     end
 	#set ["type"]
@@ -389,37 +390,36 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
     end;end
 
 	#onshore loads
-    #=k_sc="GA2014";s["scenario"]["sc_names"][k_sc]
-    k_yr="2040";yr=sc[k_yr]
-    h=1;d=yr[1]
-    cuntree="CH00";dic=loads[cuntree]
-    l="728";load=dic[l]=#
 	for (k_sc,sc) in s["scenario"]["sc_names"]
 		for (k_yr,yr) in sc
 			k_yr_sd=k_yr=="2020" ? "2025" : k_yr;
 			k_sc_sd=k_yr=="2020" ? "NT" : k_sc[1:2]
-			for (h,d) in enumerate(yr)
-		        #loads
-				for (cuntree, dic) in loads
-			        for (l, load) in sort!(OrderedCollections.OrderedDict(dic), by=x->parse(Int64,x))
-                        #NOTE: Left here ts is off - 2014 time stamp vs 2020 BLNK time stamp would work but...
-                        #Just this final load to be done, however, the rest still needs to be confirmed! 
-                        if (cuntree=="BLNK")
-						    ts=scenario_data["Generation"]["RES"]["Onshore Wind"][first(keys(scenario_data["Generation"]["RES"]["Onshore Wind"]))][k_sc[3:6]][!,:time_stamp][h]
-                        else
-                            ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
+            if (issubset([string(k_sc_sd)*string(k_yr_sd)],s["scenario_names"]))
+                for (h,d) in enumerate(yr)
+                    #loads
+                    for (cuntree, dic) in loads
+                        for (l, load) in sort!(OrderedCollections.OrderedDict(dic), by=x->parse(Int64,x))
+                            #NOTE: Left here ts is off - 2014 time stamp vs 2020 BLNK time stamp would work but...
+                            #Just this final load to be done, however, the rest still needs to be confirmed! 
+                            if (cuntree=="BLNK")
+                                ts=scenario_data["Generation"]["RES"]["Onshore Wind"][first(keys(scenario_data["Generation"]["RES"]["Onshore Wind"]))][k_sc[3:6]][!,:time_stamp][h]
+                            else
+                                ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
+                            end
+                            #println(k_sc_sd*k_yr_sd)
+                            S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd*k_yr_sd])[!,Symbol(cuntree)]
+                            extradata["gen"][string(l)]["pmax"][1, d] = load["pmax"]*S_row[1]/pu
+                            extradata["gen"][string(l)]["pmin"][1, d] = load["pmin"]*S_row[1]/pu
+                            #println(string(extradata["gen"][string(l)]["pmax"][1, d])*" "*string(extradata["gen"][string(l)]["pmin"][1, d]))
+                            extradata["gen"][string(l)]["cost"][d] = load["cost"]
+                            push!(data["gen"],string(l)=>load)
+                            push!(genz,(parse(Int64,l),S_row[1]/pu))
                         end
-                        #println(k_sc_sd*k_yr_sd)
-						S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd*k_yr_sd])[!,Symbol(cuntree)]
-		                extradata["gen"][string(l)]["pmax"][1, d] = load["pmax"]*S_row[1]/pu
-		                extradata["gen"][string(l)]["pmin"][1, d] = load["pmin"]*S_row[1]/pu
-                        #println(string(extradata["gen"][string(l)]["pmax"][1, d])*" "*string(extradata["gen"][string(l)]["pmin"][1, d]))
-		                extradata["gen"][string(l)]["cost"][d] = load["cost"]
-		                push!(data["gen"],string(l)=>load)
-						push!(genz,(parse(Int64,l),S_row[1]/pu))
-			        end
-				end
-    end;end;end
+                    end
+                end
+            end;
+        end;
+    end
 	unique!(x->first(x),genz)
 	unique!(x->first(x),wfz)
 	push!(s,"genz"=>genz)

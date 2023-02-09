@@ -13,7 +13,7 @@ function main_test()
     ################# temperal parameters #################
     "test"=>true,#if true smallest (2 hour) problem variation is built for testing
     "scenario_planning_horizon"=>30,
-    "scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]
+    "scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
     "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
     "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
     "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
@@ -56,4 +56,3 @@ function main_test()
 end
 #-2.9225485778511274e6
 #-2.92254857785113e6
-

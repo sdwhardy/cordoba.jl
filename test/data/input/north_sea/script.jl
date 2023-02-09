@@ -13,7 +13,7 @@ s = Dict(
     "scenario_planning_horizon"=>30,
     #"scenario_planning_horizon"=>1,
     #"scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]
-    "scenario_names"=>["NT2025","NT2030","NT2040"],
+    "scenario_names"=>["NT2025","GA2030","GA2040"],
     #"scenario_names"=>["NT2025"],
     "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
     "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
