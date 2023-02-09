@@ -32,7 +32,7 @@ end
 #####################
 #**#
 function nodal_market_main(mn_data, data, s)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 204000)#, "MIPGap"=>9e-3)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 204000, "MIPGap"=>5e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)

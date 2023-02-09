@@ -13,7 +13,7 @@ s = Dict(
     "scenario_planning_horizon"=>30,
     #"scenario_planning_horizon"=>1,
     #"scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]
-    "scenario_names"=>["NT2025","NT2030","NT2040"],
+    "scenario_names"=>["NT2025","GA2030","GA2040"],
     #"scenario_names"=>["NT2025"],
     "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
     "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
@@ -50,7 +50,7 @@ _CBD.problemINPUT_mapNTCs(data, s)
 _CBD.problemINPUT_map(data, s)
 @time result = _CBD.nodal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
 result["s"]["cost_summary"]=_CBD.print_solution_wcost_data(result["result_mip"], result["s"], result["data"])
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\nodal_market_NORTH_SEA_firstFULLk4.jld2",result)#09gap was good one
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\nodal_market_NORTH_SEA_GAk4.jld2",result)#09gap was good one
 ######################### Zonal market #########################
 #s["home_market"]=[[2,5],[3,6],[4,7]]
 #s["home_market"]=[[9,10,11,12,13]]
