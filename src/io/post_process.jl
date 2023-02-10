@@ -326,7 +326,7 @@ function map_Of_Connections_ACDCNTC(data, s)
     end
     
     cvs=data["convdc"]
-    key_br="189";br=data["branchdc"][key_br]
+    #key_br="189";br=data["branchdc"][key_br]
     for (key_br,br) in data["branchdc"]
         df_fr_dc=DataFrames.DataFrame()
         df_to_dc=DataFrames.DataFrame()
@@ -357,6 +357,7 @@ function map_Of_Connections_ACDCNTC(data, s)
     return _map_of_connections_ACDCNTC
 end
 
+#**#
 function problemOUTPUT_map(results, lat_offset, long_offset, lo, la, txt_x=1)
     s=results["s"]
     nodes = s["nodes"]
@@ -585,7 +586,122 @@ function problemINPUT_mapNTCs(data, s, txt_x=1)
     PlotlyJS.plot(trace, layout)
 end
 #=
+function problemOUTPUT_map(results, lat_offset, long_offset, lo, la, txt_x=1)
+    s=results["s"]
+    nodes = s["nodes"]
+    
+    df_map=post_map_Of_Connections_ACDCNTC(results)
+    #df_map=post_map_Of_Connections_ACDCNTC_ACgrid(results)
+    df_map["0"]
+    for (k,_map) in df_map
+    println(k)    
+    println(_map)
+    end
+
+    #country node display    
+    countries=filter(:type => !=(0), s["nodes"])        
+    markerCNT = PlotlyJS.attr(size=[15*txt_x],
+                color="green")
+
+    #country legend
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
+    textposition="top center",text=string([row[:node]]),
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerCNT)  for row in eachrow(countries)]
+
+    #OWPP node display 
+    owpps=filter(:type => ==(0), s["nodes"])           
+    markerWF = PlotlyJS.attr(size=[15*txt_x],
+                color="navy")
+
+    #windfarm legend
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=50*txt_x),
+    textposition="top center",text=string([row[:node]])*" "*string([row[:gen]]),
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerWF)  for row in eachrow(owpps)]
+
+    
+     #DC line display
+     lineDCtext = PlotlyJS.attr(width=25*txt_x,color="black") 
+     lineDC0 = PlotlyJS.attr(width=5*txt_x,color="black")
+     lineDC1 = PlotlyJS.attr(width=5*txt_x,color="black",dash="dash")
+     lineDC2 = PlotlyJS.attr(width=5*txt_x,color="black",dash="dot")
+
+     
+     #AC line display
+     lineACtext = PlotlyJS.attr(width=25*txt_x,color="red")
+     lineAC0 = PlotlyJS.attr(width=5*txt_x,color="red")
+     lineAC1 = PlotlyJS.attr(width=5*txt_x,color="red",dash="dash")
+     lineAC2 = PlotlyJS.attr(width=5*txt_x,color="red",dash="dot")
+
+         #AC line legend
+    traceAC0=[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,(row.lat_fr+row.lat_to)/2-lat_offset,row.lat_to],
+    lon=[row.long_fr,(row.long_fr+row.long_to)/2-long_offset,row.long_to],line=lineAC0) 
+    for row in eachrow(df_map["0"]) if (row[:type]=="AC")]
+
+    traceAC1=[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,(row.lat_fr+row.lat_to)/2-lat_offset,row.lat_to],
+    lon=[row.long_fr,(row.long_fr+row.long_to)/2-long_offset,row.long_to],line=lineAC1) 
+    for row in eachrow(df_map["1"]) if (row[:type]=="AC")]
+
+    traceAC2=[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,(row.lat_fr+row.lat_to)/2-lat_offset,row.lat_to],
+    lon=[row.long_fr,(row.long_fr+row.long_to)/2-long_offset,row.long_to],line=lineAC2) 
+    for row in eachrow(df_map["2"]) if (row[:type]=="AC")]
+
+     #DC line legend
+    traceDC0=[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,(row.lat_fr+row.lat_to)/2+lat_offset,row.lat_to],
+    lon=[row.long_fr,(row.long_fr+row.long_to)/2+long_offset,row.long_to],line=lineDC0) 
+    for row in eachrow(df_map["0"]) if (row[:type]=="DC")]
+    
+    traceDC1=[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,(row.lat_fr+row.lat_to)/2+lat_offset,row.lat_to],
+    lon=[row.long_fr,(row.long_fr+row.long_to)/2+long_offset,row.long_to],line=lineDC1) 
+    for row in eachrow(df_map["1"]) if (row[:type]=="DC")]
+    
+    traceDC2=[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,(row.lat_fr+row.lat_to)/2+lat_offset,row.lat_to],
+    lon=[row.long_fr,(row.long_fr+row.long_to)/2+long_offset,row.long_to],line=lineDC2) 
+    for row in eachrow(df_map["2"]) if (row[:type]=="DC")]
+
+
+    df=vcat(df_map["2"],df_map["1"],df_map["0"])
+
+    traceAClabels=[PlotlyJS.scattergeo(;mode="text",
+    lat=[(row.lat_fr+row.lat_to)/2-la*lat_offset],
+    lon=[(row.long_fr+row.long_to)/2-lo*long_offset],text=[string(round(row.mva/10,digits = 1))*" GW"], 
+    textfont=PlotlyJS.attr(size=25*txt_x,color="red"), marker=lineACtext, textposition="middle bottom") 
+    for row in eachrow(df) if (row[:type]=="AC")]
+
+    traceDClabels=[PlotlyJS.scattergeo(;mode="text",
+    lat=[(row.lat_fr+row.lat_to)/2+la*lat_offset],
+    lon=[(row.long_fr+row.long_to)/2+lo*long_offset],text=[string(round(row.mva/10,digits = 1))*" GW"], 
+    textfont=PlotlyJS.attr(size=25*txt_x,color="black"), marker=lineDCtext,textposition="middle top") 
+    for row in eachrow(df) if (row[:type]=="DC")]    
+           
+
+    #combine plot data                
+    #trace=vcat(traceCNT,traceWF,traceDC,traceAC)
+    trace=vcat(traceCNT,traceWF,traceAC0,traceAC1,traceAC2,traceDC0,traceDC1,traceDC2,traceAClabels,traceDClabels)
+    #trace=vcat(traceCNT,traceWF,traceAC0,traceAC1,traceAC2,traceDC0,traceDC1,traceDC2)
+    #trace=vcat(traceCNT,traceWF)
+
+    #set map location
+    geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
+
+    
+    #plot layput
+    layout = PlotlyJS.Layout(geo=geo,showlegend=false, geo_resolution=50, width=1000, height=1100, 
+    #legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=25*txt_x),bgcolor= "#1C00ff00"), 
+    margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+
+    #display plot
+    PlotlyJS.plot(trace, layout)
+end
 ############### post simulation 
+=#
 function post_map_Of_Connections_ACDCNTC(results)
     number_keys=parse.(Int64,keys(results["result_mip"]["solution"]["nw"]))
     t0=results["result_mip"]["solution"]["nw"][string(minimum(number_keys))]
@@ -594,9 +710,10 @@ function post_map_Of_Connections_ACDCNTC(results)
     data=results["data"]
     nodes = results["s"]["nodes"]
     cvs=data["convdc"]
-    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
-    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
-    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[])
+  
+    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
+    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
+    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
     for (t,t_sol) in enumerate([t0,t1,t2])   
         for (key_sol,br_sol) in t_sol["branch"] 
             if (br_sol["p_rateAC"]>0.1)
@@ -607,11 +724,11 @@ function post_map_Of_Connections_ACDCNTC(results)
                 from=string(df_fr_ac.country)*string(df_fr_ac.type)
                 to=string(df_to_ac.country)*string(df_to_ac.type)
                 if (t==1)
-                    push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+                    push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
                 elseif (t==2)
-                    push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+                    push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
                 else
-                    push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC"])
+                    push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
                 end
             end
         end
@@ -620,11 +737,15 @@ function post_map_Of_Connections_ACDCNTC(results)
                 br=data["branchdc"][key_sol]
                 df_fr_dc=DataFrames.DataFrame()
                 df_to_dc=DataFrames.DataFrame()
+                c_fr=0
+                c_to=0
                 for (key_cv,cv) in cvs; 
                     if (br["fbusdc"]==cv["busdc_i"]==cv["busac_i"]);
                         df_fr_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :];
+                        c_fr=t_sol["convdc"][key_cv]["p_pacmax"]
                     elseif (br["tbusdc"]==cv["busdc_i"]==cv["busac_i"]);
                         df_to_dc=nodes[only(findall(==(cv["busac_i"]), nodes.node)), :]; 
+                        c_to=t_sol["convdc"][key_cv]["p_pacmax"]
                     end
                 end
                 
@@ -633,11 +754,11 @@ function post_map_Of_Connections_ACDCNTC(results)
                     from=string(df_fr_dc.country)*string(df_fr_dc.type)
                     to=string(df_to_dc.country)*string(df_to_dc.type)
                     if (t==1)
-                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
                     elseif (t==2)
-                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
                     else
-                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC"])
+                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
                     end
                 end
             end
@@ -650,7 +771,7 @@ function post_map_Of_Connections_ACDCNTC(results)
     _map_of_connections=Dict("0"=>_map_of_connections_ACDCNTC0,"1"=>_map_of_connections_ACDCNTC1,"2"=>_map_of_connections_ACDCNTC2)
     return _map_of_connections
 end
-
+#=
 #############################################
 ################# AC grid as NTC in solution - depricated but still needed for old solutions
 function post_map_Of_Connections_ACDCNTC_ACgrid(results)

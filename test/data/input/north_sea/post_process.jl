@@ -5,8 +5,13 @@ import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
 using OrderedCollections
 
+#################################### map output #######################
+############################## newest #################################
+results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\nodal_market_NORTH_SEA_NTk4.jld2")
+_CBD.print_solution_wcost_data(results["result_mip"], results["s"], results["data"])
+
 ######################### nOBZ to HMD
-results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\nodal_market_NORTH_SEA_4G.jld2")
+results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\nodal_market_NORTH_SEA_NTk4.jld2")
 result_mip_n2z, data_n2z, mn_data_n2z, s_n2z, result_mip_hm_prices_n2z=_CBD.nodal2zonal(results["s"],results["result_mip"],[[4,11],[5,10],[6,12],[1,8,13],[3,9]]);
 results_n2z=Dict("result_mip"=>result_mip_n2z,"data"=>data_n2z, "mn_data"=>mn_data_n2z, "s"=>s_n2z, "result_mip_hm_prices"=>result_mip_hm_prices_n2z)
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\n2HMD_results_NORTH_SEA_4G.jld2",results_n2z)
