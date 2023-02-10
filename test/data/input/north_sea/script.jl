@@ -41,7 +41,7 @@ s = Dict(
     "corridor_limit" => false,
     "onshore_grid"=>true)
 
-    
+
 #[println(mn_data["nw"]["1"]["ne_branch"]["4"])["5"]["pt"]) for k=1:1:32]
 ######################### Nodal market #########################
 s["home_market"]=[]
