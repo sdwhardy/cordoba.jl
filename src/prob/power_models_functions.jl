@@ -23,7 +23,7 @@ function run_model_p1(data::Dict{String,<:Any}, model_type::Type, build_method; 
 
     return pm
 end
-
+#pm=jump_result_mip; optimizer=gurobi
 function run_model_p2(pm, optimizer, solution_processors=[], kwargs...)
 
     start_time = time()
@@ -44,3 +44,6 @@ end
 function instantiate_model(data::Dict{String,<:Any}, model_type::Type, build_method; kwargs...)
     return _IM.instantiate_model(data, model_type, build_method, ref_add_core!, _pm_global_keys; kwargs...)
 end
+
+
+##########################

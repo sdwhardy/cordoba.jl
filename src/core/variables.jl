@@ -319,14 +319,16 @@ function variable_dcbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
     if bounded
         for (s, branchdc) in _PM.ref(pm, nw, :branchdc)
             if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
+                #println("nw ",nw," s ", s, " lb ",pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw])
                 JuMP.set_lower_bound(p_rateA[s],  pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw])
             else
+                #println("nw ",nw," s ", s, " lb ",0)
                 JuMP.set_lower_bound(p_rateA[s],  0)
             end
+            #println("nw ",nw," s ", s, " ub ",pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw])
             JuMP.set_upper_bound(p_rateA[s],  pm.setting["xd"]["branchdc"][string(s)]["rateA"][nw])
         end
     end
-
     report && _IM.sol_component_value(pm, nw, :branchdc, :p_rateA, _PM.ids(pm, nw, :branchdc), p_rateA)
     return (nw,p_rateA)
 end
