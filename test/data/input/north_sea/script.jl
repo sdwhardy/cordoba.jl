@@ -29,7 +29,7 @@ s = Dict(
     "conv_lim_offshore"=>16000,#Max Converter size in MVA
     "strg_lim_offshore"=>0.2,
     "strg_lim_onshore"=>10,
-    "candidate_ics_ac"=>[1],#AC Candidate Cable sizes (fraction of full MVA)
+    "candidate_ics_ac"=>[1,2],#AC Candidate Cable sizes (fraction of full MVA)
     "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
     ################## optimization/solver setup options ###################
     "output" => Dict("branch_flows" => false),
