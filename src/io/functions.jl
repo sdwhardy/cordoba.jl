@@ -61,66 +61,22 @@ end
     "process_data_internally" => false,
     "corridor_limit" => false,
     "onshore_grid"=>true)
-s = Dict(
-    "rt_ex"=>pwd()*"\\test\\data\\input\\north_sea\\",#folder path if directly
-    "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
-    ################# temperal parameters #################
-    "test"=>false,#if true smallest (2 hour) problem variation is built for testing
-    "scenario_planning_horizon"=>30,
-    #"scenario_planning_horizon"=>1,
-    #"scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]
-    "scenario_names"=>["NT2025","GA2030","GA2040"],
-    #"scenario_names"=>["NT2025"],
-    "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
-    "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
-    #"res_years"=>["2014"],
-    "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
-    #"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
-    "dr"=>0.04,#discount rate
-    "yearly_investment"=>100000000,
-    ################ electrical parameters ################
-    "AC"=>"1",#0=false, 1=true
-    #"owpp_mva"=>[4000,4000,6000,6000,8000],#mva of wf in MVA
-    "conv_lim_onshore"=>32000,#Max Converter size in MVA
-    "conv_lim_offshore"=>16000,#Max Converter size in MVA
-    "strg_lim_offshore"=>0.2,
-    "strg_lim_onshore"=>10,
-    "candidate_ics_ac"=>[1,2],#AC Candidate Cable sizes (fraction of full MVA)
-    "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
-    ################## optimization/solver setup options ###################
-    "output" => Dict("branch_flows" => false),
-    "eps"=>0.0001,#admm residual (100kW)
-    "beta"=>5.5,
-    "relax_problem" => false,
-    "conv_losses_mp" => true,
-    "process_data_internally" => false,
-    "corridor_limit" => false,
-    "onshore_grid"=>true)
 
-
-#[println(mn_data["nw"]["1"]["ne_branch"]["4"])["5"]["pt"]) for k=1:1:32]
-######################### Nodal market #########################
 s["home_market"]=[]
 mn_data, data, s = data_setup(s);
 problemINPUT_map(data, s)
 problemINPUT_mapNTCs(data, s)
-result_mip["solution"]["nw"]["11"]["convdc"]["25"]
-result_mip["solution"]["nw"]["11"]["gen"]["10"]
-result_mip["solution"]["nw"]["11"]["branchdc_ne"]["777"]
-result_mip["solution"]["nw"]["11"]["storage"]["25"]
 =#
 #**#
-#result_mip0=deepcopy(result_mip)
-#result_mip=deepcopy(result_mip0)
-#result_mip[]
-
 function nodal_market_main(mn_data, data, s)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 204000, "MIPGap"=>5e-3)#, "PoolSearchMode" => 2, "PoolSolutions" => 2)#, "MIPGap"=>9e-3)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 204000, "MIPGap"=>1e-3)#, "PoolSearchMode" => 2, "PoolSolutions" => 2)#, "MIPGap"=>9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    #jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
+    #result_mip=run_model_p2(jump_result_mip, gurobi);
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem
     print_solution_wcost_data(result_mip, s, data)
     #pdic=problemMIP_OUTPUT_map_byTimeStep(result_mip, s, data)
-    #PlotlyJS.plot(pdic["trace012"], pdic["layout"])
+    #PlotlyJS.plot(pdic["trace0"], pdic["layout"])
 
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     #ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer,"OutputFlag" => 1)#, "MIPGap"=>9e-3)#select solver
@@ -129,25 +85,18 @@ function nodal_market_main(mn_data, data, s)
     s["output"]["duals"]=true
     mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
     
-    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);                
+    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
     s, mn_data= remove_integers(result_mip,mn_data,data,s);
     result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem=#
     #result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem=#
-    jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
-    result_mip=run_model_p2(jump_result_mip, gurobi)
-    results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
+    #jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
+    #result_mip=run_model_p2(jump_result_mip, gurobi);
+    results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s);
     #pdic2=problemOUTPUT_map_byTimeStep(results)
-    #PlotlyJS.plot(pdic2["trace012"], pdic2["layout"])
+    #PlotlyJS.plot(pdic2["trace0"], pdic2["layout"])
     return results
 end
-#for (b,br) in sort!(OrderedCollections.OrderedDict(s["xd"]["branchdc"]), by=x->parse(Int64,x))
-#    println(b, br["rateA"])
-#end
-#k="242"#"295"#"123"#,"295", "326"
-#data["branchdc"][k]
-##println(s["xd"]["branchdc"][k])
-#s["scenario"]["sc_names"]
-############
+
 #=
 function print_mn_data(mn_data,s)
     println(s["onshore_nodes"])
@@ -1045,6 +994,11 @@ data["branchdc_ne"]["211"]
 mn_data["scenario"]["1"]
 bc="1";brc=data["branch"][bc]=#
 #**#
+#sc="1";tss=sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))[sc]
+#t="5";ts=sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))[t]
+#bc="222";brc=data["branchdc"][bc]
+#ts=11
+#result_mip["solution"]["nw"][string(ts)]["branchdc_ne"]["885"]
 function remove_integers(result_mip,mn_data,data,s)
     for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
@@ -1053,8 +1007,9 @@ function remove_integers(result_mip,mn_data,data,s)
                 exists=false
                 for (b,br) in result_mip["solution"]["nw"][string(ts)]["branchdc_ne"];
                     if (brc["fbusdc"]==data["branchdc_ne"][b]["fbusdc"] && brc["tbusdc"]==data["branchdc_ne"][b]["tbusdc"])
-                        if (br["isbuilt"]>0)
+                        if (br["isbuilt"]==1.0)
                             if (exists)
+                                #println("b ",b)
                                 s["xd"]["branchdc"][bc]["rateA"][1,ts]=s["xd"]["branchdc"][bc]["rateA"][1,ts]+data["branchdc_ne"][b]["rateA"]
                                 s["xd"]["branchdc"][bc]["r"][1,ts]=1/((1/s["xd"]["branchdc"][bc]["r"][1,ts]) + (1/data["branchdc_ne"][b]["r"]))
                                 #s["xd"]["branchdc"][bc]["cost"][1,ts]=0.0;
@@ -1078,7 +1033,7 @@ function remove_integers(result_mip,mn_data,data,s)
                 if (haskey(result_mip["solution"]["nw"][string(ts)],"ne_branch"))
                     for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
                         if (brc["f_bus"]==data["ne_branch"][b]["f_bus"] && brc["t_bus"]==data["ne_branch"][b]["t_bus"]) 
-                            if (br["built"]>0)              
+                            if (br["built"]==1)              
                                 if (exists)
                                     s["xd"]["branch"][bc]["rateA"][1,ts]=s["xd"]["branch"][bc]["rateA"][1,ts]+data["ne_branch"][b]["rate_a"]
                                     s["xd"]["branch"][bc]["br_r"][1,ts]=1/((1/s["xd"]["branch"][bc]["br_r"][1,ts])+(1/data["ne_branch"][b]["br_r"]))
