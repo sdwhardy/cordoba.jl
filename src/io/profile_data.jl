@@ -86,12 +86,13 @@ _dict_in=Dict(
 #year="2014"
 #res_type="Onshore Wind"
 #***#
+
 function reduce_RES_to_k_days(_dict,_s)
     #keep only k specified days, shift year to 2020 (base year for all simmulations)
     ks=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4EU.jld2")
     tss2keep=[]
     #RES sources
-    for country in keys(_dict["Offshore Wind"])
+    for country in unique(vcat(collect(keys(_dict["Offshore Wind"])),collect(keys(_dict["Onshore Wind"])),collect(keys(_dict["Solar PV"]))))
         for year in unique(vcat(collect(keys(_dict["Offshore Wind"][country])),collect(keys(_dict["Onshore Wind"][country])),collect(keys(_dict["Solar PV"][country]))))
             if haskey(_dict["Offshore Wind"][country],year)
             ts2keep=_s["k"]<365 ? ks[year][_s["k"]] : _dict["Offshore Wind"][country][year].time_stamp;
@@ -105,6 +106,9 @@ function reduce_RES_to_k_days(_dict,_s)
             for res_type in keys(_dict)
                 if haskey(_dict[res_type][country],year)
                 filter!(:time_stamp=>x->issubset([x],ts2keep),_dict[res_type][country][year])
+                if (!(isempty(_dict[res_type][country][year])) && haskey(_s, "test") && _s["test"]==true && res_type=="Offshore Wind")
+                    _dict[res_type][country][year][!,Symbol(last(names(_dict[res_type][country][year])))]=[1,0]
+                end
                 #place common timestamp in 2020
 			    offset2020=Dates.Year(2020-parse(Int64,year))
                 _dict[res_type][country][year][!,:time_stamp]=_dict[res_type][country][year][!,:time_stamp].+offset2020
@@ -274,7 +278,7 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
     extradata["dim"] = s["dim"]
     extradata["gen"] = Dict{String,Any}()
 	#demand_curve = Dict{String,Any}()
-
+    
 	for (c,country) in all_gens["onshore"];
 		for (fuel,type) in country;
 			for (num,g) in type;
@@ -422,6 +426,7 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
     end
 	unique!(x->first(x),genz)
 	unique!(x->first(x),wfz)
+    sort!(wfz,by=x->first(x))
 	push!(s,"genz"=>genz)
     push!(s,"wfz"=>wfz)
 	data_orig["gen"]=data["gen"]

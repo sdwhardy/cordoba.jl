@@ -8,7 +8,7 @@ using OrderedCollections
 #################################### map output #######################
 ############################## newest #################################
 results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\nodal_market_NORTH_SEA_NTk4.jld2")
-_CBD.print_solution_wcost_data(results["result_mip"], results["s"], results["data"])
+print_solution_wcost_data(results["result_mip"], results["s"], results["data"])
 
 ######################### nOBZ to HMD
 results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\nodal_market_NORTH_SEA_NTk4.jld2")

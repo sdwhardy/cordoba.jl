@@ -5,7 +5,9 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
     wf_pacmax = _PM.var(pm, nw)[:wf_pacmax] = JuMP.@variable(pm.model,
     [i in intersect(_PM.ids(pm, nw, :gen),first.(pm.setting["wfz"]))], base_name="$(nw)_wf_pacmax",
     start = 0)
-
+    #println(wf_pacmax)
+    #println(pm.setting["wfz"])
+    
     if bounded
         for (s, gen) in _PM.ref(pm, nw, :gen)
             if issubset([s],first.(pm.setting["wfz"]))
@@ -15,6 +17,7 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
                 else
                 JuMP.set_lower_bound(wf_pacmax[s],  0)
                 JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s+1-minimum(first.(pm.setting["wfz"])))]))
+                #println("wfz2: ", last(pm.setting["wfz"][s])," s: ", s)
                 end
             end
         end
@@ -48,6 +51,7 @@ function variable_gen_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bou
                 wf_pacmax = _PM.var(pm, nw, :wf_pacmax, i)
                 JuMP.@constraint(pm.model, pg[i]-pm.setting["xd"]["gen"][string(i)]["pmax"][nw]*wf_pacmax  <= 0)
                 JuMP.@constraint(pm.model, pg[i]+pm.setting["xd"]["gen"][string(i)]["pmin"][nw]  >= 0)
+                #println(wf_pacmax, " ", i, " ", pm.setting["xd"]["gen"][string(i)]["pmax"][nw])
             end
         end
     end

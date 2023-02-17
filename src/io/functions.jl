@@ -50,8 +50,8 @@ end
     "conv_lim_offshore"=>4000,#Max Converter size in MVA
     "strg_lim_offshore"=>0.2,
     "strg_lim_onshore"=>10,
-    "candidate_ics_ac"=>[1/5,2/5],#AC Candidate Cable sizes (fraction of full MVA)
-    "candidate_ics_dc"=>[1/5,2/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+    "candidate_ics_ac"=>[1/5,2/5,3/5],#AC Candidate Cable sizes (fraction of full MVA)
+    "candidate_ics_dc"=>[1/2,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
     ################## optimization/solver setup options ###################
     "output" => Dict("branch_flows" => false),
     "eps"=>0.0001,#admm residual (100kW)
@@ -61,45 +61,92 @@ end
     "process_data_internally" => false,
     "corridor_limit" => false,
     "onshore_grid"=>true)
-    
-    
-    ################## Run MIP Formulation ###################
-    #NOTE only very basic intuitive check passed on functions wgen_type
-    s["home_market"]=[]
-    mn_data, data, s = data_setup(s);
-    result_mip_0=deepcopy(result_mip)
-    result_mip_0["solution"]["nw"]["1"]["branchdc_ne"]["11"]
-    result_mip_0["solution"]["nw"]["1"]["branchdc_ne"]["12"]
-    
-    data["branchdc_ne"]["12"]#5 to 10
-    data["branchdc_ne"]["11"]#5 to 10
+s = Dict(
+    "rt_ex"=>pwd()*"\\test\\data\\input\\north_sea\\",#folder path if directly
+    "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
+    ################# temperal parameters #################
+    "test"=>true,#if true smallest (2 hour) problem variation is built for testing
+    "scenario_planning_horizon"=>30,
+    #"scenario_planning_horizon"=>1,
+    #"scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]
+    "scenario_names"=>["NT2025","GA2030","GA2040"],
+    #"scenario_names"=>["NT2025"],
+    "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+    #"res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+    "res_years"=>["2014"],
+    "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
+    #"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
+    "dr"=>0.04,#discount rate
+    "yearly_investment"=>1000000,
+    ################ electrical parameters ################
+    "AC"=>"1",#0=false, 1=true
+    #"owpp_mva"=>[4000,4000,6000,6000,8000],#mva of wf in MVA
+    "conv_lim_onshore"=>32000,#Max Converter size in MVA
+    "conv_lim_offshore"=>16000,#Max Converter size in MVA
+    "strg_lim_offshore"=>0.2,
+    "strg_lim_onshore"=>10,
+    "candidate_ics_ac"=>[1],#AC Candidate Cable sizes (fraction of full MVA)
+    "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+    ################## optimization/solver setup options ###################
+    "output" => Dict("branch_flows" => false),
+    "eps"=>0.0001,#admm residual (100kW)
+    "beta"=>5.5,
+    "relax_problem" => false,
+    "conv_losses_mp" => true,
+    "process_data_internally" => false,
+    "corridor_limit" => false,
+    "onshore_grid"=>true)
 
-    data["branchdc"]["6"]#5 to 10
-    data["branchdc_ne"]["11"]#5 to 10
 
-    result_mip["solution"]["nw"]["1"]["branchdc"]["6"]
-    result_mip_0["solution"]["nw"]["1"]["branchdc"]["18"]=#
+#[println(mn_data["nw"]["1"]["ne_branch"]["4"])["5"]["pt"]) for k=1:1:32]
+######################### Nodal market #########################
+s["home_market"]=[]
+mn_data, data, s = data_setup(s);
+problemINPUT_map(data, s)
+problemINPUT_mapNTCs(data, s)
+result_mip["solution"]["nw"]["11"]["convdc"]["25"]
+result_mip["solution"]["nw"]["11"]["gen"]["10"]
+result_mip["solution"]["nw"]["11"]["branchdc_ne"]["777"]
+result_mip["solution"]["nw"]["11"]["storage"]["25"]
+=#
 #**#
+#result_mip0=deepcopy(result_mip)
+#result_mip=deepcopy(result_mip0)
+#result_mip[]
+
 function nodal_market_main(mn_data, data, s)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 204000, "MIPGap"=>5e-3)#, "PoolSearchMode" => 2, "PoolSolutions" => 2)#, "MIPGap"=>9e-3)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 204000, "MIPGap"=>18e-4)#, "PoolSearchMode" => 2, "PoolSolutions" => 2)#, "MIPGap"=>9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem
-    #print_solution_wcost_data(result_mip, s, data)
+    print_solution_wcost_data(result_mip, s, data)
+    pdic=problemMIP_OUTPUT_map_byTimeStep(result_mip, s, data)
+    PlotlyJS.plot(pdic["trace0"], pdic["layout"])
+
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     #ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer,"OutputFlag" => 1)#, "MIPGap"=>9e-3)#select solver
     s["rebalancing"]=true
     s["relax_problem"]=true
     s["output"]["duals"]=true
     mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
-    println(s["wfz"])
+    
     mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
     s, mn_data= remove_integers(result_mip,mn_data,data,s);
     result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem=#
     #result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem=#
+    jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
+    result_mip=run_model_p2(jump_result_mip, gurobi)
     results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s)
+    pdic2=problemOUTPUT_map_byTimeStep(results)
+    PlotlyJS.plot(pdic2["trace012"], pdic2["layout"])
     return results
 end
-
+#for (b,br) in sort!(OrderedCollections.OrderedDict(s["xd"]["branchdc"]), by=x->parse(Int64,x))
+#    println(b, br["rateA"])
+#end
+#k="242"#"295"#"123"#,"295", "326"
+#data["branchdc"][k]
+##println(s["xd"]["branchdc"][k])
+#s["scenario"]["sc_names"]
 ############
 #=
 function print_mn_data(mn_data,s)
@@ -790,6 +837,7 @@ function gen_types(data,scenario_data,s)
     s["map_gen_types"]=Dict{String,Any}();push!(s["map_gen_types"],"type"=>Tuple[]);
 	all_gens=Dict{String, Any}()
     push!(all_gens,"offshore"=>Dict())
+    number_of_gens_offshore=0
 	for (gen,_row) in enumerate(eachrow(filter(:type=>x->x==0,s["nodes"])))
 		if !(haskey(all_gens["offshore"],_row[:country]))
 			push!(all_gens["offshore"],_row[:country]=>Dict());end
@@ -802,6 +850,7 @@ function gen_types(data,scenario_data,s)
 		all_gens["offshore"][_row[:country]][generator_number]["gen_status"]=1
 		push!(s["map_gen_types"]["type"],(generator_number,"Offshore Wind"))
 		push!(s["map_gen_types"]["offshore"][_row[:country]],generator_number)
+        number_of_gens_offshore=number_of_gens_offshore+1
 	end
 
 	push!(all_gens,"onshore"=>Dict())
@@ -813,9 +862,9 @@ function gen_types(data,scenario_data,s)
 		if !(haskey(s["map_gen_types"]["countries"],_row[:country]));push!(s["map_gen_types"]["countries"],_row[:country]=>[]);end
 
 		for (t,type) in enumerate(scenario_data["Generation"]["keys"])
-			generator_number=string(length(all_gens["offshore"])+(gen-1)*length(scenario_data["Generation"]["keys"])+t)
+			generator_number=string(number_of_gens_offshore+(gen-1)*length(scenario_data["Generation"]["keys"])+t)
 			push!(all_gens["onshore"][_row[:country]],type=>Dict())
-			push!(all_gens["onshore"][_row[:country]][type],generator_number=>copy(base_gens[string(length(all_gens["offshore"])+gen)]))
+			push!(all_gens["onshore"][_row[:country]][type],generator_number=>copy(base_gens[string(number_of_gens_offshore+gen)]))
 			all_gens["onshore"][_row[:country]][type][generator_number]["source_id"]=["gen",parse(Int64,generator_number)]
 			all_gens["onshore"][_row[:country]][type][generator_number]["index"]=parse(Int64,generator_number)
 			all_gens["onshore"][_row[:country]][type][generator_number]["gen_status"]=1
@@ -988,9 +1037,14 @@ function convex2mip_AC(result_mip, data)
     ac_cables=unique_candidateIC_AC(ac_cables)
     return ac_cables
 end=#
+
+#=sc="1";tss=sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))[sc]
+t="1";ts=sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))[t]
+bc="53";brc=data["branchdc"][bc]
+data["branchdc_ne"]["211"]
+mn_data["scenario"]["1"]
+bc="1";brc=data["branch"][bc]=#
 #**#
-##############################################################
-#THIS FUNCTION MUST BE RE WRITTEN TO TOTAL PARALLEL CABLES...
 function remove_integers(result_mip,mn_data,data,s)
     for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
         for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
@@ -1003,7 +1057,7 @@ function remove_integers(result_mip,mn_data,data,s)
                             if (exists)
                                 s["xd"]["branchdc"][bc]["rateA"][1,ts]=s["xd"]["branchdc"][bc]["rateA"][1,ts]+data["branchdc_ne"][b]["rateA"]
                                 s["xd"]["branchdc"][bc]["r"][1,ts]=1/((1/s["xd"]["branchdc"][bc]["r"][1,ts]) + (1/data["branchdc_ne"][b]["r"]))
-                                s["xd"]["branchdc"][bc]["cost"][1,ts]=0.0;
+                                #s["xd"]["branchdc"][bc]["cost"][1,ts]=0.0;
                             else
                                 s["xd"]["branchdc"][bc]["rateA"][1,ts]=data["branchdc_ne"][b]["rateA"]
                                 s["xd"]["branchdc"][bc]["r"][1,ts]=data["branchdc_ne"][b]["r"]
@@ -1011,7 +1065,7 @@ function remove_integers(result_mip,mn_data,data,s)
                                 exists=true
                             end
                         elseif !(exists)
-                            s["xd"]["branchdc"][bc]["cost"][1,ts]=0.0;
+                            #s["xd"]["branchdc"][bc]["cost"][1,ts]=0.0;
                             s["xd"]["branchdc"][bc]["rateA"][1,ts]=0.0
                         end
                     end;
@@ -1023,11 +1077,11 @@ function remove_integers(result_mip,mn_data,data,s)
                 exists=false
                 if (haskey(result_mip["solution"]["nw"][string(ts)],"ne_branch"))
                     for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
-                        if (brc["f_bus"]==data["ne_branch"][b]["f_bus"] && brc["t_bus"]==data["ne_branch"][b]["t_bus"])
-                            if (br["built"]>0)
+                        if (brc["f_bus"]==data["ne_branch"][b]["f_bus"] && brc["t_bus"]==data["ne_branch"][b]["t_bus"]) 
+                            if (br["built"]>0)              
                                 if (exists)
-                                    s["xd"]["branch"][bc]["rateA"][1,ts]=data["ne_branch"][b]["rate_a"]
-                                    s["xd"]["branch"][bc]["br_r"][1,ts]=data["ne_branch"][b]["br_r"]
+                                    s["xd"]["branch"][bc]["rateA"][1,ts]=s["xd"]["branch"][bc]["rateA"][1,ts]+data["ne_branch"][b]["rate_a"]
+                                    s["xd"]["branch"][bc]["br_r"][1,ts]=1/((1/s["xd"]["branch"][bc]["br_r"][1,ts])+(1/data["ne_branch"][b]["br_r"]))
                                     s["xd"]["branch"][bc]["cost"][1,ts]=0.0;
                                 else
                                     s["xd"]["branch"][bc]["rateA"][1,ts]=data["ne_branch"][b]["rate_a"]
@@ -1037,7 +1091,7 @@ function remove_integers(result_mip,mn_data,data,s)
                                 end
                             elseif !(exists)
                                 s["xd"]["branch"][bc]["rateA"][1,ts]=0.0;
-                                s["xd"]["branch"][bc]["cost"][1,ts]=0.0;
+                                #s["xd"]["branch"][bc]["cost"][1,ts]=0.0;
                             end
                         end;
                     end;
@@ -1117,15 +1171,17 @@ function set_rebalancing_grid(result_mip,mn_data,s)
             for (b,br) in result_mip["solution"]["nw"][string(ts)]["branchdc_ne"];
                 if (br["isbuilt"]>0)
                         s["xd"]["branchdc_ne"][b]["cost"][1,ts]=0.0;
-                    end
-                end;
+                end
+            end;
 
             #ac cables
             if (haskey(result_mip["solution"]["nw"][string(ts)],"ne_branch"))
-            for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
-                if (br["built"]>0)
-                        s["xd"]["ne_branch"][b]["construction_cost"][1,ts]=0.0;
-                end;end;end
+                for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
+                    if (br["built"]>0)
+                            s["xd"]["ne_branch"][b]["construction_cost"][1,ts]=0.0;
+                    end;
+                end;
+            end
             #converters
             if (haskey(result_mip["solution"]["nw"][string(ts)],"convdc"))
                 for (c,cnv) in result_mip["solution"]["nw"][string(ts)]["convdc"];
@@ -1135,7 +1191,9 @@ function set_rebalancing_grid(result_mip,mn_data,s)
                     else
                             s["xd"]["convdc"][c]["Pacmin"][1,ts]=0;
                             s["xd"]["convdc"][c]["Pacmax"][1,ts]=0;
-                    end;end;end
+                    end;
+                end;
+            end
             #storage
             if (haskey(result_mip["solution"]["nw"][string(ts)],"storage"))
                 for (b,strg) in result_mip["solution"]["nw"][string(ts)]["storage"];
@@ -1145,10 +1203,15 @@ function set_rebalancing_grid(result_mip,mn_data,s)
                     else
                             s["xd"]["storage"][b]["pmin"][1,ts]=0;
                             s["xd"]["storage"][b]["pmax"][1,ts]=0;
-                    end;end;end
+                    end;
+                end;
+            end
             for wf in s["wfz"]
-                s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=round(result_mip["solution"]["nw"][string(ts)]["gen"][string(first(wf))]["wf_pacmax"]);end;
-    end;end
+                s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=round(result_mip["solution"]["nw"][string(ts)]["gen"][string(first(wf))]["wf_pacmax"]);
+            end;
+    
+        end;
+    end
     return mn_data, s
 end
 
@@ -1246,27 +1309,31 @@ function data_update(s,result_mip)
 end
 
 #=s = Dict(
-    #"rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path if calling test
-    "rt_ex"=>pwd()*"\\test\\data\\input\\test\\",#folder path if directly
+    "rt_ex"=>pwd()*"\\test\\data\\input\\north_sea\\",#folder path if directly
     "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
     ################# temperal parameters #################
     "test"=>true,#if true smallest (2 hour) problem variation is built for testing
     "scenario_planning_horizon"=>30,
-    "scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
+    #"scenario_planning_horizon"=>1,
+    #"scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]
+    "scenario_names"=>["NT2025","GA2030","GA2040"],
+    #"scenario_names"=>["NT2025"],
     "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
     "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+    #"res_years"=>["2014"],
     "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
+    #"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
     "dr"=>0.04,#discount rate
     "yearly_investment"=>1000000,
     ################ electrical parameters ################
     "AC"=>"1",#0=false, 1=true
     #"owpp_mva"=>[4000,4000,6000,6000,8000],#mva of wf in MVA
-    "conv_lim_onshore"=>3000,#Max Converter size in MVA
-    "conv_lim_offshore"=>4000,#Max Converter size in MVA
+    "conv_lim_onshore"=>32000,#Max Converter size in MVA
+    "conv_lim_offshore"=>16000,#Max Converter size in MVA
     "strg_lim_offshore"=>0.2,
     "strg_lim_onshore"=>10,
-    "candidate_ics_ac"=>[1/5,2/5,3/5],#AC Candidate Cable sizes (fraction of full MVA)
-    "candidate_ics_dc"=>[1/5,2/5,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+    "candidate_ics_ac"=>[1],#AC Candidate Cable sizes (fraction of full MVA)
+    "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
     ################## optimization/solver setup options ###################
     "output" => Dict("branch_flows" => false),
     "eps"=>0.0001,#admm residual (100kW)
@@ -1274,7 +1341,7 @@ end
     "relax_problem" => false,
     "conv_losses_mp" => true,
     "process_data_internally" => false,
-    "corridor_limit" => true,
+    "corridor_limit" => false,
     "onshore_grid"=>true)
     
     s_z=deepcopy(s)
@@ -1282,7 +1349,7 @@ end
     #NOTE only very basic intuitive check passed on functions wgen_type
     s["home_market"]=[]
     mn_data, data, s = data_setup(s);=#
-#***#
+    #***#
 function data_setup(s)
     scenario_data = get_scenario_data(s)#scenario time series
     data, s = get_topology_data(s, scenario_data)#topology.m file
@@ -1311,7 +1378,7 @@ end
 #s["xd"]["gen"]["1"]
 #=scenario_data["Generation"]["costs"]
 scenario_data["Generation"]["keys"]
-scenario_data["Generation"]["RES"]["Onshore Wind"]["FR01"]["2015"]
+scenario_data["Generation"]["RES"]["Offshore Wind"]["DE00"]["2015"]
 scenario_data["Generation"]["Scenarios"]["GA"]["2030"]["BLNK_NO1"]
 non_stoch=first(keys(new_gens_map))
 gen_type=eachrow(scenario_data["Generation"]["Scenarios"]["GA"]["2030"]["FR"])[1]=#
