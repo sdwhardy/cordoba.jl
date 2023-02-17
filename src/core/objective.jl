@@ -44,7 +44,7 @@ end
 
 #Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
 #**#
-#=Unaltered
+#Unaltered
 function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerModel)
     return JuMP.@objective(pm.model, Min,
         sum(pm.ref[:scenario_prob][s] *
@@ -58,8 +58,8 @@ function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerM
             for (sc, n) in scenario)
         for (s, scenario) in pm.ref[:scenario])
     )
-end=#
-
+end
+#=
 #**#
 function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerModel)
     exp=0;
@@ -85,7 +85,7 @@ function objective_min_cost_acdc_convex_convcble_strg_npv(pm::_PM.AbstractPowerM
     end
         
     return JuMP.@objective(pm.model, Min, exp)
-end
+end=#
 #=
 #Objective with convex Cables, continuous converter, continuous storage, wind farm expansion (NPV considered)
 function objective_min_cost_acdc_convex_allcble_strg_npv(pm::_PM.AbstractPowerModel)
