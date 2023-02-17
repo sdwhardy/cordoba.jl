@@ -48,7 +48,7 @@ function main_test()
     result = _CBD.nodal_market_main(mn_data, data, s)
     s["cost_summary"]=_CBD.print_solution_wcost_data(result["result_mip"], result["s"], result["data"])
     
-    s_z["home_market"]=[[4,10],[5,11],[6,12],[1,8,13],[3,9]]
+    s_z["home_market"]=[[9,10,11,12]]
     mn_data_z, data_z, s_z = _CBD.data_setup(s_z);#Build data structure for given options
     result_z=_CBD.zonal_market_main(mn_data_z, data_z, s_z)
     s_z["cost_summary"]=_CBD.print_solution_wcost_data(result_z["result_mip"], result_z["s"], result_z["data"])

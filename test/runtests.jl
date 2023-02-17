@@ -4,4 +4,4 @@ using Test
 include("data/input/test/test_script_full.jl")
 ##################### File parameters #################################
 
-@test isapprox(main_test(), -1.5669647492856208e7; atol = 0.1) 
+@test isapprox(main_test(), -1.5777659606748505e7; atol = 0.1) 

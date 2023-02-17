@@ -1014,7 +1014,6 @@ function remove_integers(result_mip,mn_data,data,s)
                                 s["xd"]["branchdc"][bc]["r"][1,ts]=1/((1/s["xd"]["branchdc"][bc]["r"][1,ts]) + (1/data["branchdc_ne"][b]["r"]))
                                 #s["xd"]["branchdc"][bc]["cost"][1,ts]=0.0;
                             else
-                                println("b ",b)
                                 s["xd"]["branchdc"][bc]["rateA"][1,ts]=data["branchdc_ne"][b]["rateA"]
                                 s["xd"]["branchdc"][bc]["r"][1,ts]=data["branchdc_ne"][b]["r"]
                                 s["xd"]["branchdc"][bc]["cost"][1,ts]=0.0;
