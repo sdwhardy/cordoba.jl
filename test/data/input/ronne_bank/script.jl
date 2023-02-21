@@ -24,15 +24,15 @@ s = Dict(
 "conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,#Max offshore storage capacity
 "strg_lim_onshore"=>10,#Max onshore storage capacity
-"candidate_ics_ac"=>[1/5,2/5,3/5],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[1/5,2/5,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+"candidate_ics_ac"=>[1,3/4,1/2,1/4],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
 ################## optimization/solver setup options ###################
 "relax_problem" => false,#binaries->continuous variables
 "corridor_limit" => false,#limit cables in parallel?
 "TimeLimit" => 259200,#solver max time in seconds
-"MIPGap"=>1e-4,#max gap between MIP and convex solution 
-"PoolSearchMode" => 0,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
-"PoolSolutions" => 1)#number of solutions to find
+"MIPGap"=>1e-3,#max gap between MIP and convex solution 
+"PoolSearchMode" => 2,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
+"PoolSolutions" => 5)#number of solutions to find
 s=_CBD.hidden_settings(s)
 
 ################## Run nodal Formulation ###################
@@ -46,6 +46,6 @@ _CBD.problemINPUT_mapNTCs(data, s)
 result = _CBD.nodal_market_main(mn_data, data, s)
 #display results
 s["cost_summary"]=_CBD.print_solution_wcost_data(result["1"]["result_mip"], result["1"]["s"], result["1"]["data"])
-pdic=_CBD.problemOUTPUT_map_byTimeStep(result["1"])
+pdic=_CBD.problemOUTPUT_map_byTimeStep(result["5"])
 PlotlyJS.plot(pdic["trace0"], pdic["layout"])
 

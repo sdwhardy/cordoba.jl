@@ -39,40 +39,42 @@ function zonal_market_main(mn_data, data, s)
     return results
 end
 #####################
-#=s = Dict(
-    "rt_ex"=>pwd()*"\\test\\data\\input\\north_sea\\",#folder path if directly
-    "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
-    ################# temperal parameters #################
-    "test"=>true,#if true smallest (2 hour) problem variation is built for testing
-    "scenario_planning_horizon"=>30,
-    "scenario_names"=>["NT2025","NT2030","NT2040"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
-    "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
-    "res_years"=>["2014"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
-    "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
-    "dr"=>0.04,#discount rate
-    "yearly_investment"=>10000000,
-    ################ electrical parameters ################
-    "conv_lim_onshore"=>36000,#Max Converter size in MVA
-    "conv_lim_offshore"=>36000,#Max Converter size in MVA
-    "strg_lim_offshore"=>0.2,
-    "strg_lim_onshore"=>10,
-    "candidate_ics_ac"=>[1,2,4,8],#AC Candidate Cable sizes (fraction of full MVA)
-    "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
-    ################## optimization/solver setup options ###################
-    "relax_problem" => false,
-    "corridor_limit" => false,
-    "TimeLimit" => 259200,
-    "MIPGap"=>5e-3, 
-    "PoolSearchMode" => 2, 
-    "PoolSolutions" => 5)
+#=##################### Input parameters #################################
+s = Dict(
+"rt_ex"=>pwd()*"\\test\\data\\input\\ronne_bank\\",#folder path if directly
+"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
+################# temperal parameters #################
+"test"=>true,#if true smallest (2 hour) problem variation is built for testing
+"scenario_planning_horizon"=>1,
+"scenario_names"=>["NT2025"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
+"k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+"res_years"=>["2014"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
+################# Financial parameters ################
+"dr"=>0.04,#discount rate
+"yearly_investment"=>1000000,#max investment per modelling year
+################ electrical parameters ################
+"conv_lim_onshore"=>3000,#Max Converter size in MVA
+"conv_lim_offshore"=>4000,#Max Converter size in MVA
+"strg_lim_offshore"=>0.2,#Max offshore storage capacity
+"strg_lim_onshore"=>10,#Max onshore storage capacity
+"candidate_ics_ac"=>[1,3/4,1/2,1/4],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1,3/4,1/2,1/4],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+################## optimization/solver setup options ###################
+"relax_problem" => false,#binaries->continuous variables
+"corridor_limit" => false,#limit cables in parallel?
+"TimeLimit" => 259200,#solver max time in seconds
+"MIPGap"=>1e-4,#max gap between MIP and convex solution 
+"PoolSearchMode" => 0,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
+"PoolSolutions" => 1)#number of solutions to find
+
     s= hidden_settings(s)
 mn_data, data, s = data_setup(s);
-
+#s["xd"]["gen"]["1"]
 problemINPUT_map(data, s)
-problemINPUT_mapNTCs(data, s)
-=#
-#**#
+problemINPUT_mapNTCs(data, s)=#
 
+#**#
 function nodal_market_main(mn_data, data, s)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
@@ -102,7 +104,8 @@ function nodal_market_main(mn_data, data, s)
     #result_mip=run_model_p2(jump_result_mip, gurobi);
         push!(results,_k=>Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s2));
     end
-    #pdic2=problemOUTPUT_map_byTimeStep(results["5"])
+    #s["cost_summary"]=print_solution_wcost_data(results["1"]["result_mip"], results["1"]["s"], results["1"]["data"])
+    #pdic2=problemOUTPUT_map_byTimeStep(results["1"])
     #PlotlyJS.plot(pdic2["trace0"], pdic2["layout"])
     return results
 end
@@ -1037,7 +1040,7 @@ function remove_integers(result_mip,mn_data,data,s)
                 exists=false
                 for (b,br) in result_mip["solution"]["nw"][string(ts)]["branchdc_ne"];
                     if (brc["fbusdc"]==data["branchdc_ne"][b]["fbusdc"] && brc["tbusdc"]==data["branchdc_ne"][b]["tbusdc"])
-                        if (br["isbuilt"]==1.0)
+                        if (br["isbuilt"]>0.9)
                             if (exists)
                                 #println("b ",b)
                                 s["xd"]["branchdc"][bc]["rateA"][1,ts]=s["xd"]["branchdc"][bc]["rateA"][1,ts]+data["branchdc_ne"][b]["rateA"]
@@ -1127,7 +1130,7 @@ function set_inter_zonal_grid(result_mip,mn_data,s)
             #dc cables
             for (b,br) in result_mip["solution"]["nw"][string(ts)]["branchdc_ne"];
                 if !(is_intra_zonal(mn_data["nw"][string(ts)]["branchdc_ne"][b]["fbusdc"],mn_data["nw"][string(ts)]["branchdc_ne"][b]["tbusdc"],s["home_market"]))
-                    if (br["isbuilt"]>0)
+                    if (br["isbuilt"]>0.9)
                             s["xd"]["branchdc_ne"][b]["cost"][1,ts]=0.0;
                     else
                             s["xd"]["branchdc_ne"][b]["cost"][1,ts]=s["xd"]["branchdc_ne"][b]["cost"][1,ts]*100;
@@ -1138,7 +1141,7 @@ function set_inter_zonal_grid(result_mip,mn_data,s)
             if (haskey(result_mip["solution"]["nw"][string(ts)],"ne_branch"))
             for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
                 if !(is_intra_zonal(mn_data["nw"][string(ts)]["ne_branch"][b]["f_bus"],mn_data["nw"][string(ts)]["ne_branch"][b]["t_bus"],s["home_market"]))
-                if (br["built"]>0)
+                if (br["built"]>0.9)
                         s["xd"]["ne_branch"][b]["construction_cost"][1,ts]=0.0;
                 else
                     s["xd"]["ne_branch"][b]["construction_cost"][1,ts]=s["xd"]["ne_branch"][b]["construction_cost"][1,ts]*100;
@@ -1153,7 +1156,7 @@ function set_rebalancing_grid(result_mip,mn_data,s)
         for (t,ts) in sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))
             #dc cables
             for (b,br) in result_mip["solution"]["nw"][string(ts)]["branchdc_ne"];
-                if (br["isbuilt"]>0)
+                if (br["isbuilt"]>0.9)
                         s["xd"]["branchdc_ne"][b]["cost"][1,ts]=0.0;
                 end
             end;
@@ -1161,7 +1164,7 @@ function set_rebalancing_grid(result_mip,mn_data,s)
             #ac cables
             if (haskey(result_mip["solution"]["nw"][string(ts)],"ne_branch"))
                 for (b,br) in result_mip["solution"]["nw"][string(ts)]["ne_branch"];
-                    if (br["built"]>0)
+                    if (br["built"]>0.9)
                             s["xd"]["ne_branch"][b]["construction_cost"][1,ts]=0.0;
                     end;
                 end;
@@ -1334,6 +1337,7 @@ end
     s["home_market"]=[]
     mn_data, data, s = data_setup(s);=#
     #***#
+    #s["scenario"]["sc_names"]
 function data_setup(s)
     scenario_data = get_scenario_data(s)#scenario time series
     data, s = get_topology_data(s, scenario_data)#topology.m file

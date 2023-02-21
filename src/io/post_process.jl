@@ -489,9 +489,15 @@ end#**#
 #**#
 function post_map_Of_Connections_ACDCNTC(results)
     number_keys=parse.(Int64,keys(results["result_mip"]["solution"]["nw"]))
+    _ts=[]
     t0=results["result_mip"]["solution"]["nw"][string(minimum(number_keys))]
-    t1=results["result_mip"]["solution"]["nw"][string(minimum(number_keys)+results["s"]["hours_length"])]
-    t2=results["result_mip"]["solution"]["nw"][string(maximum(number_keys))]
+    push!(_ts,t0)
+    if (length((results["s"]["scenario_years"]))>1)
+        t1=results["result_mip"]["solution"]["nw"][string(minimum(number_keys)+results["s"]["hours_length"])];
+        push!(_ts,t1);end
+    if (length((results["s"]["scenario_years"]))>2)
+        t2=results["result_mip"]["solution"]["nw"][string(maximum(number_keys))];
+        push!(_ts,t2);end
     data=results["data"]
     nodes = results["s"]["nodes"]
     cvs=data["convdc"]
@@ -499,7 +505,7 @@ function post_map_Of_Connections_ACDCNTC(results)
     _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
     _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
     _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
-    for (t,t_sol) in enumerate([t0,t1,t2])   
+    for (t,t_sol) in enumerate(_ts)   
         for (key_sol,br_sol) in t_sol["branch"] 
             if (br_sol["p_rateAC"]>0.1)
                 br=data["branch"][key_sol]
@@ -648,8 +654,17 @@ end
 function owpps_map(results, data, s)
     number_keys=parse.(Int64,keys(results))
     t0=results[string(minimum(number_keys))]
-    t1=results[string(minimum(number_keys)+s["hours_length"])]
-    t2=results[string(maximum(number_keys))]
+    if (length((s["scenario_years"]))>1)
+        t1=results[string(minimum(number_keys)+s["hours_length"])]
+    else
+        t1=t0
+    end
+    if (length((s["scenario_years"]))>2)
+        t2=results[string(maximum(number_keys))]
+        else
+        t2=t1
+    end
+    
     _wfs=first.(s["wfz"])
 
     owpps=filter(:type => ==(0), s["nodes"])[!,Symbol.(["node","country","lat","long"])]

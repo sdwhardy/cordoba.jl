@@ -238,7 +238,8 @@ end
 #***#
 function multi_period_stoch_year_setup_wgen_type(s,data)
     _sn=deepcopy(s["scenario_names"])
-    deleteat!(_sn,[findfirst(x->x=="NT2025",_sn)])
+    if (length(_sn)>1)
+        deleteat!(_sn,[findfirst(x->x=="NT2025",_sn)]);end
 	scenario_names=unique([sn[1:2] for sn in _sn])
     scenario = Dict{String, Any}("hours" => s["hours_length"],"years" => length(s["scenario_years"]), "sc_names" => Dict{String, Any}())
     data["scenario"] = Dict{String, Any}()
