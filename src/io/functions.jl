@@ -40,51 +40,50 @@ function zonal_market_main(mn_data, data, s)
 end
 #####################
 #=s = Dict(
-    #"rt_ex"=>pwd()*"\\data\\input\\test\\",#folder path if calling test
-    "rt_ex"=>pwd()*"\\test\\data\\input\\test\\",#folder path if directly
+    "rt_ex"=>pwd()*"\\test\\data\\input\\north_sea\\",#folder path if directly
     "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
     ################# temperal parameters #################
     "test"=>true,#if true smallest (2 hour) problem variation is built for testing
     "scenario_planning_horizon"=>30,
-    "scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
+    "scenario_names"=>["NT2025","NT2030","NT2040"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
     "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
-    "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+    "res_years"=>["2014"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
     "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
     "dr"=>0.04,#discount rate
-    "yearly_investment"=>1000000,
+    "yearly_investment"=>10000000,
     ################ electrical parameters ################
-    "conv_lim_onshore"=>3000,#Max Converter size in MVA
-    "conv_lim_offshore"=>4000,#Max Converter size in MVA
+    "conv_lim_onshore"=>36000,#Max Converter size in MVA
+    "conv_lim_offshore"=>36000,#Max Converter size in MVA
     "strg_lim_offshore"=>0.2,
     "strg_lim_onshore"=>10,
-    "candidate_ics_ac"=>[1/5,2/5,3/5],#AC Candidate Cable sizes (fraction of full MVA)
-    "candidate_ics_dc"=>[1/2,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+    "candidate_ics_ac"=>[1,2,4,8],#AC Candidate Cable sizes (fraction of full MVA)
+    "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
     ################## optimization/solver setup options ###################
     "relax_problem" => false,
     "corridor_limit" => false,
     "TimeLimit" => 259200,
     "MIPGap"=>5e-3, 
     "PoolSearchMode" => 2, 
-    "PoolSolutions" => 10)
-
-s["home_market"]=[]
-s=hidden_settings(s)
+    "PoolSolutions" => 5)
+    s= hidden_settings(s)
 mn_data, data, s = data_setup(s);
 
 problemINPUT_map(data, s)
 problemINPUT_mapNTCs(data, s)
 =#
 #**#
+
 function nodal_market_main(mn_data, data, s)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
     result_mip_ms=run_model_p2(jump_result_mip, gurobi);
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem
+    #result_mip=Dict{String,Any}("solution"=>Dict{String,Any}("nw"=>result_mip_ms["solution"]["5"]))
     #print_solution_wcost_data(result_mip, s, data)
     #pdic=problemMIP_OUTPUT_map_byTimeStep(result_mip, s, data)
-    #PlotlyJS.plot(pdic["trace0"], pdic["layout"])
-
+    #PlotlyJS.plot(pdic["trace1"], pdic["layout"])
+    #result_mip2=result_mip
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     #ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer,"OutputFlag" => 1)#, "MIPGap"=>9e-3)#select solver
     s["rebalancing"]=true
@@ -99,11 +98,11 @@ function nodal_market_main(mn_data, data, s)
         s2, mn_data= remove_integers(result_mip2,mn_data,data,s2);
         result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2)#Solve problem=#
     #result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem=#
-    #jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
+    #jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2);
     #result_mip=run_model_p2(jump_result_mip, gurobi);
         push!(results,_k=>Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s2));
     end
-    #pdic2=problemOUTPUT_map_byTimeStep(results["2"])
+    #pdic2=problemOUTPUT_map_byTimeStep(results["5"])
     #PlotlyJS.plot(pdic2["trace0"], pdic2["layout"])
     return results
 end
@@ -1140,7 +1139,6 @@ function set_inter_zonal_grid(result_mip,mn_data,s)
     end;end
     return mn_data, s
 end
-
 #**#
 function set_rebalancing_grid(result_mip,mn_data,s)
     for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
@@ -1164,8 +1162,8 @@ function set_rebalancing_grid(result_mip,mn_data,s)
             if (haskey(result_mip["solution"]["nw"][string(ts)],"convdc"))
                 for (c,cnv) in result_mip["solution"]["nw"][string(ts)]["convdc"];
                     if (cnv["p_pacmax"]>0)
-                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=round(cnv["p_pacmax"]);
-                            s["xd"]["convdc"][c]["Pacmax"][1,ts]=round(cnv["p_pacmax"]);
+                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=round(cnv["p_pacmax"],digits = 2);
+                            s["xd"]["convdc"][c]["Pacmax"][1,ts]=round(cnv["p_pacmax"],digits = 2);
                     else
                             s["xd"]["convdc"][c]["Pacmin"][1,ts]=0;
                             s["xd"]["convdc"][c]["Pacmax"][1,ts]=0;
@@ -1176,8 +1174,8 @@ function set_rebalancing_grid(result_mip,mn_data,s)
             if (haskey(result_mip["solution"]["nw"][string(ts)],"storage"))
                 for (b,strg) in result_mip["solution"]["nw"][string(ts)]["storage"];
                     if (strg["e_absmax"]>0)
-                            s["xd"]["storage"][b]["pmin"][1,ts]=round(strg["e_absmax"]);
-                            s["xd"]["storage"][b]["pmax"][1,ts]=round(strg["e_absmax"]);
+                            s["xd"]["storage"][b]["pmin"][1,ts]=round(strg["e_absmax"],digits = 2);
+                            s["xd"]["storage"][b]["pmax"][1,ts]=round(strg["e_absmax"],digits = 2);
                     else
                             s["xd"]["storage"][b]["pmin"][1,ts]=0;
                             s["xd"]["storage"][b]["pmax"][1,ts]=0;
@@ -1185,7 +1183,7 @@ function set_rebalancing_grid(result_mip,mn_data,s)
                 end;
             end
             for wf in s["wfz"]
-                s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=round(result_mip["solution"]["nw"][string(ts)]["gen"][string(first(wf))]["wf_pacmax"]);
+                s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=round(result_mip["solution"]["nw"][string(ts)]["gen"][string(first(wf))]["wf_pacmax"],digits = 2);
             end;
     
         end;
