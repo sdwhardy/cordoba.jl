@@ -40,11 +40,14 @@ end
 
 ################# Important trouble shooting code do not erase !!!!!!!!!!!!!!!!!!!!!!
 #=
+aim=jump_result_mip
+optimizer=gurobi
+gurobi
 if JuMP.termination_status(aim.model) == _MOI.INFEASIBLE_OR_UNBOUNDED
         JuMP.@assert JuMP.termination_status(aim.model) == _MOI.INFEASIBLE
         JuMP.compute_conflict!(aim.model)
         contypes=JuMP.list_of_constraint_types(aim.model)
-        for contype in contypes
+        #for contype in contypes
         as=_MOI.get.(aim.model, _MOI.ConstraintConflictStatus(),JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.EqualTo{Float64}))
         as=_MOI.get.(aim.model, _MOI.ConstraintConflictStatus(),JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.GreaterThan{Float64}))
         as=_MOI.get.(aim.model, _MOI.ConstraintConflictStatus(),JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.LessThan{Float64}))
@@ -52,8 +55,8 @@ if JuMP.termination_status(aim.model) == _MOI.INFEASIBLE_OR_UNBOUNDED
         if (a!=_MOI.NOT_IN_CONFLICT)   
             println(i, " ", a);end
         end 
-        JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.LessThan{Float64})[84343]
-        JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.GreaterThan{Float64})[13959]
+        JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.LessThan{Float64})[27638]
+        JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.GreaterThan{Float64})[18852]
     end
 =#
 ########################################################################################
