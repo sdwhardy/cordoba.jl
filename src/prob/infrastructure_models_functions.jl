@@ -1,5 +1,4 @@
 ""
-
 function optimize_model!(aim::_IM.AbstractInfrastructureModel; relax_integrality=false, optimizer=nothing, solution_processors=[])
     start_time = time()
 
@@ -31,7 +30,7 @@ function optimize_model!(aim::_IM.AbstractInfrastructureModel; relax_integrality
     Memento.debug(_PM._LOGGER, "JuMP model optimize time: $(time() - start_time)")
 
     start_time = time()
-    result = _IM.build_result(aim, solve_time; solution_processors=solution_processors)
+    result = build_result(aim, solve_time; solution_processors=solution_processors)
     Memento.debug(_PM._LOGGER, "solution build time: $(time() - start_time)")
 
     aim.solution = result["solution"]
@@ -58,3 +57,141 @@ if JuMP.termination_status(aim.model) == _MOI.INFEASIBLE_OR_UNBOUNDED
     end
 =#
 ########################################################################################
+
+function build_result(aim::_IM.AbstractInfrastructureModel, solve_time; solution_processors=[])
+    # try-catch is needed until solvers reliably support ResultCount()
+    result_count = 1
+    try
+        result_count = JuMP.result_count(aim.model)
+    catch
+        Memento.warn(_LOGGER, "the given optimizer does not provide the ResultCount() attribute, assuming the solver returned a solution which may be incorrect.");
+    end
+
+    solution = Dict{String,Any}()
+
+    if result_count > 0
+        solution = build_solution(aim, post_processors=solution_processors)
+    else
+        Memento.warn(_LOGGER, "model has no results, solution cannot be built")
+    end
+
+    result = Dict{String,Any}(
+        "optimizer" => JuMP.solver_name(aim.model),
+        "termination_status" => JuMP.termination_status(aim.model),
+        "primal_status" => JuMP.primal_status(aim.model),
+        "dual_status" => JuMP.dual_status(aim.model),
+        "objective" => _IM._guard_objective_value(aim.model),
+        "objective_lb" => _IM._guard_objective_bound(aim.model),
+        "solve_time" => solve_time,
+        "solution" => solution,
+    )
+
+    return result
+end
+
+function build_solution(aim::_IM.AbstractInfrastructureModel; post_processors=[])
+    
+    sol = Dict{String, Any}()
+    #sol["multiinfrastructure"] = true
+
+    for sol_count=1:1:JuMP.result_count(aim.model)
+        push!(sol,string(sol_count)=>Dict{String, Any}())
+        for nw in keys(aim.sol[:nw])
+            sol[string(sol_count)][string(nw)] = build_solution_values(aim.sol[:nw][nw], sol_count)
+            #sol[string(sol_count)]["multinetwork"] = true
+        end
+    end
+
+   #= _IM.solution_preprocessor(aim, sol)
+
+    for post_processor in post_processors
+        post_processor(aim, sol)
+    end
+
+    #for it in it_ids(aim)
+    #    it_str = string(it)
+        data_it = aim.data
+
+        if _IM.ismultinetwork(data_it)
+            sol["it"][it_str]["multinetwork"] = true
+        else
+            for (k, v) in sol["it"][it_str]["nw"]["$(nw_id_default)"]
+                sol["it"][it_str][k] = v
+            end
+
+            sol["it"][it_str]["multinetwork"] = false
+            delete!(sol["it"][it_str], "nw")
+        end
+
+        if !ismultiinfrastructure(aim)
+            for (k, v) in sol["it"][it_str]
+                sol[k] = v
+            end
+
+            delete!(sol["it"], it_str)
+        end
+    end
+
+    if !ismultiinfrastructure(aim)
+        sol["multiinfrastructure"] = false
+        delete!(sol, "it")
+    end=#
+
+    return sol
+end
+
+function build_solution_values(var::Dict, sol_count)
+    sol = Dict{String, Any}()
+
+    for (key, val) in var
+        sol[string(key)] = build_solution_values(val, sol_count)
+    end
+
+    return sol
+end
+
+""
+function build_solution_values(var::Array{<:Any,1}, sol_count)
+    return [build_solution_values(val, sol_count) for val in var]
+end
+
+""
+function build_solution_values(var::Array{<:Any,2}, sol_count)
+    return [build_solution_values(var[i, j], sol_count) for i in 1:size(var, 1), j in 1:size(var, 2)]
+end
+
+""
+function build_solution_values(var::Number, sol_count)
+    return var
+end
+
+""
+function build_solution_values(var::JuMP.VariableRef, sol_count)
+    return JuMP.value(var;result=sol_count)
+end
+
+""
+function build_solution_values(var::JuMP.GenericAffExpr, sol_count)
+    return JuMP.value(var;result=sol_count)
+end
+
+""
+function build_solution_values(var::JuMP.GenericQuadExpr, sol_count)
+    return JuMP.value(var;result=sol_count)
+end
+
+""
+function build_solution_values(var::JuMP.NonlinearExpression, sol_count)
+    return JuMP.value(var;result=sol_count)
+end
+
+""
+function build_solution_values(var::JuMP.ConstraintRef, sol_count)
+    return JuMP.dual(var;result=sol_count)
+end
+
+""
+function build_solution_values(var::Any, sol_count)
+    Memento.warn(_IM._LOGGER, "build_solution_values found unknown type $(typeof(var))")
+    return var
+end

@@ -1,32 +1,41 @@
 #**#
 function zonal_market_main(mn_data, data, s)
     hm=deepcopy(s["home_market"]);
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 36000);#select solver
-    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);#Solve problem
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
+    jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
+    result_mip_ms = run_model_p2(jump_result_mip, gurobi);
+    #result_mip_ms = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);#Solve problem
     #print_solution_wcost_data(result_mip, s, data);
-    s["home_market"]=[]
-    mn_data, data, s = data_setup(s);#Build data structure for given options
-    s["home_market"]=hm
-    mn_data, s = set_inter_zonal_grid(result_mip,mn_data,s);
-    s["home_market"]=[]
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 36000)#select solver
-    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    results=Dict{String, Any}();
+    for (_k, _v) in result_mip_ms["solution"]
+        result_mip2=Dict{String,Any}("solution"=>Dict{String,Any}("nw"=>_v))
+        s2=deepcopy(s)
+        s2["home_market"]=[]
+        mn_data, data, s2 = data_setup(s2);#Build data structure for given options
+        s2["home_market"]=hm
+        mn_data, s2 = set_inter_zonal_grid(result_mip2,mn_data,s2);
+        s2["home_market"]=[]
+        gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 36000, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"])#select solver
+        result_mip2 = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2)#Solve problem
     #print_solution_wcost_data(result_mip, s, data)
-    s["home_market"]=hm
-    s["rebalancing"]=true
-    s["relax_problem"]=true
-    s["output"]["duals"]=true
-    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
-    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
-    s, mn_data= remove_integers(result_mip,mn_data,data,s);
-    result_mip_hm_prices = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-    s["home_market"]=[]
-    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
-    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
-    s, mn_data= remove_integers(result_mip,mn_data,data,s);
-    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-    result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
-    results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s, "result_mip_hm_prices"=>result_mip_hm_prices)
+        s2["home_market"]=hm
+        s2["rebalancing"]=true
+        s2["relax_problem"]=true
+        s2["output"]["duals"]=true
+        mn_data, data, s2 = data_update(s2,result_mip2);#Build data structure for given options
+        mn_data, s2 = set_rebalancing_grid(result_mip2,mn_data,s2);
+        s2, mn_data= remove_integers(result_mip2,mn_data,data,s2);
+        result_mip_hm_prices = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2)#Solve problem
+        s2["home_market"]=[]
+        mn_data, data, s2 = data_update(s2,result_mip2);#Build data structure for given options
+        mn_data, s2 = set_rebalancing_grid(result_mip2,mn_data,s2);
+        s2, mn_data= remove_integers(result_mip2,mn_data,data,s2);
+        result_mip2 = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2)#Solve problem
+        result_mip2= hm_market_prices(result_mip2, result_mip_hm_prices)
+        push!(results,_k=>Dict("result_mip"=>result_mip2,"data"=>data, "mn_data"=>mn_data, "s"=>s2, "result_mip_hm_prices"=>result_mip_hm_prices));
+    end
+    #pdic2=problemOUTPUT_map_byTimeStep(results["10"])
+    #PlotlyJS.plot(pdic2["trace0"], pdic2["layout"])
     return results
 end
 #####################
@@ -44,8 +53,6 @@ end
     "dr"=>0.04,#discount rate
     "yearly_investment"=>1000000,
     ################ electrical parameters ################
-    "AC"=>"1",#0=false, 1=true
-    #"owpp_mva"=>[4000,4000,6000,6000,8000],#mva of wf in MVA
     "conv_lim_onshore"=>3000,#Max Converter size in MVA
     "conv_lim_offshore"=>4000,#Max Converter size in MVA
     "strg_lim_offshore"=>0.2,
@@ -53,28 +60,28 @@ end
     "candidate_ics_ac"=>[1/5,2/5,3/5],#AC Candidate Cable sizes (fraction of full MVA)
     "candidate_ics_dc"=>[1/2,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
     ################## optimization/solver setup options ###################
-    "output" => Dict("branch_flows" => false),
-    "eps"=>0.0001,#admm residual (100kW)
-    "beta"=>5.5,
     "relax_problem" => false,
-    "conv_losses_mp" => true,
-    "process_data_internally" => false,
     "corridor_limit" => false,
-    "onshore_grid"=>true)
+    "TimeLimit" => 259200,
+    "MIPGap"=>5e-3, 
+    "PoolSearchMode" => 2, 
+    "PoolSolutions" => 10)
 
 s["home_market"]=[]
+s=hidden_settings(s)
 mn_data, data, s = data_setup(s);
+
 problemINPUT_map(data, s)
 problemINPUT_mapNTCs(data, s)
 =#
 #**#
 function nodal_market_main(mn_data, data, s)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 204000, "MIPGap"=>1e-3)#, "PoolSearchMode" => 2, "PoolSolutions" => 2)#, "MIPGap"=>9e-3)#select solver
-    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
-    #jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
-    #result_mip=run_model_p2(jump_result_mip, gurobi);
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
+    #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
+    result_mip_ms=run_model_p2(jump_result_mip, gurobi);
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem
-    print_solution_wcost_data(result_mip, s, data)
+    #print_solution_wcost_data(result_mip, s, data)
     #pdic=problemMIP_OUTPUT_map_byTimeStep(result_mip, s, data)
     #PlotlyJS.plot(pdic["trace0"], pdic["layout"])
 
@@ -83,18 +90,34 @@ function nodal_market_main(mn_data, data, s)
     s["rebalancing"]=true
     s["relax_problem"]=true
     s["output"]["duals"]=true
-    mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
+    results=Dict{String, Any}();
+    for (_k, _v) in result_mip_ms["solution"]
+        result_mip2=Dict{String,Any}("solution"=>Dict{String,Any}("nw"=>_v))
+        mn_data, data, s2 = data_update(deepcopy(s),result_mip2);#Build data structure for given options
     
-    mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
-    s, mn_data= remove_integers(result_mip,mn_data,data,s);
-    result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem=#
+        mn_data, s2 = set_rebalancing_grid(result_mip2,mn_data,s2);
+        s2, mn_data= remove_integers(result_mip2,mn_data,data,s2);
+        result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2)#Solve problem=#
     #result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem=#
     #jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
     #result_mip=run_model_p2(jump_result_mip, gurobi);
-    results=Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s);
-    #pdic2=problemOUTPUT_map_byTimeStep(results)
+        push!(results,_k=>Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s2));
+    end
+    #pdic2=problemOUTPUT_map_byTimeStep(results["2"])
     #PlotlyJS.plot(pdic2["trace0"], pdic2["layout"])
     return results
+end
+
+#**#
+function hidden_settings(s)
+    push!(s,"AC"=>"1"),#0=false, 1=true
+    push!(s,"output" => Dict("branch_flows" => false))
+    push!(s,"eps"=>0.0001)
+    push!(s,"beta"=>5.5)
+    push!(s,"conv_losses_mp" => true)
+    push!(s,"process_data_internally" => false)
+    push!(s,"onshore_grid"=>true)
+    return s
 end
 
 #=
