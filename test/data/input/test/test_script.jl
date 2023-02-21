@@ -51,7 +51,7 @@ pdic=_CBD.problemOUTPUT_map_byTimeStep(result["1"])
 PlotlyJS.plot(pdic["trace0"], pdic["layout"])
 
 ################## Run zonal Formulation ###################
-#zonal data setup
+#zonal data set-up
 s_z["home_market"]=[[9,10,11,12]]
 mn_data_z, data_z, s_z = _CBD.data_setup(s_z);#Build data structure for given options
 #display inputs
