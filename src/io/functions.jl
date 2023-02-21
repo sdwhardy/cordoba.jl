@@ -69,7 +69,7 @@ problemINPUT_mapNTCs(data, s)
 =#
 #**#
 function nodal_market_main(mn_data, data, s)
-    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 204000, "MIPGap"=>1e-3)#, "PoolSearchMode" => 2, "PoolSolutions" => 2)#, "MIPGap"=>9e-3)#select solver
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 204000, "MIPGap"=>5e-3)#, "PoolSearchMode" => 2, "PoolSolutions" => 2)#, "MIPGap"=>9e-3)#select solver
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     #jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
     #result_mip=run_model_p2(jump_result_mip, gurobi);
