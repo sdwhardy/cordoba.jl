@@ -425,6 +425,14 @@ function utm_gps2xy(lla,north_south::Bool=true,zone_utm::Int64=31)
     return utm
 end
 
+#gps coordinates from utm
+#**#
+function utm_xy2gps(xy,north_south::Bool=true,zone_utm::Int64=31)
+    lla_desired = Geodesy.LLAfromUTM(zone_utm, north_south, Geodesy.wgs84)#sets UTM zone
+    _lla = lla_desired(Geodesy.UTM(first(xy)*1000,last(xy)*1000))
+    return _lla
+end
+
 ################################# HVAC ##############################
 #**#
 function filter_AClines(data,edges,nodes)

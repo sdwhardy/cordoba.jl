@@ -1,5 +1,5 @@
 ################## loads external packages ##############################
-using Gurobi, JuMP, DataFrames, FileIO, CSV, Dates, OrderedCollections, PlotlyJS
+using Gurobi, JuMP, DataFrames, FileIO, CSV, Dates, OrderedCollections, PlotlyJS, XLSX
 import Cordoba_self; const _CBD = Cordoba_self#Cordoba package backend - under development
 import PowerModelsACDC; const _PMACDC = PowerModelsACDC
 import PowerModels; const _PM = PowerModels
