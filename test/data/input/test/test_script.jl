@@ -35,7 +35,6 @@ s = Dict(
 "PoolSolutions" => 1)#number of solutions to find
 s=_CBD.hidden_settings(s)
 s_z=deepcopy(s)
-
 ################## Run nodal Formulation ###################
 #nodal data setup
 s["home_market"]=[]
@@ -48,7 +47,7 @@ result = _CBD.nodal_market_main(mn_data, data, s)
 #display results
 s["cost_summary"]=_CBD.print_solution_wcost_data(result["1"]["result_mip"], result["1"]["s"], result["1"]["data"])
 pdic=_CBD.problemOUTPUT_map_byTimeStep(result["1"])
-PlotlyJS.plot(pdic["trace0"], pdic["layout"])
+PlotlyJS.plot(pdic["trace012"], pdic["layout"])
 
 ################## Run zonal Formulation ###################
 #zonal data set-up
