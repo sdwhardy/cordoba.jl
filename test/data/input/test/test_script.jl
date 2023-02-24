@@ -25,7 +25,7 @@ s = Dict(
 "strg_lim_offshore"=>0.2,#Max offshore storage capacity
 "strg_lim_onshore"=>10,#Max onshore storage capacity
 "candidate_ics_ac"=>[1/5,2/5,3/5],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[1/5,2/5,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+"candidate_ics_dc"=>[1,4/5,3/5],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
 ################## optimization/solver setup options ###################
 "relax_problem" => false,#binaries->continuous variables
 "corridor_limit" => false,#limit cables in parallel?
@@ -47,8 +47,7 @@ result = _CBD.nodal_market_main(mn_data, data, s)
 #display results
 s["cost_summary"]=_CBD.print_solution_wcost_data(result["1"]["result_mip"], result["1"]["s"], result["1"]["data"])
 pdic=_CBD.problemOUTPUT_map_byTimeStep(result["1"])
-PlotlyJS.plot(pdic["trace012"], pdic["layout"])
-
+PlotlyJS.plot(pdic["trace0"], pdic["layout"])
 ################## Run zonal Formulation ###################
 #zonal data set-up
 s_z["home_market"]=[[9,10,11,12]]
