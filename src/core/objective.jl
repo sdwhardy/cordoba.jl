@@ -37,8 +37,7 @@ function objective_min_cost_acdc_convex_conv_strg_npv(pm::_PM.AbstractPowerModel
                 JuMP.add_to_expression!(exp, pm.ref[:scenario_prob][s],calc_wf_cost_npv(pm, n))
             end
         end
-    end
-        
+    end        
     return JuMP.@objective(pm.model, Min, exp)
 end
 

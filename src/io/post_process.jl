@@ -201,12 +201,13 @@ function print_owpps(result_mip,argz,data)
                 if !(haskey(argz["topology"]["t2"][wf_bus],"wf"));push!(argz["topology"]["t2"][wf_bus],"wf"=>wf["wf_pacmax"]);end
 #Cost tabulation
                 cst=(wf["wf_pacmax"]-result_mip["solution"]["nw"]["1"]["gen"][i]["wf_pacmax"])*data["gen"][i]["invest"]*2/3*(1/((1+argz["dr"])^(10)))
+                gbus=data["gen"][i]["gen_bus"]
                 if !(haskey(owpp_cost["totals"],string(i)));push!(owpp_cost["totals"],string(i)=>cst);else;owpp_cost["totals"][string(i)]=owpp_cost["totals"][string(i)]+cst;end
                 if !(haskey(owpp_cost["t2"],string(i)));push!(owpp_cost["t2"],string(i)=>cst);end
                 if !(haskey(owpp_cost["t2"],"all"));push!(owpp_cost["t2"],"all"=>cst);else;owpp_cost["t2"]["all"]=owpp_cost["t2"]["all"]+cst;end
                 owpp_cost["all"]=owpp_cost["all"]+cst
                 if (wf["wf_pacmax"] != 0.0 && cst != 0.0)
-                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst));end
+                println(string(gbus)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst));end
         end;end
         println("%%%% OWPPS Tinf %%%%")
         for (i,wf) in sort(OrderedCollections.OrderedDict(result_mip["solution"]["nw"][string(length(result_mip["solution"]["nw"]))]["gen"]), by=x->parse(Int64,x))
@@ -217,12 +218,13 @@ function print_owpps(result_mip,argz,data)
                 if !(haskey(argz["topology"]["tinf"][wf_bus],"wf"));push!(argz["topology"]["tinf"][wf_bus],"wf"=>wf["wf_pacmax"]);end
 #Cost tabulation
                 cst=(wf["wf_pacmax"]-result_mip["solution"]["nw"][string(argz["hours_length"]+1)]["gen"][i]["wf_pacmax"])*data["gen"][i]["invest"]*1/3*(1/((1+argz["dr"])^(20)))
+                gbus=data["gen"][i]["gen_bus"]
                 if !(haskey(owpp_cost["totals"],string(i)));push!(owpp_cost["totals"],string(i)=>cst);else;owpp_cost["totals"][string(i)]=owpp_cost["totals"][string(i)]+cst;end
                 if !(haskey(owpp_cost["tinf"],string(i)));push!(owpp_cost["tinf"],string(i)=>cst);end
                 if !(haskey(owpp_cost["tinf"],"all"));push!(owpp_cost["tinf"],"all"=>cst);else;owpp_cost["tinf"]["all"]=owpp_cost["tinf"]["all"]+cst;end
                 owpp_cost["all"]=owpp_cost["all"]+cst
                 if (wf["wf_pacmax"] != 0.0 && cst != 0.0)
-                println(string(i)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst));end
+                println(string(gbus)*": "*string(wf["wf_pacmax"])*" Cost: "*string(cst));end
         end;end
     end
     return owpp_cost

@@ -20,8 +20,8 @@ s = Dict(
     ################ electrical parameters ################
     "conv_lim_onshore"=>36000,#Max Converter size in MVA
     "conv_lim_offshore"=>36000,#Max Converter size in MVA
-    "strg_lim_offshore"=>0.2,
-    "strg_lim_onshore"=>10,
+    "strg_lim_offshore"=>0.2,#divide by ten to get GWhs = 20MWh
+    "strg_lim_onshore"=>10,#1GWh
     "candidate_ics_ac"=>[1,2,4,8],#AC Candidate Cable sizes (fraction of full MVA)
     "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
     ################## optimization/solver setup options ###################
