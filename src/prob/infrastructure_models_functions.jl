@@ -1,4 +1,5 @@
 ""
+
 function optimize_model!(aim::_IM.AbstractInfrastructureModel; relax_integrality=false, optimizer=nothing, solution_processors=[])
     start_time = time()
 
@@ -33,8 +34,7 @@ function optimize_model!(aim::_IM.AbstractInfrastructureModel; relax_integrality
     result = build_result(aim, solve_time; solution_processors=solution_processors)
     Memento.debug(_PM._LOGGER, "solution build time: $(time() - start_time)")
 
-    aim.solution = result["solution"]
-
+    #aim.solution = result["solution"]
     return result
 end
 
@@ -89,6 +89,10 @@ function build_result(aim::_IM.AbstractInfrastructureModel, solve_time; solution
         "solution" => solution,
     )
 
+    for sol_count=1:1:JuMP.result_count(aim.model)
+        push!(result,"objective"*string(sol_count)=>JuMP.objective_value(aim.model,result=sol_count))
+    end
+
     return result
 end
 
@@ -101,7 +105,6 @@ function build_solution(aim::_IM.AbstractInfrastructureModel; post_processors=[]
         push!(sol,string(sol_count)=>Dict{String, Any}())
         for nw in keys(aim.sol[:nw])
             sol[string(sol_count)][string(nw)] = build_solution_values(aim.sol[:nw][nw], sol_count)
-            #sol[string(sol_count)]["multinetwork"] = true
         end
     end
 

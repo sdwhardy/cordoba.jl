@@ -3,13 +3,43 @@
 #rt_ex=s["rt_ex"]
 #relax=s["relax_problem"]
 #_ac=s["AC"]
+#s["rt_ex"], s["relax_problem"], s["AC"]
 #***#
-function topology_df(rt_ex, relax, _ac, scenario_data)
+#=function topology_df(rt_ex, relax, _ac, scenario_data)
 	ac_cable_df = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "CABLES_AC_SET_UP")...)
 	dc_cable_df = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "CABLES_DC_SET_UP")...)
 	rem_df = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "REMAINDER")...)
 	rem_df, scenario_data = surrounding_countries(rem_df, scenario_data)
 	ppf_mainACDCStorage2mfile(rem_df,ac_cable_df,dc_cable_df,rt_ex, relax, _ac)
+end=#
+#***#
+function topology_df(s, scenario_data)
+	ac_cable_df = DataFrames.DataFrame(XLSX.readtable(s["rt_ex"]*"input.xlsx", "CABLES_AC_SET_UP")...)
+	dc_cable_df = DataFrames.DataFrame(XLSX.readtable(s["rt_ex"]*"input.xlsx", "CABLES_DC_SET_UP")...)
+	rem_df = DataFrames.DataFrame(XLSX.readtable(s["rt_ex"]*"input.xlsx", "REMAINDER")...)
+	if (haskey(s,"collection_circuit") && s["collection_circuit"]==true)
+		nodes_df = DataFrames.DataFrame(XLSX.readtable(s["rt_ex"]*"input.xlsx", "node_generation")...)
+		rem_df, scenario_data = pcc_connection(rem_df, nodes_df, scenario_data)
+	else
+		rem_df, scenario_data = surrounding_countries(rem_df, scenario_data)
+	end
+	ppf_mainACDCStorage2mfile(rem_df, ac_cable_df, dc_cable_df, s)
+end
+
+
+#***#
+function pcc_connection(rem_df, nodes_df, scenario_data)
+	offshore_region=unique(nodes_df[!,:country])
+	start_bus=parse(Int64,rem_df[!,:bus][end])
+	_buses=[]
+	for (count,nodes) in enumerate(filter(:node_id=>x->issubset([x],offshore_region),scenario_data["Generation"]["nodes"])[!,:node_id])
+	_bus=start_bus+count
+	push!(_buses,_bus)
+	_row=[string(_bus),string(_bus),string(_bus)*" 1",missing,string(0),"1 0",missing,string(_bus)*" "*string(_bus),string(_bus)*" "*string(_bus)*" 19.25",string(_bus),"39"]
+	push!(rem_df,_row)
+	end
+	scenario_data["Generation"]["nodes"][!,:bus]=_buses
+	return rem_df, scenario_data
 end
 #***#
 function surrounding_countries(rem_df, scenario_data)
@@ -31,6 +61,7 @@ end
 #dc_df=dc_cable_df
 #mf=matfile
 #ACDC network with storage main logic to create topology.m file
+#=
 #***#
 function ppf_mainACDCStorage2mfile(r_df,ac_df, dc_df, cdir,relax, _ac)
 	base_mva=100
@@ -48,6 +79,25 @@ function ppf_mainACDCStorage2mfile(r_df,ac_df, dc_df, cdir,relax, _ac)
 	ppf_dc_blank_conv_ne(matfile)
 	ppf_storage(matfile,r_df)
 	close(matfile)#close the .mat file
+end=#
+#**#
+#s["rt_ex"], s["relax_problem"], s["AC"]
+function ppf_mainACDCStorage2mfile(r_df,ac_df, dc_df, s)
+	base_mva=100
+	matfile = open(s["rt_ex"]*"topology.m","w")#open the .mat file
+	ppf_header(matfile,base_mva)#print top function data
+	ppf_Buss(matfile, r_df, s)#prints the bus data
+	ppf_Gens(matfile,r_df)#prints all generator (OWPP) data
+	ppf_acbranches(matfile,ac_df,s["relax_problem"], s["AC"])
+	ppf_costs(matfile,r_df)
+	ppf_BussDC(matfile,r_df)#prints the bus data
+	ppf_BussDC_ne_blank(matfile)#prints the bus data
+	#ppf_dcbranches_blank(matfile)
+	ppf_dcbranches(matfile,dc_df, s["relax_problem"])
+	ppf_convs(matfile,r_df,s)
+	ppf_dc_blank_conv_ne(matfile,s)
+	ppf_storage(matfile,r_df)
+	close(matfile)#close the .mat file
 end
 #***#
 function ppf_header(mf,base_mva)
@@ -61,15 +111,20 @@ function ppf_header(mf,base_mva)
 	println(mf, "")
 end
 #***#
-function ppf_Buss(mf,r_df)
+function ppf_Buss(mf,r_df, s)
 	println(mf,"%% bus data
 	%	bus_i	type	Pd	Qd	Gs	Bs	area	Vm	Va	baseKV	zone	Vmax	Vmin
 	mpc.bus = [")
+	v=220
+	if haskey(s,"collection_voltage")
+	v= s["collection_voltage"] 
+	end
+
 	for (i,r) in enumerate(r_df[!,:bus])
 		if (i==1)
-			println(mf,r*" 3 0 0 0 0 1 1 0 220 1 1.1 0.9;")#? " 3 0 0 0 0 1 1 0 220 1 1.1 0.9;"
+			println(mf,r*" 3 0 0 0 0 1 1 0 "*string(v)*" 1 1.1 0.9;")#? " 3 0 0 0 0 1 1 0 220 1 1.1 0.9;"
 		else
-			println(mf,r*" 2 0 0 0 0 1 1 0 220 1 1.1 0.9;")#? " 3 0 0 0 0 1 1 0 220 1 1.1 0.9;"
+			println(mf,r*" 2 0 0 0 0 1 1 0 "*string(v)*" 1 1.1 0.9;")#? " 3 0 0 0 0 1 1 0 220 1 1.1 0.9;"
 		end
 	end
 	println(mf,"];")
@@ -137,8 +192,8 @@ function ppf_acbranches(mf,ac_df, relax, _AC)
 	println(mf,"];")
 
 	println(mf,"
-	%candidate branch data
-	%column_names%	f_bus	t_bus	br_r	br_x	br_b	rate_a	rate_b	rate_c	tap	shift	br_status	angmin	angmax	mva	construction_cost
+	%%candidate branch data
+	%column_names%	f_bus	t_bus	br_r	br_x	br_b	rate_a	rate_b	rate_c	tap	shift	br_status	angmin	angmax	mva	construction_cost mm
 	mpc.ne_branch = [")
 
 	for r in cables
@@ -146,9 +201,9 @@ function ppf_acbranches(mf,ac_df, relax, _AC)
 		filter!(x->x!="",rv)
 		if (relax)
 			#println(mf,rv[1]*"	"*rv[2]*"	"*rv[3]*"	"*rv[4]*"	"*rv[5]*"	"*rv[6]*"	"*rv[7]*"	"*rv[8]*"	"*rv[9]*"	"*rv[10]*"	"*"0"*"	"*rv[12]*"	"*rv[13]*"	"*rv[14]*"	"*rv[15])
-			println(mf,rv[1]*"	"*rv[2]*"	"*"0.004 0.04 0 1000 1000 1000 0 0 0 -60 60 100 10;")
+			println(mf,rv[1]*"	"*rv[2]*"	"*"0.004 0.04 0 1000 1000 1000 0 0 0 -60 60 100 10 1000.0;")
 		else
-			println(mf,rv[1]*"	"*rv[2]*"	"*"0.004 0.04 0 1000 1000 1000 0 0	"*_AC*"	-60 60 100 10;")
+			println(mf,rv[1]*"	"*rv[2]*"	"*"0.004 0.04 0 1000 1000 1000 0 0	"*_AC*"	-60 60 100 10 1000.0;")
 			#println(mf,rv[1]*"	"*rv[2]*"	"*rv[3]*"	"*rv[4]*"	"*rv[5]*"	"*rv[6]*"	"*rv[7]*"	"*rv[8]*"	"*rv[9]*"	"*rv[10]*"	"*_AC*"	"*rv[12]*"	"*rv[13]*"	"*rv[14]*"	"*rv[15])
 		end
 	end
@@ -228,31 +283,39 @@ function ppf_dcbranches(mf,dc_df, relax)
 end
 
 #***#
-function ppf_convs(mf,r_df)
+function ppf_convs(mf,r_df,s)
 	println(mf,"
 	%% existing converters
 	%column_names%   busdc_i busac_i type_dc type_ac P_g   Q_g  islcc  	Vtar 		rtf  xtf  transformer tm   bf  filter    rc      xc  reactor   basekVac Vmmax   Vmmin   Imax     status   LossA  LossB  LossCrec LossCinv   droop   Pdcset     Vdcset  dVdcset Pacmax Pacmin Qacmax   Qacmin cost
 	mpc.convdc = [")
+	v=220
+	if haskey(s,"collection_voltage")
+	v= s["collection_voltage"] 
+	end
 
 	for (i,r) in enumerate(r_df[!,:conv_dc])
 
 		e=split(r," ")
 		if (i==1)
-			println(mf,e[1]*" "*e[2]*" 2 3 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 220 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 40000 -40000 40000 -40000 "*e[3]*";")
+			println(mf,e[1]*" "*e[2]*" 2 3 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 "*string(v)*" 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 40000 -40000 40000 -40000 "*e[3]*";")
 		else
-			println(mf,e[1]*" "*e[2]*" 3 2 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 220 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 40000 -40000 40000 -40000 "*e[3]*";")
+			println(mf,e[1]*" "*e[2]*" 3 2 400000 0 0 1 0.001 0.1 0 1 0.08 0 0.001 0.09 0 "*string(v)*" 1.1 0.9 100000 1 0 0 0 0 0.005 -52.7 1.0079 0 40000 -40000 40000 -40000 "*e[3]*";")
 		end
 	end
 	println(mf,"];")
 end
 #***#
-function ppf_dc_blank_conv_ne(mf)
+function ppf_dc_blank_conv_ne(mf,s)
+	v=220
+	if haskey(s,"collection_voltage")
+	v= s["collection_voltage"] 
+	end
 	println(mf,"
 	%trans, filter, reactor, vmin vmax same as conv
 	%% candidate converters
 	%column_names%   busdc_i busac_i type_dc type_ac P_g   Q_g  islcc  Vtar    rtf   xtf  transformer tm   bf 	filter    rc     xc  reactor   basekVac Vmmax   Vmmin   Imax    status   LossA LossB  LossCrec LossCinv  droop     Pdcset    Vdcset  dVdcset Pacmax Pacmin Qacmax Qacmin cost
 	mpc.convdc_ne = [
-	                1000       2      1       1    400000    0   	0     1.0   0.001  0.1       0 			 1 	0.08 		0 		0.001   0.09 		0  				220    1.1     0.9    100000      1     	 0     0        0       0      0.0050    -52.7     1.0079     0  		1  -1   1    -1   1000000;
+	                1000       2      1       1    400000    0   	0     1.0   0.001  0.1       0 			 1 	0.08 		0 		0.001   0.09 		0  				"*string(v)*"    1.1     0.9    100000      1     	 0     0        0       0      0.0050    -52.7     1.0079     0  		1  -1   1    -1   1000000;
 	];")
 end
 

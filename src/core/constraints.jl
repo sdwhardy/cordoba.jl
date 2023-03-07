@@ -834,7 +834,197 @@ function constraint_candidate_corridor_limit(pm::_PM.AbstractPowerModel, cs_in_c
         JuMP.@constraint(pm.model, sum(c) <= 1)
     end
 end
+#ac_crossings=s["xd"]["crossings"]["ac"]
+function constraint_no_crossings(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default)
+    ac_crossings=pm.setting["xd"]["crossings"]["ac"]
 
+    for _row in eachrow(ac_crossings)
+        for _c1 in _row[:ac_cables_1]
+            for _c2 in _row[:ac_cables_2]
+                cable_1_var = _PM.var(pm, nw, :branch_ne, parse(Int64,_c1))
+                cable_2_var = _PM.var(pm, nw, :branch_ne, parse(Int64,_c2))
+                #println(cable_1_var, " + ", cable_2_var, " <= 1")
+                JuMP.@constraint(pm.model, cable_1_var + cable_2_var  <= 1)
+            end
+        end
+    end
+end
+
+function constraint_oss_connections(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default)
+
+    for (oss_i,oss_num) in enumerate(pm.setting["oss_nodes"])
+        #get cable numbers connected to oss(s)
+        ac_cables=pm.setting["xd"]["max_num_strings_per_oss"][oss_num]["ac"]
+        dc_cables=pm.setting["xd"]["max_num_strings_per_oss"][oss_num]["dc"]
+
+        #
+        if (length(ac_cables)>0)
+            ac_sum = sum(_PM.var(pm, nw, :branch_ne, parse(Int64,ac_cable)) for ac_cable in ac_cables)
+        else
+            ac_sum=[]
+        end
+        if (length(dc_cables)>0)
+            dc_sum = sum(_PM.var(pm, nw, :branchdc_ne, parse(Int64,dc_cable)) for dc_cable in dc_cables)
+        else
+            dc_sum=[]
+        end
+        JuMP.@constraint(pm.model, ac_sum + dc_sum  <= pm.setting["max_num_strings_per_oss"][oss_i]+1)
+    end
+end
+
+function constraint_no_loops(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default)
+
+    for (turbine_i,turbine_num) in enumerate(pm.setting["turbine_nodes"])
+        #get cable numbers connected to oss(s)
+        ac_cables=pm.setting["xd"]["no_loops"][turbine_num]["ac"]
+        dc_cables=pm.setting["xd"]["no_loops"][turbine_num]["dc"]
+
+        #
+        if (length(ac_cables)>0)
+            ac_sum = sum(_PM.var(pm, nw, :branch_ne, parse(Int64,ac_cable)) for ac_cable in ac_cables)
+        else
+            ac_sum=0
+        end
+        if (length(dc_cables)>0)
+            dc_sum = sum(_PM.var(pm, nw, :branchdc_ne, parse(Int64,dc_cable)) for dc_cable in dc_cables)
+        else
+            dc_sum=0
+        end
+        JuMP.@constraint(pm.model, ac_sum + dc_sum  <= 1)
+    end
+end
+#=    
+    branchdc_ne = _PM.ref(pm, nw, :branchdc_ne, parse(Int64,dc_cable))
+    f_bus = branchdc_ne["fbusdc"]
+    t_bus = branchdc_ne["tbusdc"]
+
+    f_idx = (i, f_bus, t_bus)
+    t_idx = (i, t_bus, f_bus)
+    p_dc_fr_ne = _PM.var(pm, nw, :p_dcgrid_ne, f_idx)
+    p_dc_to_ne = _PM.var(pm, nw, :p_dcgrid_ne, t_idx)
+    cstr=JuMP.@constraint(pm.model, p_dc_fr_ne + p_dc_to_ne == 0)
+
+
+    ne_branch = _PM.ref(pm, nw, :ne_branch, parse(Int64,ac_cable))
+    f_bus = ne_branch["f_bus"]
+    t_bus = ne_branch["t_bus"]
+    f_idx = (i, f_bus, t_bus)
+    t_idx = (i, t_bus, f_bus)
+    p_fr  = _PM.var(pm, nw,  :p_ne, f_idx)
+    p_to  = _PM.var(pm, nw,  :p_ne, t_idx)
+    =#
+
+    
+    function constraint_max_turbines_per_string(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default)
+        wf_cap=pm.setting["xd"]["gen"][string(first(last(pm.setting["wfz"])))]["wf_pmax"][1]
+        for (oss_i,oss_num) in enumerate(pm.setting["oss_nodes"])
+            #get cable numbers connected to oss(s)
+            
+    
+            #
+            if !isempty(_PM.ref(pm, nw, :ne_branch))
+                for (i,branch) in _PM.ref(pm, nw, :ne_branch)
+                    ne_branch = _PM.ref(pm, nw, :ne_branch, i)
+                    f_bus = ne_branch["f_bus"]
+                    t_bus = ne_branch["t_bus"]
+                    f_idx = (i, f_bus, t_bus)
+                    t_idx = (i, t_bus, f_bus)
+                    p_fr  = _PM.var(pm, nw,  :p_ne, f_idx)
+                    p_to  = _PM.var(pm, nw,  :p_ne, t_idx)
+    
+                    println(JuMP.@constraint(pm.model, p_fr  <= pm.setting["max_turbines_per_string"][oss_i]*wf_cap))
+                    println(JuMP.@constraint(pm.model, -1*pm.setting["max_turbines_per_string"][oss_i]*wf_cap <= p_fr))
+                    println(JuMP.@constraint(pm.model, p_to  <= pm.setting["max_turbines_per_string"][oss_i]*wf_cap))
+                    println(JuMP.@constraint(pm.model, -1*pm.setting["max_turbines_per_string"][oss_i]*wf_cap <= p_to))
+                end 
+            end
+
+
+            
+            if !isempty(_PM.ref(pm, nw, :branchdc_ne))
+                for (i,branch) in _PM.ref(pm, nw, :branchdc_ne)
+                    branchdc_ne = _PM.ref(pm, nw, :branchdc_ne, i)
+                    f_bus = branchdc_ne["fbusdc"]
+                    t_bus = branchdc_ne["tbusdc"]
+                    f_idx = (i, f_bus, t_bus)
+                    t_idx = (i, t_bus, f_bus)
+                    p_dc_fr_ne = _PM.var(pm, nw, :p_dcgrid_ne, f_idx)
+                    p_dc_to_ne = _PM.var(pm, nw, :p_dcgrid_ne, t_idx)
+    
+                    println(JuMP.@constraint(pm.model, p_dc_fr_ne  <= pm.setting["max_turbines_per_string"][oss_i]*wf_cap))
+                    println(JuMP.@constraint(pm.model, -1*pm.setting["max_turbines_per_string"][oss_i]*wf_cap <= p_dc_fr_ne))
+                    println(JuMP.@constraint(pm.model, p_dc_to_ne  <= pm.setting["max_turbines_per_string"][oss_i]*wf_cap))
+                    println(JuMP.@constraint(pm.model, -1*pm.setting["max_turbines_per_string"][oss_i]*wf_cap <= p_dc_to_ne)) 
+                end
+            end
+            
+        end
+    end
+#=function constraint_max_turbines_per_string(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default)
+    wf_cap=pm.setting["xd"]["gen"][string(first(last(pm.setting["wfz"])))]["wf_pmax"][1]
+    for (oss_i,oss_num) in enumerate(pm.setting["oss_nodes"])
+        #get cable numbers connected to oss(s)
+        ac_cables=pm.setting["xd"]["max_turbines_per_string"][oss_num]["ac"]
+        dc_cables=pm.setting["xd"]["max_turbines_per_string"][oss_num]["dc"]
+
+        #
+        if (length(ac_cables)>0)
+            for ac_cable in ac_cables
+                ne_branch = _PM.ref(pm, nw, :ne_branch, parse(Int64,ac_cable))
+                f_bus = ne_branch["f_bus"]
+                t_bus = ne_branch["t_bus"]
+                f_idx = (parse(Int64,ac_cable), f_bus, t_bus)
+                t_idx = (parse(Int64,ac_cable), t_bus, f_bus)
+                p_fr  = _PM.var(pm, nw,  :p_ne, f_idx)
+                p_to  = _PM.var(pm, nw,  :p_ne, t_idx)
+
+                println(JuMP.@constraint(pm.model, p_fr  <= pm.setting["max_turbines_per_string"][oss_i]*wf_cap))
+                println(JuMP.@constraint(pm.model, -1*pm.setting["max_turbines_per_string"][oss_i]*wf_cap <= p_fr))
+                println(JuMP.@constraint(pm.model, p_to  <= pm.setting["max_turbines_per_string"][oss_i]*wf_cap))
+                println(JuMP.@constraint(pm.model, -1*pm.setting["max_turbines_per_string"][oss_i]*wf_cap <= p_to))
+            end 
+        end
+        if (length(dc_cables)>0)
+            for dc_cable in dc_cables
+                branchdc_ne = _PM.ref(pm, nw, :branchdc_ne, parse(Int64,dc_cable))
+                f_bus = branchdc_ne["fbusdc"]
+                t_bus = branchdc_ne["tbusdc"]
+                f_idx = (parse(Int64,dc_cable), f_bus, t_bus)
+                t_idx = (parse(Int64,dc_cable), t_bus, f_bus)
+                p_dc_fr_ne = _PM.var(pm, nw, :p_dcgrid_ne, f_idx)
+                p_dc_to_ne = _PM.var(pm, nw, :p_dcgrid_ne, t_idx)
+
+                println(JuMP.@constraint(pm.model, p_dc_fr_ne  <= pm.setting["max_turbines_per_string"][oss_i]*wf_cap))
+                println(JuMP.@constraint(pm.model, -1*pm.setting["max_turbines_per_string"][oss_i]*wf_cap <= p_dc_fr_ne))
+                println(JuMP.@constraint(pm.model, p_dc_to_ne  <= pm.setting["max_turbines_per_string"][oss_i]*wf_cap))
+                println(JuMP.@constraint(pm.model, -1*pm.setting["max_turbines_per_string"][oss_i]*wf_cap <= p_dc_to_ne)) 
+            end
+        end
+        
+    end
+end=#
+
+function constraint_turbine_connections(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default)
+
+    for (turbine_i,turbine_num) in enumerate(pm.setting["turbine_nodes"])
+        #get cable numbers connected to oss(s)
+        ac_cables=pm.setting["xd"]["max_num_of_branches_per_turbine"][turbine_num]["ac"]
+        dc_cables=pm.setting["xd"]["max_num_of_branches_per_turbine"][turbine_num]["dc"]
+
+        #
+        if (length(ac_cables)>0)
+            ac_sum = sum(_PM.var(pm, nw, :branch_ne, parse(Int64,ac_cable)) for ac_cable in ac_cables)
+        else
+            ac_sum=0
+        end
+        if (length(dc_cables)>0)
+            dc_sum = sum(_PM.var(pm, nw, :branchdc_ne, parse(Int64,dc_cable)) for dc_cable in dc_cables)
+        else
+            dc_sum=0
+        end
+        JuMP.@constraint(pm.model, ac_sum + dc_sum  <= pm.setting["max_num_of_branches_per_turbine"]+1)
+    end
+end
 ################################### Step wise constraints ###############################
 #generalized time based constraint on variables (can only expand capacity each year and only once) - for wfs see below
 #**#

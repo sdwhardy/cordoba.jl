@@ -21,6 +21,7 @@ import MathOptInterface;const _MOI = MathOptInterface
 
 include("prob/cordoba_acdc_wf_strg.jl")
 include("prob/cordoba_acdc_wf_split.jl")
+include("prob/cordoba_acdc_wf_split collection.jl")
 include("prob/power_models_functions.jl")
 include("prob/infrastructure_models_functions.jl")
 #include("prob/cordoba_acdc_wgentypes.jl")
@@ -35,12 +36,12 @@ include("io/profile_data.jl")
 include("io/functions.jl")
 include("io/print_m_file.jl")
 include("io/post_process.jl")
+include("io/intersection.jl")
 
 ##################################################### NOTE ####################################
 #economics is an external package under development
 #AC_cbl(mva,km) DC_cbl(mva, km) must be defined somewhere if not using external package
-#include("C:\\Users\\shardy\\Documents\\julia\\packages\\economics\\src\\economics.jl");const _ECO = economics#blunt
-include("C:\\Users\\shardy\\Documents\\GitHub\\economics.jl\\src\\economics.jl");const _ECO = economics#winter
-#include("C:\\Users\\shardy\\Documents\\julia\\packages\\economics\\src\\economics.jl");const _ECO = economics
+include("C:\\Users\\shardy\\Documents\\julia\\packages\\economics\\src\\economics.jl");const _ECO = economics#blunt
+#include("C:\\Users\\shardy\\Documents\\GitHub\\economics.jl\\src\\economics.jl");const _ECO = economics#winter
 ###############################################################################################
 end # module

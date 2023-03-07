@@ -39,7 +39,7 @@ s = Dict(
 s["home_market"]=[]
 mn_data, data, s = _CBD.data_setup(s);
 #_CBD.problemINPUT_mapNTCs(data, s)
-#_CBD.problemINPUT_map(data, s)
+_CBD.problemINPUT_map(data, s)
 @time result = _CBD.nodal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\NORTH_SEA_nodal_k4_NT.jld2",result)#09gap was good one
 ######################### Zonal market #########################

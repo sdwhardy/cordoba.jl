@@ -316,14 +316,14 @@ end
 function map_Of_Connections_ACDCNTC(data, s)
     nodes = s["nodes"]
     nodes_ntc = filter(:type=>x->issubset([x],[1,2]),s["nodes"])
-    _map_of_connections_ACDCNTC=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[], "conv_from"=>[], "conv_to"=>[])
+    _map_of_connections_ACDCNTC=DataFrames.DataFrame("fr_node"=>[],"to_node"=>[],"from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[], "conv_from"=>[], "conv_to"=>[])
     for (key,br) in data["branch"]
         df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
         df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
         mva=first(s["xd"]["branch"][key]["rateA"])
         from=string(df_fr_ac.country)*string(df_fr_ac.type)
         to=string(df_to_ac.country)*string(df_to_ac.type)
-        push!(_map_of_connections_ACDCNTC,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC", 0, 0])
+        push!(_map_of_connections_ACDCNTC,[df_fr_ac.node,df_to_ac.node,from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC", 0, 0])
     end
     
     cvs=data["convdc"]
@@ -346,13 +346,13 @@ function map_Of_Connections_ACDCNTC(data, s)
         if (br["status"]==0)#candidate HVDC
             from=string(df_fr_dc.country)*string(df_fr_dc.type)
             to=string(df_to_dc.country)*string(df_to_dc.type)
-            push!(_map_of_connections_ACDCNTC,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC", c_fr, c_to])
+            push!(_map_of_connections_ACDCNTC,[df_fr_dc.node,df_to_dc.node,from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC", c_fr, c_to])
         elseif (br["status"]==1)#NTC    
             df_fr_ntc=nodes_ntc[only(findall(==(df_fr_dc["node"]), nodes_ntc.node)), :]
             df_to_ntc=nodes_ntc[only(findall(==(df_to_dc["node"]), nodes_ntc.node)), :]
             from=string(df_fr_ntc.country)
             to=string(df_to_ntc.country)
-            push!(_map_of_connections_ACDCNTC,[from,to,df_fr_ntc.lat,df_fr_ntc.long,df_to_ntc.lat,df_to_ntc.long,mva,"NTC", c_fr, c_to])
+            push!(_map_of_connections_ACDCNTC,[df_fr_ntc.node,df_to_ntc.node,from,to,df_fr_ntc.lat,df_fr_ntc.long,df_to_ntc.lat,df_to_ntc.long,mva,"NTC", c_fr, c_to])
         end
     end
     return _map_of_connections_ACDCNTC
@@ -486,7 +486,7 @@ function problemINPUT_mapNTCs(data, s, txt_x=1)
 end#**#
 
 ############### post simulation 
-#**#
+#**#key_sol="1"
 function post_map_Of_Connections_ACDCNTC(results)
     number_keys=parse.(Int64,keys(results["result_mip"]["solution"]["nw"]))
     _ts=[]
@@ -511,14 +511,17 @@ function post_map_Of_Connections_ACDCNTC(results)
                 br=data["branch"][key_sol]
                 df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
                 df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
-                mva=last(results["s"]["xd"]["branch"][key_sol]["rateA"])
+                
                 from=string(df_fr_ac.country)#*string(df_fr_ac.type)
                 to=string(df_to_ac.country)#*string(df_to_ac.type)
                 if (t==1)
+                    mva=results["s"]["xd"]["branch"][key_sol]["rateA"][minimum(number_keys)]
                     push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
                 elseif (t==2)
+                    mva=results["s"]["xd"]["branch"][key_sol]["rateA"][minimum(number_keys)+results["s"]["hours_length"]]
                     push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
                 else
+                    mva=results["s"]["xd"]["branch"][key_sol]["rateA"][maximum(number_keys)]
                     push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
                 end
             end
@@ -541,14 +544,17 @@ function post_map_Of_Connections_ACDCNTC(results)
                 end
                 
                 if (!(isempty(df_fr_dc)) && !(isempty(df_to_dc)))
-                    mva=last(results["s"]["xd"]["branchdc"][key_sol]["rateA"])
+                    
                     from=string(df_fr_dc.country)#*string(df_fr_dc.type)
                     to=string(df_to_dc.country)#*string(df_to_dc.type)
                     if (t==1)
+                        mva=results["s"]["xd"]["branchdc"][key_sol]["rateA"][minimum(number_keys)]
                         push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
                     elseif (t==2)
+                        mva=results["s"]["xd"]["branchdc"][key_sol]["rateA"][minimum(number_keys)+results["s"]["hours_length"]]
                         push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
                     else
+                        mva=results["s"]["xd"]["branchdc"][key_sol]["rateA"][maximum(number_keys)]
                         push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
                     end
                 end
@@ -564,24 +570,32 @@ function post_map_Of_Connections_ACDCNTC(results)
 end
 
 #**#
-function post_map_MIP_Of_Connections_ACDCNTC(result_mip, s, data, )
-    number_keys=parse.(Int64,keys(result_mip["solution"]["nw"]))
-    t0=result_mip["solution"]["nw"][string(minimum(number_keys))]
-    t1=result_mip["solution"]["nw"][string(minimum(number_keys)+s["hours_length"])]
-    t2=result_mip["solution"]["nw"][string(maximum(number_keys))]
+ 
+function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
+    number_keys=parse.(Int64,keys(result_mip))
+    _ts=[]
+    t0=result_mip[string(minimum(number_keys))]
+    push!(_ts,t0)
+    if (length((s["scenario_years"]))>1)
+        t1=result_mip[string(minimum(number_keys)+s["hours_length"])];
+        push!(_ts,t1);end
+    if (length((s["scenario_years"]))>2)
+        t2=result_mip[string(maximum(number_keys))];
+        push!(_ts,t2);end
+ 
     nodes = s["nodes"]
     cvs=data["convdc"]
   
     _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
     _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
     _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
-    for (t,t_sol) in enumerate([t0,t1,t2])   
+    for (t,t_sol) in enumerate(_ts)   
         for (key_sol,br_sol) in t_sol["ne_branch"] 
-            if (br_sol["built"]==1.0)
+            if (br_sol["built"]>0.9)
                 br=data["ne_branch"][key_sol]
                 df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
                 df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
-                mva=data["ne_branch"][key_sol]["rate_a"]
+                mva=br["rate_a"]
                 from=string(df_fr_ac.country)#*string(df_fr_ac.type)
                 to=string(df_to_ac.country)#*string(df_to_ac.type)
                 if (t==1)
@@ -594,7 +608,7 @@ function post_map_MIP_Of_Connections_ACDCNTC(result_mip, s, data, )
             end
         end
         for (key_sol,br_sol) in t_sol["branchdc_ne"]
-            if (br_sol["isbuilt"]==1.0)
+            if (br_sol["isbuilt"]>0.9)
                 br=data["branchdc_ne"][key_sol]
                 df_fr_dc=DataFrames.DataFrame()
                 df_to_dc=DataFrames.DataFrame()
@@ -611,7 +625,7 @@ function post_map_MIP_Of_Connections_ACDCNTC(result_mip, s, data, )
                 end
                 
                 if (!(isempty(df_fr_dc)) && !(isempty(df_to_dc)))
-                    mva=data["branchdc_ne"][key_sol]["rateA"]
+                    mva=br["rateA"]
                     from=string(df_fr_dc.country)#*string(df_fr_dc.type)
                     to=string(df_to_dc.country)#*string(df_to_dc.type)
                     if (t==1)
@@ -810,7 +824,133 @@ function problemOUTPUT_map_byTimeStep(results, txt_x=1)
     return dic
 end
 
-function problemMIP_OUTPUT_map_byTimeStep(result_mip, s, data, txt_x=1)
+function problemMIP_OUTPUT_map_byTimeStep(rez, txt_x=1)
+    result_mip=rez["result_mip"]
+    data=rez["data"]
+    s=rez["s"]
+    nodes = s["nodes"]
+    txt_x=1
+    
+    df_map=post_map_MIP_Of_Connections_ACDCNTC(result_mip, s, data)
+    df_conv_map=converter_map(df_map)
+    df_owpp_map=owpps_map(result_mip, data, s)
+    
+
+    #country node display    
+    countries=filter(:type => ==(2), s["nodes"])        
+    markerCNT = PlotlyJS.attr(size=[15*txt_x],
+                color="green")
+   
+
+
+    #country legend
+    traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x),
+    textposition="top center",
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerCNT)  for row in eachrow(countries)]
+
+     #OWPP node display 
+     owpps=filter(:type => ==(0), s["nodes"])           
+     markerWF = PlotlyJS.attr(size=[15*txt_x],
+                 color="navy")
+
+    #windfarm legend
+    traceWF=Dict()
+    for t in ["0","1","2"]
+    push!(traceWF,t=>[PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x,color="navy"),
+    textposition="top center",text=string(row[:node][1]),#text=string(row[Symbol("mva"*t)]/10)*"GW",
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerWF)  for row in eachrow(df_owpp_map)]);end
+
+    
+    #Converter legend
+    markerConv = PlotlyJS.attr(size=[10*txt_x],
+                color="orange")
+    traceConv=Dict()
+    for t in ["0","1","2"]
+    push!(traceConv,t=>[PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x,color="orange"),
+    textposition="bottom center",#text=string(row[Symbol("mva")]/10)*"GW",
+                lat=[row[:lat]],lon=[row[:long]],
+                marker=markerConv)  for row in eachrow(df_conv_map[t])]);end
+     
+     #AC line display
+     lineACtext = PlotlyJS.attr(width=50*txt_x,color="red")
+     lineAC=Dict()
+     push!(lineAC,"0" => PlotlyJS.attr(width=5*txt_x,color="red",dash="dash"))
+     push!(lineAC,"1" => PlotlyJS.attr(width=5*txt_x,color="red",dash="dot"))
+     push!(lineAC,"2" => PlotlyJS.attr(width=5*txt_x,color="red"))
+
+         #AC line legend
+    traceAC=Dict()
+    for t in ["0","1","2"]    
+    push!(traceAC,t=>[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,row.lat_to],
+    lon=[row.long_fr,row.long_to],line=lineAC[t]) 
+    for row in eachrow(df_map[t]) if (row[:type]=="AC")]);end
+
+    #DC line display
+    lineDCtext = PlotlyJS.attr(width=50*txt_x,color="black") 
+    lineDC=Dict()
+    push!(lineDC,"0" => PlotlyJS.attr(width=5*txt_x,color="black",dash="dash"))
+    push!(lineDC,"1" => PlotlyJS.attr(width=5*txt_x,color="black",dash="dot"))
+    push!(lineDC,"2" => PlotlyJS.attr(width=5*txt_x,color="black"))
+
+     #DC line legend
+    traceDC=Dict()
+    for t in ["0","1","2"]   
+    push!(traceDC, t=>[PlotlyJS.scattergeo(;mode="lines",
+    lat=[row.lat_fr,row.lat_to],
+    lon=[row.long_fr,row.long_to],line=lineDC[t]) 
+    for row in eachrow(df_map[t]) if (row[:type]=="DC")]);end
+    
+
+
+    
+    traceAClabels=Dict()
+    for t in ["0","1","2"]     
+    push!(traceAClabels,t=>[PlotlyJS.scattergeo(;mode="text",
+    lat=[(row.lat_fr+row.lat_to)/2],
+    lon=[(row.long_fr+row.long_to)/2],text=[string(round(row.mva/10,digits=3))*"GW"], 
+    textfont=PlotlyJS.attr(size=15*txt_x,color="black"), marker=lineACtext, textposition="middle bottom") 
+    for row in eachrow(df_map[t]) if (row[:type]=="AC")])end
+
+    traceDClabels=Dict()
+    for t in ["0","1","2"]     
+    push!(traceDClabels,t=>[PlotlyJS.scattergeo(;mode="text",
+    lat=[(row.lat_fr+row.lat_to)/2],
+    lon=[(row.long_fr+row.long_to)/2],text=[string(round(row.mva/10,digits=3))*"GW"], 
+    textfont=PlotlyJS.attr(size=15*txt_x,color="red"), marker=lineDCtext,textposition="middle top") 
+    for row in eachrow(df_map[t]) if (row[:type]=="DC")]);end   
+           
+
+    #combine plot data                
+    #trace=vcat(traceCNT,traceWF,traceDC,traceAC)
+    trace0=vcat(traceCNT,traceWF["0"],traceAC["0"],traceDC["0"], traceConv["0"], traceAClabels["0"],traceDClabels["0"])
+    trace1=vcat(traceCNT,traceWF["1"],traceAC["1"],traceDC["1"], traceConv["1"], traceAClabels["1"],traceDClabels["1"])
+    trace2=vcat(traceCNT,traceWF["2"],traceAC["2"],traceDC["2"], traceConv["2"], traceAClabels["2"],traceDClabels["2"])
+    trace012=vcat(traceCNT,traceWF["2"],traceAC["0"],traceAC["1"],traceAC["2"],traceDC["0"],traceDC["1"],traceDC["2"])
+    #trace=vcat(traceCNT,traceWF,traceAC0,traceAC1,traceAC2,traceDC0,traceDC1,traceDC2)
+    #trace=vcat(traceCNT,traceWF)
+
+    #set map location
+    geo = PlotlyJS.attr(scope="europe",fitbounds="locations")
+
+    
+    #plot layput
+    layout = PlotlyJS.Layout(geo=geo,showlegend=false, geo_resolution=50, width=1000, height=1100, 
+    #legend = PlotlyJS.attr(x=0,y = 0.95,font=PlotlyJS.attr(size=25*txt_x),bgcolor= "#1C00ff00"), 
+    margin=PlotlyJS.attr(l=0, r=0, t=0, b=0))
+
+    #display plot
+    dic=Dict("trace0"=>trace0,"trace1"=>trace1,"trace2"=>trace2,"trace012"=>trace012,"layout"=>layout)
+    #PlotlyJS.plot(dic["trace0"], dic["layout"])
+    #PlotlyJS.plot(trace1, layout)
+    #PlotlyJS.plot(trace2, layout)
+    #PlotlyJS.plot(trace012, layout)
+    return dic
+end
+#=
+function problemMIP_OUTPUT_map_byTimeStep_old(result_mip, s, data, txt_x=1)
     txt_x=1
     
     df_map=post_map_MIP_Of_Connections_ACDCNTC(result_mip, s, data)
@@ -929,7 +1069,7 @@ function problemMIP_OUTPUT_map_byTimeStep(result_mip, s, data, txt_x=1)
     #PlotlyJS.plot(trace2, layout)
     #PlotlyJS.plot(trace012, layout)
     return dic
-end
+end=#
 
 #=
 function problemOUTPUT_map(results, lat_offset, long_offset, lo, la, txt_x=1)

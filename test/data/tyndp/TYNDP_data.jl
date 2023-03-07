@@ -144,7 +144,7 @@ for (gen,res) in scenario_data["Generation"]["RES"]
     end
 k=2;year="2014";tss=daily_tss_data[year]
 yearly_cluster=Dict()
-for k in 2:10
+for k in 1:1
     for (year,tss) in daily_tss_data
         if !(haskey(yearly_cluster,year));push!(yearly_cluster,year=>Dict());end
         l2_norm=sqrt.(tss["ts"])
@@ -155,4 +155,13 @@ for k in 2:10
 end
 
 file = "C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4EU.jld2"
-save(file, yearly_cluster)
+
+save(file, scenario_data)
+
+
+scenario_data=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\yearly_cluster_4EU.jld2")
+for (k_sc,_sc) in scenario_data
+    scenario_data[k_sc][1]=yearly_cluster[k_sc][1]
+end
+
+scenario_data["2012"][1]

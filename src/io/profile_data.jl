@@ -101,13 +101,21 @@ function reduce_RES_to_k_days(_dict,_s)
             else haskey(_dict["Solar PV"][country],year)
                 ts2keep=_s["k"]<365 ? ks[year][_s["k"]] : _dict["Solar PV"][country][year].time_stamp;end
             if (haskey(_s, "test") && _s["test"]==true)
-                ts2keep=ts2keep[1:2]
+                if (haskey(_s,"collection_circuit") && (_s["collection_circuit"]==true))
+                    ts2keep=ts2keep[1:1]
+                else
+                    ts2keep=ts2keep[1:2]
+                end
             end
             for res_type in keys(_dict)
                 if haskey(_dict[res_type][country],year)
                 filter!(:time_stamp=>x->issubset([x],ts2keep),_dict[res_type][country][year])
                 if (!(isempty(_dict[res_type][country][year])) && haskey(_s, "test") && _s["test"]==true && res_type=="Offshore Wind")
-                    _dict[res_type][country][year][!,Symbol(last(names(_dict[res_type][country][year])))]=[1,0]
+                    if (haskey(_s,"collection_circuit") && (_s["collection_circuit"]==true))
+                        _dict[res_type][country][year][!,Symbol(last(names(_dict[res_type][country][year])))]=[1]
+                    else
+                        _dict[res_type][country][year][!,Symbol(last(names(_dict[res_type][country][year])))]=[1,0]
+                    end
                 end
                 #place common timestamp in 2020
 			    offset2020=Dates.Year(2020-parse(Int64,year))
