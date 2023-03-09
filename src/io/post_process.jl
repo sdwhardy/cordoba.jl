@@ -949,6 +949,9 @@ function problemMIP_OUTPUT_map_byTimeStep(rez, txt_x=1)
     #PlotlyJS.plot(trace012, layout)
     return dic
 end
+
+
+
 #=
 function problemMIP_OUTPUT_map_byTimeStep_old(result_mip, s, data, txt_x=1)
     txt_x=1

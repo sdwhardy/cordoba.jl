@@ -41,7 +41,7 @@ end
 #####################
 #=##################### Input parameters #################################
 s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\ronne_bank\\",#folder path if directly
+"rt_ex"=>pwd()*"\\test\\data\\input\\princessElizabeth\\",#folder path if directly
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
 ################# temperal parameters #################
 "test"=>true,#if true smallest (2 hour) problem variation is built for testing
@@ -59,23 +59,23 @@ s = Dict(
 "strg_lim_offshore"=>0.2,#Max offshore storage capacity
 "strg_lim_onshore"=>10,#Max onshore storage capacity
 "candidate_ics_ac"=>[1,0.83,2/3,1/2],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[2],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
 ################ collection circuit options ##############
 "collection_circuit"=>true,
 "no_crossings"=>true,
 "collection_voltage"=>132,
 "oss_nodes"=>[2],
-"max_num_strings_per_oss"=>[3],
+"max_num_strings_per_oss"=>[20],
 "max_num_of_branches_per_turbine"=>2,#1 consider only radial connections >1 branches at turbines 
 #"max_turbines_per_string"=>9,#not functional yet
 #"no_loops"=>true,#not functional yet
 ################## optimization/solver setup options ###################
 "relax_problem" => false,#binaries->continuous variables
 "corridor_limit" => true,#limit cables in parallel?
-"TimeLimit" => 259200,#solver max time in seconds
-"MIPGap"=>1e-5,#max gap between MIP and convex solution 
+"TimeLimit" => 46800,#solver max time in seconds
+"MIPGap"=>1e-4,#max gap between MIP and convex solution 
 "PoolSearchMode" => 0,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
-"PoolSolutions" => 5)#number of solutions to find
+"PoolSolutions" => 1)#number of solutions to find
 s=hidden_settings(s)
 
 ################## Run nodal Formulation ###################
@@ -274,8 +274,15 @@ function get_scenario_data(s)
 
     ####################### Freeze offshore expansion of data #################
     if (haskey(s,"collection_circuit") && s["collection_circuit"]==true)
+        nodes_df = DataFrames.DataFrame(XLSX.readtable(s["rt_ex"]*"input.xlsx", "node_generation")...)
         scenario_data=keep_only_wf_pcc(s,scenario_data)
-        scenario_data["Generation"]["costs"]["SLACK"]=150
+        offshore_nodes=filter(:type=>x->x==0,nodes_df)
+        wf_capacity=sum(offshore_nodes[!,:gen])*100
+        onshore_demand=[wf_capacity for i=1:1:length(scenario_data["Demand"][s["scenario_names"][1]][!,last(offshore_nodes[!,:country])])]
+
+        scenario_data["Demand"][s["scenario_names"][1]][!,last(offshore_nodes[!,:country])]=onshore_demand
+        
+        #scenario_data["Generation"]["costs"]["SLACK"]=5000
     end
     return scenario_data
 end
@@ -395,7 +402,7 @@ end
 ###################### HVAC/HVDC
 #loads .m result and filters candidates
 #**#
-
+#rt_ex=s["rt_ex"]
 function filter_mfile_cables(rt_ex, scenario_data)
     nodes = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "node_generation")...)
 	edges = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "connections_acdc")...)
@@ -846,7 +853,7 @@ function print_topology_data_AC(data_mip,markets_wfs)
     end
     println("%%%%%%%%%%%%%%%%%%%%%%%% Cables %%%%%%%%%%%%%%%%%%%%%%%")
     for (i,br) in sort(OrderedCollections.OrderedDict(data_mip["ne_branch"]), by=x->parse(Int64,x))
-        println(string(i)*": "*string(br["f_bus"])*" - "*string(br["t_bus"])*" MVA: "*string(br["rate_a"])*" Length: "*string(br["length"])*" Cost: "*string(br["construction_cost"])*" Status: "*string(br["br_status"]))
+        println(string(i)*": "*string(br["f_bus"])*" - "*string(br["t_bus"])*" MVA: "*string(br["rate_a"])*" Length: "*string(br["length"])*" mm^2: "*string(br["mm"])*" Cost: "*string(br["construction_cost"])*" Status: "*string(br["br_status"]))
     end
     println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 end

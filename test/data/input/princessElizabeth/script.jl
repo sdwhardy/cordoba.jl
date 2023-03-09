@@ -11,7 +11,7 @@ import PowerModels; const _PM = PowerModels
 #4: 1 - 2 MVA: 10.866627 Length: 17 Cost: 94.53569 Status: 1
 
 s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\ronne_bank\\",#folder path if directly
+"rt_ex"=>pwd()*"\\test\\data\\input\\princessElizabeth\\",#folder path if directly
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
 ################# temperal parameters #################
 "test"=>true,#if true smallest (2 hour) problem variation is built for testing
@@ -28,22 +28,22 @@ s = Dict(
 "conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,#Max offshore storage capacity
 "strg_lim_onshore"=>10,#Max onshore storage capacity
-"candidate_ics_ac"=>[1,0.83,2/3,1/2],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[2],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+"candidate_ics_ac"=>[1,0.83,2/3,1/2,2/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
 ################ collection circuit options ##############
 "collection_circuit"=>true,
 "no_crossings"=>true,
 "collection_voltage"=>132,
 "oss_nodes"=>[2],
-"max_num_strings_per_oss"=>[3],
-"max_num_of_branches_per_turbine"=>1,#1 consider only radial connections >1 branches at turbines 
+"max_num_strings_per_oss"=>[20],
+"max_num_of_branches_per_turbine"=>2,#1 consider only radial connections >1 branches at turbines 
 #"max_turbines_per_string"=>9,#not functional yet
 #"no_loops"=>true,#not functional yet
 ################## optimization/solver setup options ###################
 "relax_problem" => false,#binaries->continuous variables
 "corridor_limit" => true,#limit cables in parallel?
-"TimeLimit" => 259200,#solver max time in seconds
-"MIPGap"=>13e-3,#max gap between MIP and convex solution 
+"TimeLimit" => 54000,#solver max time in seconds
+"MIPGap"=>1e-4,#max gap between MIP and convex solution 
 "PoolSearchMode" => 0,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
 "PoolSolutions" => 1)#number of solutions to find
 s=_CBD.hidden_settings(s)
@@ -65,14 +65,15 @@ PlotlyJS.plot(pdic["trace0"], pdic["layout"])
 
 
 
-result["1"]["result_mip"]["1"]["ne_branch"]["345"]
+result["1"]["result_mip"]["1"]["branchdc_ne"]["1"]
 mn_data["nw"]["1"]["ne_branch"]["346"]["br_r"]=mn_data["nw"]["1"]["ne_branch"]["345"]["br_r"]
 mn_data["nw"]["1"]["ne_branch"]["346"]["br_x"]=mn_data["nw"]["1"]["ne_branch"]["345"]["br_x"]
 
-for (i,br) in result["1"]["result_mip"]["1"]["ne_branch"]
-    if (br["built"]>0.9)
-        println(i," ",mn_data["nw"]["1"]["ne_branch"][i]["f_bus"]," ",mn_data["nw"]["1"]["ne_branch"][i]["t_bus"]," ",mn_data["nw"]["1"]["ne_branch"][i]["rate_a"])
-    end
+for (i,br) in mn_data["nw"]["1"]["storage"]["1"]
+    #if (br["built"]>0.9)
+   #     println(i," ",mn_data["nw"]["1"]["ne_branch"][i]["f_bus"]," ",mn_data["nw"]["1"]["ne_branch"][i]["t_bus"]," ",mn_data["nw"]["1"]["ne_branch"][i]["rate_a"])
+    #end
+    println(br["e_absmax"])
 end
 
 result["1"]["result_mip"]["1"]["convdc"]
