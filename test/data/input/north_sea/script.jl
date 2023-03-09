@@ -27,10 +27,10 @@ s = Dict(
     ################## optimization/solver setup options ###################
     "relax_problem" => false,
     "corridor_limit" => false,
-    "TimeLimit" => 259200,
-    "MIPGap"=>5e-3, 
-    "PoolSearchMode" => 2, 
-    "PoolSolutions" => 10)
+    "TimeLimit" => 320000,
+    "MIPGap"=>1e-4, 
+    "PoolSearchMode" => 0, 
+    "PoolSolutions" => 1)
     s=_CBD.hidden_settings(s)
 
 
@@ -41,7 +41,7 @@ mn_data, data, s = _CBD.data_setup(s);
 #_CBD.problemINPUT_mapNTCs(data, s)
 _CBD.problemINPUT_map(data, s)
 @time result = _CBD.nodal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\NORTH_SEA_nodal_k4_GA.jld2",result)#09gap was good one
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\NORTH_SEA_nodal_k4_full.jld2",result)#09gap was good one
 
 
 ######################### Zonal market #########################
