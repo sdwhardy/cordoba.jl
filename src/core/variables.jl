@@ -14,6 +14,9 @@ function variable_wfs_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounded::
                 if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
                     JuMP.set_lower_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
                     JuMP.set_upper_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
+                elseif (haskey(pm.setting,"collection_circuit") && pm.setting["collection_circuit"]==true)
+                    JuMP.set_lower_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
+                    JuMP.set_upper_bound(wf_pacmax[s],  pm.setting["xd"]["gen"][string(s)]["wf_pmax"][nw])
                 else
                 JuMP.set_lower_bound(wf_pacmax[s],  0)
                 JuMP.set_upper_bound(wf_pacmax[s],  last(pm.setting["wfz"][Int8(s+1-minimum(first.(pm.setting["wfz"])))]))

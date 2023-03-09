@@ -41,13 +41,13 @@ end
 #####################
 #=##################### Input parameters #################################
 s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\ronne_bank\\",#folder path if directly
+"rt_ex"=>pwd()*"\\test\\data\\input\\princessElizabeth\\",#folder path if directly
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
 ################# temperal parameters #################
 "test"=>true,#if true smallest (2 hour) problem variation is built for testing
 "scenario_planning_horizon"=>1,
 "scenario_names"=>["NT2025"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
-"k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+"k"=>1,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
 "res_years"=>["2014"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
 "scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
 ################# Financial parameters ################
@@ -58,28 +58,49 @@ s = Dict(
 "conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,#Max offshore storage capacity
 "strg_lim_onshore"=>10,#Max onshore storage capacity
-"candidate_ics_ac"=>[1,3/4,1/2,1/4],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[1,3/4,1/2,1/4],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+"candidate_ics_ac"=>[1,0.83,2/3,1/2],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+################ collection circuit options ##############
+"collection_circuit"=>true,
+"no_crossings"=>true,
+"collection_voltage"=>132,
+"oss_nodes"=>[2],
+"max_num_strings_per_oss"=>[20],
+"max_num_of_branches_per_turbine"=>2,#1 consider only radial connections >1 branches at turbines 
+#"max_turbines_per_string"=>9,#not functional yet
+#"no_loops"=>true,#not functional yet
 ################## optimization/solver setup options ###################
 "relax_problem" => false,#binaries->continuous variables
-"corridor_limit" => false,#limit cables in parallel?
-"TimeLimit" => 259200,#solver max time in seconds
+"corridor_limit" => true,#limit cables in parallel?
+"TimeLimit" => 46800,#solver max time in seconds
 "MIPGap"=>1e-4,#max gap between MIP and convex solution 
 "PoolSearchMode" => 0,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
 "PoolSolutions" => 1)#number of solutions to find
+s=hidden_settings(s)
 
-    s= hidden_settings(s)
+################## Run nodal Formulation ###################
+#nodal data setup
+s["home_market"]=[]
 mn_data, data, s = data_setup(s);
+result = collection_circuit_main(mn_data, data, s)
+pdic=problemMIP_OUTPUT_map_byTimeStep(result["5"])
+PlotlyJS.plot(pdic["trace0"], pdic["layout"])
 #s["xd"]["gen"]["1"]
 problemINPUT_map(data, s)
 problemINPUT_mapNTCs(data, s)=#
-
 #**#
+#data["gen"]
 function nodal_market_main(mn_data, data, s)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
     result_mip_ms=run_model_p2(jump_result_mip, gurobi);
+    #resultsMIP=Dict{String, Any}();
+    ##for (_k, _v) in result_mip_ms["solution"]
+      #  push!(resultsMIP,_k=>Dict("result_mip"=>_v,"data"=>data, "mn_data"=>mn_data, "s"=>s));
+    #end
+    #pdic=problemMIP_OUTPUT_map_byTimeStep(resultsMIP["4"])
+    #PlotlyJS.plot(pdic["trace2"], pdic["layout"])
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem
     #result_mip=Dict{String,Any}("solution"=>Dict{String,Any}("nw"=>result_mip_ms["solution"]["5"]))
     #print_solution_wcost_data(result_mip, s, data)
@@ -105,8 +126,43 @@ function nodal_market_main(mn_data, data, s)
         push!(results,_k=>Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s2));
     end
     #s["cost_summary"]=print_solution_wcost_data(results["1"]["result_mip"], results["1"]["s"], results["1"]["data"])
-    #pdic2=problemOUTPUT_map_byTimeStep(results["1"])
-    #PlotlyJS.plot(pdic2["trace0"], pdic2["layout"])
+    #pdic2=problemOUTPUT_map_byTimeStep(results["4"])
+    #PlotlyJS.plot(pdic2["trace012"], pdic2["layout"])
+    return results
+end
+
+function collection_circuit_main(mn_data, data, s)
+    if (haskey(s,"no_crossings") && s["no_crossings"]==true)
+        push!(s["xd"], "crossings"=>all_cable_intersections(s,data));end
+    ###################################################################
+    if (haskey(s,"oss_nodes") && haskey(s,"max_num_strings_per_oss"))
+        push!(s["xd"], "max_num_strings_per_oss"=>oss_connections(s,data));end
+    ###################################################################
+    if (haskey(s,"oss_nodes") && haskey(s,"max_num_of_branches_per_turbine"))
+        push!(s["xd"], "max_num_of_branches_per_turbine"=>turbine_connections(s,data));end
+    ###################################################################
+    if (haskey(s,"max_turbines_per_string"))
+        push!(s["xd"], "max_turbines_per_string"=>oss_string_feeders(s,data));end
+    ###################################################################
+    if (haskey(s,"no_loops"))
+        push!(s["xd"], "no_loops"=>turbine_connections_input(s,data));end
+    ###################################################################
+    gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
+    #gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
+    
+    #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
+    jump_result_mip =  cordoba_acdc_wf_split_collection(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);
+    result_mip_ms=run_model_p2(jump_result_mip, gurobi);
+   
+    results=Dict{String, Any}();
+    for (_k, _v) in result_mip_ms["solution"]
+        push!(results,_k=>Dict("result_mip"=>_v,"data"=>data, "mn_data"=>mn_data, "s"=>s));
+    end
+
+    for (_k, _v) in result_mip_ms
+        if (_k!="solution")
+        push!(results,_k=>_v);end
+    end
     return results
 end
 
@@ -193,13 +249,14 @@ end=#
 #***#
 function get_topology_data(s, scenario_data)
     ################# Load topology files ###################################
-    topology_df(s["rt_ex"], s["relax_problem"], s["AC"], scenario_data)#creates .m file
+    #topology_df(s["rt_ex"], s["relax_problem"], s["AC"], scenario_data)#creates .m file
+    topology_df(s, scenario_data)#creates .m file
     data, s["ics_ac"], s["ics_dc"], s["nodes"] = filter_mfile_cables(s["rt_ex"], scenario_data)#loads resulting topology and filters for candidate cables
     return data, s
 end
 
 
-#k_sc="NT2025";scenario_data["Generation"]["Scenarios"][k_sc]
+#k_sc="NT2025";scenario_data["Generation"]["Scenarios"][k_sc]["DKW1"]
 #***#
 function get_scenario_data(s)
     ############### defines size and market of genz and wfs ###################
@@ -216,10 +273,54 @@ function get_scenario_data(s)
         push!(scenario_data["Generation"]["costs"],"SLACK"=>5000)
 
     ####################### Freeze offshore expansion of data #################
-    
+    if (haskey(s,"collection_circuit") && s["collection_circuit"]==true)
+        nodes_df = DataFrames.DataFrame(XLSX.readtable(s["rt_ex"]*"input.xlsx", "node_generation")...)
+        scenario_data=keep_only_wf_pcc(s,scenario_data)
+        offshore_nodes=filter(:type=>x->x==0,nodes_df)
+        wf_capacity=sum(offshore_nodes[!,:gen])*100
+        onshore_demand=[wf_capacity for i=1:1:length(scenario_data["Demand"][s["scenario_names"][1]][!,last(offshore_nodes[!,:country])])]
+
+        scenario_data["Demand"][s["scenario_names"][1]][!,last(offshore_nodes[!,:country])]=onshore_demand
+        
+        #scenario_data["Generation"]["costs"]["SLACK"]=5000
+    end
     return scenario_data
 end
 
+#**#
+function keep_only_wf_pcc(s,scenario_data)
+    nodes_df = DataFrames.DataFrame(XLSX.readtable(s["rt_ex"]*"input.xlsx", "node_generation")...)
+    offshore_region=unique(nodes_df[!,:country])
+    
+    filter!(:node_id=>x->issubset([x],offshore_region),scenario_data["Generation"]["nodes"])
+    
+    for _sc in keys(scenario_data["Generation"]["Scenarios"])
+        for _country in keys(scenario_data["Generation"]["Scenarios"][_sc])
+            if !issubset([_country], offshore_region)
+                delete!(scenario_data["Generation"]["Scenarios"][_sc],_country)
+            else
+                filter!(:Generation_Type=>x->x=="SLACK",scenario_data["Generation"]["Scenarios"][_sc][_country])
+            end
+        end
+    end
+
+    for _res in keys(scenario_data["Generation"]["RES"])
+        for _country in keys(scenario_data["Generation"]["RES"][_res])
+            if !issubset([_country], offshore_region)
+                delete!(scenario_data["Generation"]["RES"][_res],_country)
+            end
+        end
+    end
+    
+    filter!(Symbol("Border Names Based on PEMMDB 3.0 convention")=>x->issubset([x], offshore_region),scenario_data["Generation"]["ntcs"])
+
+    for _sc in keys(scenario_data["Demand"])
+        scenario_data["Demand"][_sc]=scenario_data["Demand"][_sc][!,Symbol.(vcat("time_stamp",offshore_region))]
+    end
+
+
+    return scenario_data
+end
 #***#
 function freeze_offshore_expansion(nodes, scenario_data)
 	developement_zones=filter(:type=>x->x==0,nodes)[!,:country]
@@ -301,6 +402,7 @@ end
 ###################### HVAC/HVDC
 #loads .m result and filters candidates
 #**#
+#rt_ex=s["rt_ex"]
 function filter_mfile_cables(rt_ex, scenario_data)
     nodes = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "node_generation")...)
 	edges = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "connections_acdc")...)
@@ -440,12 +542,13 @@ end
 function filter_AClines(data,edges,nodes)
     #size and length
     z_base_ac=(data["bus"]["1"]["base_kv"])^2/data["baseMVA"]
-    ics_ac=Tuple{Int64,Int64}[]
+    ics_ac=Tuple{Int64,Float64}[]
     acc=filter(x->!ismissing(x),edges[!,"AC_mva"])
     for (k, s) in enumerate(acc)
         from_xy=utm_gps2xy((nodes[!,"lat"][edges[!,"AC_from"][k]],nodes[!,"long"][edges[!,"AC_from"][k]]))
         to_xy=utm_gps2xy((nodes[!,"lat"][edges[!,"AC_to"][k]],nodes[!,"long"][edges[!,"AC_to"][k]]))
-        push!(ics_ac,(s,round(Int64,Geodesy.euclidean_distance(from_xy, to_xy, 31, true, Geodesy.wgs84)/1000*1.25)))
+        #push!(ics_ac,(s,round(Int64,Geodesy.euclidean_distance(from_xy, to_xy, 31, true, Geodesy.wgs84)/1000*1.25)))
+        push!(ics_ac,(s,Geodesy.euclidean_distance(from_xy, to_xy, 32, true, Geodesy.wgs84)/1000*1.25))
     end
 
 
@@ -487,11 +590,16 @@ function filter_AClines(data,edges,nodes)
 end
 
 #***#
-function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
+#i="6";data["ne_branch"][i]
+function AC_cable_options(data,s)
+    candidate_ics_ac=s["candidate_ics_ac"]
+    ics_ac=s["ics_ac"]
+    pu=data["baseMVA"]
+    kV=haskey(s,"collection_voltage") ? s["collection_voltage"] : 220
     z_base_ac=(data["bus"]["1"]["base_kv"])^2/pu
     data=additional_candidatesICS_AC(data,candidate_ics_ac,ics_ac)#adds additional candidates
     for (i,bac) in data["ne_branch"]
-    data["ne_branch"][i]=candidateIC_cost_impedance_AC(bac,z_base_ac,pu);end
+    data["ne_branch"][i]=candidateIC_cost_impedance_AC(bac,z_base_ac,pu,kV);end
     data["ne_branch"]=unique_candidateIC_AC(data["ne_branch"])#keep only unique candidates
 	temp_cables_ne=Dict{String,Any}()
 	temp_cables=Dict{String,Any}()
@@ -523,7 +631,74 @@ function AC_cable_options(data,candidate_ics_ac,ics_ac,pu)
 			end
 		end
 	end
-	println(cable_pu_costs)
+	#println(cable_pu_costs)
+	data["ne_branch"]=temp_cables_ne
+	temp_cables2=Dict{String,Any}()
+	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(temp_cables), by=x->parse(Int64,x)))
+		trms=length(cable_pu_costs[string(last(acb)["f_bus"])*"_"*string(last(acb)["t_bus"])])
+		trms_total=sum(b for b in cable_pu_costs[string(last(acb)["f_bus"])*"_"*string(last(acb)["t_bus"])])
+
+		trms_R=length(cable_pu_r[string(last(acb)["f_bus"])*"_"*string(last(acb)["t_bus"])])
+		trms_total_R=sum(b for b in cable_pu_r[string(last(acb)["f_bus"])*"_"*string(last(acb)["t_bus"])])
+
+		trms_X=length(cable_pu_x[string(last(acb)["f_bus"])*"_"*string(last(acb)["t_bus"])])
+		trms_total_X=sum(b for b in cable_pu_x[string(last(acb)["f_bus"])*"_"*string(last(acb)["t_bus"])])
+
+		last(acb)["br_r"]=(trms_total_R/trms_R)
+		last(acb)["br_x"]=(trms_total_X/trms_X)
+		last(acb)["cost"]=(trms_total/trms)
+        last(acb)["rateA"]=last(acb)["rateB"]=last(acb)["rateC"]=maximum(b for b in cable_rateA[string(last(acb)["f_bus"])*"_"*string(last(acb)["t_bus"])])
+		last(acb)["source_id"][2]=i
+		push!(temp_cables2,string(i)=>last(acb))
+        data["branch"][string(i)]=last(acb)
+	end
+	#data["branch"]=temp_cables2
+    return data
+end
+
+function AC_cable_options_collection(scenario_data,data,s)
+    
+    wf_country=filter(:type=>x->x==0,s["nodes"])[!,:country][1]
+    wind_profile=scenario_data["Generation"]["RES"]["Offshore Wind"][wf_country][first(s["res_years"])][!,Symbol(wf_country)]
+    pu=data["baseMVA"]
+    kV=haskey(s,"collection_voltage") ? s["collection_voltage"] : 220
+    z_base_ac=(data["bus"]["1"]["base_kv"])^2/pu
+    data=additional_candidatesICS_AC_collection(data,s)#adds additional candidates
+    for (i,bac) in data["ne_branch"]
+       data["ne_branch"][i]=candidateIC_cost_impedance_AC_collection(bac,z_base_ac,pu,wind_profile,kV);
+    end
+    data["ne_branch"]=unique_candidateIC_AC_collection(data["ne_branch"])#keep only unique candidates
+	temp_cables_ne=Dict{String,Any}()
+	temp_cables=Dict{String,Any}()
+	cable_pu_costs=Dict{String,Any}()
+	cable_pu_r=Dict{String,Any}()
+	cable_pu_x=Dict{String,Any}()
+    cable_rateA=Dict{String,Any}()
+
+	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(data["ne_branch"]), by=x->parse(Int64,x)))
+		last(acb)["source_id"][2]=i
+		#last(acb)["br_status"]=0
+		push!(temp_cables_ne,string(i)=>last(acb))
+		for (j,acb_con) in enumerate(sort(OrderedCollections.OrderedDict(data["branch"]), by=x->parse(Int64,x)))
+			if (last(acb)["f_bus"]==last(acb_con)["f_bus"] && last(acb)["t_bus"]==last(acb_con)["t_bus"])
+				last(acb_con)["source_id"][2]=j
+				push!(temp_cables,string(j)=>last(acb_con))
+				if (haskey(cable_pu_costs,string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])))
+					push!(cable_pu_costs[string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])],last(acb)["construction_cost"]/(last(acb)["rate_a"]))
+					push!(cable_pu_r[string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])],last(acb)["br_r"])
+					push!(cable_pu_x[string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])],last(acb)["br_x"])
+                    push!(cable_rateA[string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])],last(acb)["rate_a"])
+				else
+					push!(cable_pu_costs,string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])=>[last(acb)["construction_cost"]/(last(acb)["rate_a"])])
+					push!(cable_pu_r,string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])=>[last(acb)["br_r"]])
+					push!(cable_pu_x,string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])=>[last(acb)["br_x"]])
+                    push!(cable_rateA,string(last(acb_con)["f_bus"])*"_"*string(last(acb_con)["t_bus"])=>[last(acb)["rate_a"]])
+				end
+				break
+			end
+		end
+	end
+	#println(cable_pu_costs)
 	data["ne_branch"]=temp_cables_ne
 	temp_cables2=Dict{String,Any}()
 	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(temp_cables), by=x->parse(Int64,x)))
@@ -550,12 +725,26 @@ end
 
 #for each AC candidate capacity an appropriate cable is selected and characteristics stored
 #***#
-function candidateIC_cost_impedance_AC(bac,z_base,s_base)
-    cb=_ECO.AC_cbl(bac["rate_a"], bac["length"])
+function candidateIC_cost_impedance_AC(bac,z_base,s_base,kV::Int64=220)
+    cb=_ECO.AC_cbl(bac["rate_a"], bac["length"],kV)
     bac["construction_cost"]=cb.costs.ttl
     bac["br_r"]=((cb.elec.ohm/cb.num)*cb.length)/z_base
     bac["br_x"]=((cb.elec.xl/cb.num)*cb.length)/z_base
     bac["rate_c"]=bac["rate_b"]=bac["rate_a"]=(cb.num*cb.elec.mva)/s_base
+    return bac
+end
+
+#***#
+#bac=data["ne_branch"]["100"]
+#    data["ne_branch"][i]=candidateIC_cost_impedance_AC_collection(bac,z_base_ac,pu,wind_profile,kV)
+function candidateIC_cost_impedance_AC_collection(bac,z_base,s_base,wind_profile,kV::Int64=220)
+    cb=_ECO.AC_cbl_collection(bac["rate_a"], bac["rate_b"], bac["length"],wind_profile,kV)
+    bac["construction_cost"]=cb.costs.ttl
+    bac["br_r"]=0.000172*cb.length#((cb.elec.ohm/cb.num)*cb.length)/z_base
+    bac["br_x"]=0.000613*cb.length#((cb.elec.xl/cb.num)*cb.length)/z_base
+    bac["rate_c"]=bac["rate_a"]=deepcopy(bac["rate_b"]/s_base)
+    bac["rate_b"]=bac["rate_a"]
+    bac["mm"]=cb.size
     return bac
 end
 #for each existing AC line capacity an appropriate cable is selected and characteristics stored
@@ -589,18 +778,69 @@ function additional_candidatesICS_AC(data,candidates,ic_data)
     end
     return data
 end
+
 #***#
+function additional_candidatesICS_AC_collection(data,s)
+    
+    wfMVA=maximum(filter(:type=>x->x==0, s["nodes"])[!,:gen])*data["baseMVA"]
+    candidates=s["candidate_ics_ac"]
+    ic_data=s["ics_ac"]
+    #DC, IC
+    ics=[]
+    data["ne_branch"]=sort!(OrderedCollections.OrderedDict(data["ne_branch"]), by=x->parse(Int64,x))
+    for (i,dcb) in data["ne_branch"]; push!(ics,deepcopy(dcb));end
+    count=1
+    data["ne_branch"]=Dict{String,Any}()
+    for (i,ic) in enumerate(ics)
+        for j=1:1:length(candidates);
+            for k=wfMVA:wfMVA:candidates[j]*first(ic_data[i])
+                ic["source_id"][2]=count;
+                ic["index"]=count;
+                ic["rate_a"]=candidates[j]*first(ic_data[i]);
+                ic["rate_b"]=k;
+                ic["length"]=last(ic_data[i])[1];
+                push!(data["ne_branch"],string(count)=>deepcopy(ic));
+                count=count+1;
+            end
+        end
+    end
+    return data
+end
+#***#
+#cand_ics=data["ne_branch"]
+#i="5";dcb=cand_ics[i]
+#j="6";tdcb=copy_cand_ics[j]
 function unique_candidateIC_AC(cand_ics)
     copy_cand_ics=deepcopy(cand_ics)
     for (i,dcb) in cand_ics
         for (j,tdcb) in copy_cand_ics
-            if ((i!=j && dcb["f_bus"]==tdcb["f_bus"] && dcb["t_bus"]==tdcb["t_bus"] &&  isapprox(dcb["rate_a"],tdcb["rate_a"]; atol = 1)) || isapprox(tdcb["rate_a"],0; atol = 1))
+            if ((i!=j && dcb["f_bus"]==tdcb["f_bus"] && dcb["t_bus"]==tdcb["t_bus"] &&  isapprox(dcb["rate_a"],tdcb["rate_a"]; atol = 0.1)) || isapprox(tdcb["rate_a"],0; atol = 0.1))
                 delete!(copy_cand_ics,j)
                 break
             end
         end
     end
     return copy_cand_ics
+end
+#**#
+
+
+function unique_candidateIC_AC_collection(cand_ics)
+    cand_ics_final=deepcopy(cand_ics)
+    cable_keys0=string.(sort!(parse.(Int64,keys(cand_ics))))
+    cable_keys1=deepcopy(cable_keys0)
+    for (i0,cable_key0) in enumerate(cable_keys0)
+        for (i1,cable_key1) in enumerate(cable_keys1)
+            if (i0<i1 && cand_ics[cable_key0]["f_bus"]==cand_ics[cable_key1]["f_bus"] && cand_ics[cable_key0]["t_bus"]==cand_ics[cable_key1]["t_bus"] && isapprox(cand_ics[cable_key0]["rate_a"],cand_ics[cable_key1]["rate_a"]; atol = 0.01))
+                if (cand_ics[cable_key0]["construction_cost"]<=cand_ics[cable_key1]["construction_cost"])
+                    delete!(cand_ics_final,cable_key1)
+                else
+                    delete!(cand_ics_final,cable_key0)
+                end
+            end
+        end
+    end
+    return cand_ics_final
 end
 #***#
 function print_topology_data_AC(data_mip,markets_wfs)
@@ -613,7 +853,7 @@ function print_topology_data_AC(data_mip,markets_wfs)
     end
     println("%%%%%%%%%%%%%%%%%%%%%%%% Cables %%%%%%%%%%%%%%%%%%%%%%%")
     for (i,br) in sort(OrderedCollections.OrderedDict(data_mip["ne_branch"]), by=x->parse(Int64,x))
-        println(string(i)*": "*string(br["f_bus"])*" - "*string(br["t_bus"])*" MVA: "*string(br["rate_a"])*" Length: "*string(br["length"])*" Cost: "*string(br["construction_cost"])*" Status: "*string(br["br_status"]))
+        println(string(i)*": "*string(br["f_bus"])*" - "*string(br["t_bus"])*" MVA: "*string(br["rate_a"])*" Length: "*string(br["length"])*" mm^2: "*string(br["mm"])*" Cost: "*string(br["construction_cost"])*" Status: "*string(br["br_status"]))
     end
     println("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 end
@@ -673,6 +913,66 @@ function DC_cable_options(data,candidate_ics_dc,ics_dc,pu)
 	data["branchdc"]=temp_cables2
     return data
 end
+
+#***#
+
+function DC_cable_options_collection(scenario_data,data,s)
+    candidate_ics_dc=s["candidate_ics_dc"]
+    ics_dc=s["ics_dc"]
+    pu=data["baseMVA"]
+    nodes=s["nodes"]
+    z_base_dc=(data["busdc"]["1"]["basekVdc"])^2/pu
+    data=additional_candidatesICS_DC(data,candidate_ics_dc,ics_dc)#adds additional candidates
+    for (i,bdc) in data["branchdc_ne"]
+    data["branchdc_ne"][i]=candidateIC_cost_impedance_DC(bdc,z_base_dc);end
+    data["branchdc_ne"]=unique_candidateIC_DC(data["branchdc_ne"])#keep only unique candidates
+	temp_cables_ne=Dict{String,Any}()
+	temp_cables=Dict{String,Any}()
+	cable_pu_costs=Dict{String,Any}()
+	cable_pu_r=Dict{String,Any}()
+    cable_rateA=Dict{String,Any}()
+	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(data["branchdc_ne"]), by=x->parse(Int64,x)))
+		last(acb)["source_id"][2]=i
+		push!(temp_cables_ne,string(i)=>last(acb))
+		for (j,acb_con) in enumerate(sort(OrderedCollections.OrderedDict(data["branchdc"]), by=x->parse(Int64,x)))
+			if (last(acb)["fbusdc"]==last(acb_con)["fbusdc"] && last(acb)["tbusdc"]==last(acb_con)["tbusdc"])
+				last(acb_con)["source_id"][2]=j
+				push!(temp_cables,string(j)=>last(acb_con))
+				break
+			end
+		end
+		if (haskey(cable_pu_costs,string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])))
+			push!(cable_pu_costs[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])],last(acb)["cost"]/(last(acb)["rateA"]/pu))
+			push!(cable_pu_r[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])],last(acb)["r"])
+            push!(cable_rateA[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])],last(acb)["rateA"])
+		else
+			push!(cable_pu_costs,string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])=>[last(acb)["cost"]/(last(acb)["rateA"]/pu)])
+			push!(cable_pu_r,string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])=>[last(acb)["r"]])
+            push!(cable_rateA,string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])=>[last(acb)["rateA"]])
+		end
+	end
+	data["branchdc_ne"]=temp_cables_ne
+	temp_cables2=Dict{String,Any}()
+	for (i,acb) in enumerate(sort(OrderedCollections.OrderedDict(temp_cables), by=x->parse(Int64,x)))
+		trms=length(cable_pu_costs[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
+		trms_total=sum(b for b in cable_pu_costs[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
+		trms_R=length(cable_pu_r[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
+		trms_total_R=sum(r for r in cable_pu_r[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
+		last(acb)["cost"]=trms_total/trms
+		last(acb)["r"]=trms_total_R/trms_R
+		last(acb)["source_id"][2]=i
+        last(acb)["rateA"]=maximum(r for r in cable_rateA[string(last(acb)["fbusdc"])*"_"*string(last(acb)["tbusdc"])])
+		push!(temp_cables2,string(i)=>last(acb))
+	end
+    for (k,b) in data["branchdc"]
+        if (b["status"]==1)
+            push!(temp_cables2,k=>deepcopy(b))
+        end
+    end
+	data["branchdc"]=temp_cables2
+    return data
+end
+
 #**#
 function filter_DClines(data,edges,nodes,edges_existing)
     #size and length
@@ -1173,8 +1473,8 @@ function set_rebalancing_grid(result_mip,mn_data,s)
             if (haskey(result_mip["solution"]["nw"][string(ts)],"convdc"))
                 for (c,cnv) in result_mip["solution"]["nw"][string(ts)]["convdc"];
                     if (cnv["p_pacmax"]>0)
-                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=round(cnv["p_pacmax"],digits = 2);
-                            s["xd"]["convdc"][c]["Pacmax"][1,ts]=round(cnv["p_pacmax"],digits = 2);
+                            s["xd"]["convdc"][c]["Pacmin"][1,ts]=round(cnv["p_pacmax"],digits = 6);
+                            s["xd"]["convdc"][c]["Pacmax"][1,ts]=round(cnv["p_pacmax"],digits = 6);
                     else
                             s["xd"]["convdc"][c]["Pacmin"][1,ts]=0;
                             s["xd"]["convdc"][c]["Pacmax"][1,ts]=0;
@@ -1185,8 +1485,8 @@ function set_rebalancing_grid(result_mip,mn_data,s)
             if (haskey(result_mip["solution"]["nw"][string(ts)],"storage"))
                 for (b,strg) in result_mip["solution"]["nw"][string(ts)]["storage"];
                     if (strg["e_absmax"]>0)
-                            s["xd"]["storage"][b]["pmin"][1,ts]=round(strg["e_absmax"],digits = 2);
-                            s["xd"]["storage"][b]["pmax"][1,ts]=round(strg["e_absmax"],digits = 2);
+                            s["xd"]["storage"][b]["pmin"][1,ts]=round(strg["e_absmax"],digits = 6);
+                            s["xd"]["storage"][b]["pmax"][1,ts]=round(strg["e_absmax"],digits = 6);
                     else
                             s["xd"]["storage"][b]["pmin"][1,ts]=0;
                             s["xd"]["storage"][b]["pmax"][1,ts]=0;
@@ -1194,7 +1494,7 @@ function set_rebalancing_grid(result_mip,mn_data,s)
                 end;
             end
             for wf in s["wfz"]
-                s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=round(result_mip["solution"]["nw"][string(ts)]["gen"][string(first(wf))]["wf_pacmax"],digits = 2);
+                s["xd"]["gen"][string(first(wf))]["wf_pmax"][1,ts]=round(result_mip["solution"]["nw"][string(ts)]["gen"][string(first(wf))]["wf_pacmax"],digits = 6);
             end;
     
         end;
@@ -1277,10 +1577,17 @@ function data_update(s,result_mip)
     ##########
 	###########################################################################
 	all_gens,s = gen_types(data,scenario_data,s)
-    #################### Calculates cable options for AC lines
-    data = AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
-    #################### Calculates cable options for DC lines
-    data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
+    if (haskey(s,"collection_circuit") && s["collection_circuit"]==true)
+        #################### Calculates cable options for collection circuit AC lines
+        data = AC_cable_options_collection(scenario_data,data,s)
+        #################### Calculates cable options for collection circuit DC lines
+        data = DC_cable_options_collection(scenario_data,data,s)
+    else
+        #################### Calculates cable options for AC lines
+        data = AC_cable_options(data,s)
+        #################### Calculates cable options for DC lines
+        data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
+    end
     ############# Sets convex able impedance to the MIP solution ##############
     data = set_cable_impedance(data, result_mip)
     additional_params_PMACDC(data)
@@ -1296,48 +1603,45 @@ function data_update(s,result_mip)
 end
 
 #=s = Dict(
-    "rt_ex"=>pwd()*"\\test\\data\\input\\north_sea\\",#folder path if directly
-    "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
-    ################# temperal parameters #################
-    "test"=>true,#if true smallest (2 hour) problem variation is built for testing
-    "scenario_planning_horizon"=>30,
-    #"scenario_planning_horizon"=>1,
-    #"scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]
-    "scenario_names"=>["NT2025","GA2030","GA2040"],
-    #"scenario_names"=>["NT2025"],
-    "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
-    "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
-    #"res_years"=>["2014"],
-    "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
-    #"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
-    "dr"=>0.04,#discount rate
-    "yearly_investment"=>1000000,
-    ################ electrical parameters ################
-    "AC"=>"1",#0=false, 1=true
-    #"owpp_mva"=>[4000,4000,6000,6000,8000],#mva of wf in MVA
-    "conv_lim_onshore"=>32000,#Max Converter size in MVA
-    "conv_lim_offshore"=>16000,#Max Converter size in MVA
-    "strg_lim_offshore"=>0.2,
-    "strg_lim_onshore"=>10,
-    "candidate_ics_ac"=>[1],#AC Candidate Cable sizes (fraction of full MVA)
-    "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
-    ################## optimization/solver setup options ###################
-    "output" => Dict("branch_flows" => false),
-    "eps"=>0.0001,#admm residual (100kW)
-    "beta"=>5.5,
-    "relax_problem" => false,
-    "conv_losses_mp" => true,
-    "process_data_internally" => false,
-    "corridor_limit" => false,
-    "onshore_grid"=>true)
-    
-    s_z=deepcopy(s)
-    ################## Run MIP Formulation ###################
-    #NOTE only very basic intuitive check passed on functions wgen_type
-    s["home_market"]=[]
-    mn_data, data, s = data_setup(s);=#
-    #***#
-    #s["scenario"]["sc_names"]
+"rt_ex"=>pwd()*"\\test\\data\\input\\ronne_bank\\",#folder path if directly
+"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
+################# temperal parameters #################
+"test"=>true,#if true smallest (2 hour) problem variation is built for testing
+"scenario_planning_horizon"=>1,
+"scenario_names"=>["NT2025"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
+"k"=>1,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+"res_years"=>["2014"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
+################# Financial parameters ################
+"dr"=>0.04,#discount rate
+"yearly_investment"=>1000000,#max investment per modelling year
+################ electrical parameters ################
+"conv_lim_onshore"=>3000,#Max Converter size in MVA
+"conv_lim_offshore"=>4000,#Max Converter size in MVA
+"strg_lim_offshore"=>0.2,#Max offshore storage capacity
+"strg_lim_onshore"=>10,#Max onshore storage capacity
+"candidate_ics_ac"=>[1,0.83,2/3,1/2],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[2],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+################ collection circuit options ##############
+"collection_circuit"=>true,
+"no_crossings"=>true,
+"collection_voltage"=>132,
+"oss_nodes"=>[2],
+"max_num_strings_per_oss"=>[3],
+"max_num_of_branches_per_turbine"=>2,#1 consider only radial connections >1 branches at turbines 
+#"max_turbines_per_string"=>9,#not functional yet
+#"no_loops"=>true,#not functional yet
+################## optimization/solver setup options ###################
+"relax_problem" => false,#binaries->continuous variables
+"corridor_limit" => true,#limit cables in parallel?
+"TimeLimit" => 259200,#solver max time in seconds
+"MIPGap"=>1e-4,#max gap between MIP and convex solution 
+"PoolSearchMode" => 1,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
+"PoolSolutions" => 10)#number of solutions to find
+s=hidden_settings(s)
+mn_data, data, s = data_setup(s);=#
+#***#
+#scenario_data["Generation"]["Scenarios"]["NT2025"]["DKW1"]
 function data_setup(s)
     scenario_data = get_scenario_data(s)#scenario time series
     data, s = get_topology_data(s, scenario_data)#topology.m file
@@ -1347,10 +1651,17 @@ function data_setup(s)
     ##########
 	###########################################################################
 	all_gens,s = gen_types(data,scenario_data,s)
-    #################### Calculates cable options for AC lines
-    data = AC_cable_options(data,s["candidate_ics_ac"],s["ics_ac"],data["baseMVA"])
-    #################### Calculates cable options for DC lines
-    data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
+    if (haskey(s,"collection_circuit") && s["collection_circuit"]==true)
+        #################### Calculates cable options for collection circuit AC lines
+        data = AC_cable_options_collection(scenario_data,data,s)
+        #################### Calculates cable options for collection circuit DC lines
+        data = DC_cable_options_collection(scenario_data,data,s)
+    else
+        #################### Calculates cable options for AC lines
+        data = AC_cable_options(data,s)
+        #################### Calculates cable options for DC lines
+        data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
+    end
     if (haskey(s, "home_market") && length(s["home_market"])>0);data = keep_only_hm_cables(s,data);end#if home market reduce to only those in
     additional_params_PMACDC(data)
     print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
