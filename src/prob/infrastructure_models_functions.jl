@@ -1,5 +1,5 @@
 ""
-
+#aim=jump_result_mip;optimizer=gurobi
 function optimize_model!(aim::_IM.AbstractInfrastructureModel; relax_integrality=false, optimizer=nothing, solution_processors=[])
     start_time = time()
 
@@ -55,8 +55,8 @@ if JuMP.termination_status(aim.model) == _MOI.INFEASIBLE_OR_UNBOUNDED
         if (a!=_MOI.NOT_IN_CONFLICT)   
             println(i, " ", a);end
         end 
-        JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.LessThan{Float64})[27638]
-        JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.GreaterThan{Float64})[18852]
+        JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.LessThan{Float64})[119527]
+        JuMP.all_constraints(aim.model, JuMP.VariableRef, _MOI.GreaterThan{Float64})[181267]
     end
 =#
 ########################################################################################

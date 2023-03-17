@@ -590,20 +590,22 @@ function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
     _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
     _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
     for (t,t_sol) in enumerate(_ts)   
-        for (key_sol,br_sol) in t_sol["ne_branch"] 
-            if (br_sol["built"]>0.9)
-                br=data["ne_branch"][key_sol]
-                df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
-                df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
-                mva=br["rate_a"]
-                from=string(df_fr_ac.country)#*string(df_fr_ac.type)
-                to=string(df_to_ac.country)#*string(df_to_ac.type)
-                if (t==1)
-                    push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
-                elseif (t==2)
-                    push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
-                else
-                    push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+        if (haskey(t_sol,"ne_branch"))
+            for (key_sol,br_sol) in t_sol["ne_branch"] 
+                if (br_sol["built"]>0.9)
+                    br=data["ne_branch"][key_sol]
+                    df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
+                    df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
+                    mva=br["rate_a"]
+                    from=string(df_fr_ac.country)#*string(df_fr_ac.type)
+                    to=string(df_to_ac.country)#*string(df_to_ac.type)
+                    if (t==1)
+                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+                    elseif (t==2)
+                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+                    else
+                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+                    end
                 end
             end
         end

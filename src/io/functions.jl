@@ -9,6 +9,7 @@ function zonal_market_main(mn_data, data, s)
     results=Dict{String, Any}();
     for (_k, _v) in result_mip_ms["solution"]
         result_mip2=Dict{String,Any}("solution"=>Dict{String,Any}("nw"=>_v))
+        
         s2=deepcopy(s)
         s2["home_market"]=[]
         mn_data, data, s2 = data_setup(s2);#Build data structure for given options
@@ -17,6 +18,7 @@ function zonal_market_main(mn_data, data, s)
         s2["home_market"]=[]
         gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 36000, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"])#select solver
         result_mip2 = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2)#Solve problem
+        result_mip3=deepcopy(result_mip2)
     #print_solution_wcost_data(result_mip, s, data)
         s2["home_market"]=hm
         s2["rebalancing"]=true
@@ -32,7 +34,7 @@ function zonal_market_main(mn_data, data, s)
         s2, mn_data= remove_integers(result_mip2,mn_data,data,s2);
         result_mip2 = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2)#Solve problem
         result_mip2= hm_market_prices(result_mip2, result_mip_hm_prices)
-        push!(results,_k=>Dict("result_mip"=>result_mip2,"data"=>data, "mn_data"=>mn_data, "s"=>s2, "result_mip_hm_prices"=>result_mip_hm_prices));
+        push!(results,_k=>Dict("result_mip"=>result_mip2,"data"=>data, "mn_data"=>mn_data, "s"=>s2, "result_mip_hm_prices"=>result_mip_hm_prices, "result_mip2"=>result_mip3));
     end
     #pdic2=problemOUTPUT_map_byTimeStep(results["10"])
     #PlotlyJS.plot(pdic2["trace0"], pdic2["layout"])
@@ -41,42 +43,32 @@ end
 #####################
 #=##################### Input parameters #################################
 s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\princessElizabeth\\",#folder path if directly
-"scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
-################# temperal parameters #################
-"test"=>true,#if true smallest (2 hour) problem variation is built for testing
-"scenario_planning_horizon"=>1,
-"scenario_names"=>["NT2025"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
-"k"=>1,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
-"res_years"=>["2014"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
-"scenario_years"=>["2020"],#Options: ["2020","2030","2040"]
-################# Financial parameters ################
-"dr"=>0.04,#discount rate
-"yearly_investment"=>1000000,#max investment per modelling year
-################ electrical parameters ################
-"conv_lim_onshore"=>3000,#Max Converter size in MVA
-"conv_lim_offshore"=>4000,#Max Converter size in MVA
-"strg_lim_offshore"=>0.2,#Max offshore storage capacity
-"strg_lim_onshore"=>10,#Max onshore storage capacity
-"candidate_ics_ac"=>[1,0.83,2/3,1/2],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
-################ collection circuit options ##############
-"collection_circuit"=>true,
-"no_crossings"=>true,
-"collection_voltage"=>132,
-"oss_nodes"=>[2],
-"max_num_strings_per_oss"=>[20],
-"max_num_of_branches_per_turbine"=>2,#1 consider only radial connections >1 branches at turbines 
-#"max_turbines_per_string"=>9,#not functional yet
-#"no_loops"=>true,#not functional yet
-################## optimization/solver setup options ###################
-"relax_problem" => false,#binaries->continuous variables
-"corridor_limit" => true,#limit cables in parallel?
-"TimeLimit" => 46800,#solver max time in seconds
-"MIPGap"=>1e-4,#max gap between MIP and convex solution 
-"PoolSearchMode" => 0,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
-"PoolSolutions" => 1)#number of solutions to find
-s=hidden_settings(s)
+    "rt_ex"=>pwd()*"\\test\\data\\input\\north_sea\\",#folder path if directly
+    "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
+    ################# temperal parameters #################
+    "test"=>true,#if true smallest (2 hour) problem variation is built for testing
+    "scenario_planning_horizon"=>30,
+    "scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
+    "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+    "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+    "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
+    "dr"=>0.04,#discount rate
+    "yearly_investment"=>10000000,
+    ################ electrical parameters ################
+    "conv_lim_onshore"=>36000,#Max Converter size in MVA
+    "conv_lim_offshore"=>36000,#Max Converter size in MVA
+    "strg_lim_offshore"=>0.2,
+    "strg_lim_onshore"=>10,
+    "candidate_ics_ac"=>[1,2,4,8],#AC Candidate Cable sizes (fraction of full MVA)
+    "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+    ################## optimization/solver setup options ###################
+    "relax_problem" => false,
+    "corridor_limit" => false,
+    "TimeLimit" => 320000,
+    "MIPGap"=>12e-4, 
+    "PoolSearchMode" => 0, 
+    "PoolSolutions" => 1)
+    s=hidden_settings(s)
 
 ################## Run nodal Formulation ###################
 #nodal data setup
@@ -90,6 +82,7 @@ problemINPUT_map(data, s)
 problemINPUT_mapNTCs(data, s)=#
 #**#
 #data["gen"]
+#_k="1"; _v=result_mip_ms["solution"][_k]
 function nodal_market_main(mn_data, data, s)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
     #result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
@@ -123,8 +116,9 @@ function nodal_market_main(mn_data, data, s)
     #result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem=#
     #jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2);
     #result_mip=run_model_p2(jump_result_mip, gurobi);
-        push!(results,_k=>Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s2));
+        push!(results,_k=>Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s2, "result_mip2"=>result_mip2));
     end
+    
     #s["cost_summary"]=print_solution_wcost_data(results["1"]["result_mip"], results["1"]["s"], results["1"]["data"])
     #pdic2=problemOUTPUT_map_byTimeStep(results["4"])
     #PlotlyJS.plot(pdic2["trace012"], pdic2["layout"])
@@ -248,10 +242,15 @@ end=#
 #ACDC problem with storage main logic
 #***#
 function get_topology_data(s, scenario_data)
+    if (haskey(s,"ntc_mva_scale"))
+        ntc_mva_scale=s["ntc_mva_scale"]
+    else
+        ntc_mva_scale=1.0
+    end
     ################# Load topology files ###################################
     #topology_df(s["rt_ex"], s["relax_problem"], s["AC"], scenario_data)#creates .m file
     topology_df(s, scenario_data)#creates .m file
-    data, s["ics_ac"], s["ics_dc"], s["nodes"] = filter_mfile_cables(s["rt_ex"], scenario_data)#loads resulting topology and filters for candidate cables
+    data, s["ics_ac"], s["ics_dc"], s["nodes"] = filter_mfile_cables(s["rt_ex"], scenario_data, ntc_mva_scale)#loads resulting topology and filters for candidate cables
     return data, s
 end
 
@@ -403,11 +402,11 @@ end
 #loads .m result and filters candidates
 #**#
 #rt_ex=s["rt_ex"]
-function filter_mfile_cables(rt_ex, scenario_data)
+function filter_mfile_cables(rt_ex, scenario_data, ntc_mva_scale::Float64=1.0)
     nodes = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "node_generation")...)
 	edges = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "connections_acdc")...)
     #try edges_existing = DataFrames.DataFrame(XLSX.readtable(rt_ex*"input.xlsx", "existing_lines")...) catch; println("No onshore net transfer capacities specified.") end
-    edges_existing = add_ntc_edges(nodes,scenario_data)
+    edges_existing = add_ntc_edges(nodes,scenario_data, ntc_mva_scale)
     nodes = add_ntc_nodes(nodes,scenario_data)
     file = rt_ex*"topology.m"
 	data = PowerModels.parse_file(file)
@@ -431,13 +430,13 @@ function add_ntc_nodes(nodes,scenario_data)
     return nodes
 end
 #**#
-function add_ntc_edges(nodes,scenario_data)
+function add_ntc_edges(nodes,scenario_data, mva_scale::Float64=1.0)
     edges_existing = DataFrames.DataFrame("DC_from"=>[], "DC_to"=>[], "DC_mva"=>[], "AC_from"=>[], "AC_to"=>[], "AC_mva"=>[])
     #adds TYNPD grid
     for _row in eachrow(scenario_data["Generation"]["ntcs"])
         end_points=_row[Symbol("Border Names Based on PEMMDB 3.0 convention")]
         start_end=split(end_points,"-")
-        capacity=_row[Symbol("Final Value for NTC (MW)")]
+        capacity=_row[Symbol("Final Value for NTC (MW)")]*mva_scale
         bus_start=filter(Symbol("node_id")=>x->x==first(start_end),scenario_data["Generation"]["nodes"])[!,:bus]
         bus_end=filter(Symbol("node_id")=>x->x==last(start_end),scenario_data["Generation"]["nodes"])[!,:bus]
         if !(isempty(bus_start) || isempty(bus_end))

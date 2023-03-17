@@ -11,7 +11,7 @@ s = Dict(
     ################# temperal parameters #################
     "test"=>false,#if true smallest (2 hour) problem variation is built for testing
     "scenario_planning_horizon"=>30,
-    "scenario_names"=>["NT2025","NT2030","NT2040"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
+    "scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
     "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
     "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
     "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
@@ -27,10 +27,11 @@ s = Dict(
     ################## optimization/solver setup options ###################
     "relax_problem" => false,
     "corridor_limit" => false,
-    "TimeLimit" => 259200,
-    "MIPGap"=>5e-1, 
-    "PoolSearchMode" => 2, 
-    "PoolSolutions" => 5)
+    "TimeLimit" => 320000,
+    "MIPGap"=>1e-4, 
+    "PoolSearchMode" => 0, 
+    "PoolSolutions" => 1,
+    "ntc_mva_scale" => 1.0)
     s=_CBD.hidden_settings(s)
 
 
@@ -39,15 +40,18 @@ s = Dict(
 s["home_market"]=[]
 mn_data, data, s = _CBD.data_setup(s);
 #_CBD.problemINPUT_mapNTCs(data, s)
-_CBD.problemINPUT_map(data, s)
+#_CBD.problemINPUT_map(data, s)
 @time result = _CBD.nodal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\NORTH_SEA_nodal_k4_NT.jld2",result)#09gap was good one
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\NORTH_SEA_nodal_k4_full_ntcX2.jld2",result)#09gap was good one
+
 ######################### Zonal market #########################
 #s["home_market"]=[[2,5],[3,6],[4,7]]
 #s["home_market"]=[[9,10,11,12,13]]
-s["home_market"]=[[4,11],[5,10],[6,12],[1,8,13],[3,9]]
+s["home_market"]=[[16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]]
 mn_data, data, s = _CBD.data_setup(s);
 @time result = _CBD.zonal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
-FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\HMD_results_NORTH_SEA_4G.jld2",result)
-pdic=_CBD.problemOUTPUT_map_byTimeStep(result["2"])
-PlotlyJS.plot(pdic["trace0"], pdic["layout"])
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\NORTH_SEA_nodal_k4_full_zOBZ.jld2",result)
+
+
+
+
