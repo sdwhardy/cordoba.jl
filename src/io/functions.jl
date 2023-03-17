@@ -144,8 +144,8 @@ function collection_circuit_main(mn_data, data, s)
     if (haskey(s,"max_turbines_per_string"))
         push!(s["xd"], "max_turbines_per_string"=>oss_string_feeders(s,data));end
     ###################################################################
-    if (haskey(s,"no_loops"))
-        push!(s["xd"], "no_loops"=>turbine_connections_input(s,data));end
+    #if (haskey(s,"no_loops"))
+    #   push!(s["xd"], "no_loops"=>turbine_connections_input(s,data));end
     ###################################################################
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
     #gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver

@@ -363,7 +363,7 @@ function variable_acbranch_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, boun
     start = 0)
     if bounded
         for (s, branch) in _PM.ref(pm, nw, :branch)
-            if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
+            if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true) 
                 JuMP.set_lower_bound(p_rateAC[s],  pm.setting["xd"]["branch"][string(s)]["rateA"][nw])
             else
                 JuMP.set_lower_bound(p_rateAC[s],  0)
@@ -396,6 +396,7 @@ function variable_branch_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, 
         for arc in _PM.ref(pm, nw, :arcs)
             l,i,j = arc
             p_rateAC = _PM.var(pm, nw, :p_rateAC, l)
+            println("p_rateAC ", p_rateAC)
             JuMP.@constraint(pm.model, p[arc]-p_rateAC  <= 0)
             JuMP.@constraint(pm.model, p[arc]+p_rateAC  >= 0)
         end

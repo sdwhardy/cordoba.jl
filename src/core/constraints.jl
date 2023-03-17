@@ -861,18 +861,18 @@ function constraint_oss_connections(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_i
         if (length(ac_cables)>0)
             ac_sum = sum(_PM.var(pm, nw, :branch_ne, parse(Int64,ac_cable)) for ac_cable in ac_cables)
         else
-            ac_sum=[]
+            ac_sum=0
         end
         if (length(dc_cables)>0)
             dc_sum = sum(_PM.var(pm, nw, :branchdc_ne, parse(Int64,dc_cable)) for dc_cable in dc_cables)
         else
-            dc_sum=[]
+            dc_sum=0
         end
         JuMP.@constraint(pm.model, ac_sum + dc_sum  <= pm.setting["max_num_strings_per_oss"][oss_i]+1)
     end
 end
 
-function constraint_no_loops(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default)
+#=function constraint_no_loops(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default)
 
     for (turbine_i,turbine_num) in enumerate(pm.setting["turbine_nodes"])
         #get cable numbers connected to oss(s)
@@ -892,7 +892,7 @@ function constraint_no_loops(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_defau
         end
         JuMP.@constraint(pm.model, ac_sum + dc_sum  <= 1)
     end
-end
+end=#
 #=    
     branchdc_ne = _PM.ref(pm, nw, :branchdc_ne, parse(Int64,dc_cable))
     f_bus = branchdc_ne["fbusdc"]
