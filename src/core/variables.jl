@@ -90,11 +90,11 @@ function variable_convdc_peak(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, bounde
     if bounded
         for (s, convdc) in _PM.ref(pm, nw, :convdc)
             if (haskey(pm.setting,"rebalancing") && pm.setting["rebalancing"]==true)
-                JuMP.set_lower_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
+                JuMP.set_lower_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw]-0.00001)
             else
                 JuMP.set_lower_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmin"][nw])
             end
-            JuMP.set_upper_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw])
+            JuMP.set_upper_bound(p_pacmax[s],  pm.setting["xd"]["convdc"][string(s)]["Pacmax"][nw]+0.00001)
         end
     end
 
