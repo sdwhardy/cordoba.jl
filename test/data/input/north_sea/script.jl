@@ -52,6 +52,17 @@ mn_data, data, s = _CBD.data_setup(s);
 @time result = _CBD.zonal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\NORTH_SEA_nodal_k4_full_zOBZ.jld2",result)
 
+#=
+6444 binary->426 binary
+Optimal solution found (tolerance 1.00e-04)
+Best objective -8.412264555550e+06, best bound -8.412870390337e+06, gap 0.0072%
 
+6444 binary->468 binary
+Optimal solution found (tolerance 1.00e-04)
+Best objective -8.364509426726e+06, best bound -8.364632938305e+06, gap 0.0015%
+
+Optimal objective -8.371519331e+06
+Optimal objective -8.371099410e+06
+=#
 
 

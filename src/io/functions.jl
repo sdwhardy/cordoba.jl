@@ -1433,6 +1433,8 @@ function set_inter_zonal_grid(result_mip,mn_data,s)
                             s["xd"]["branchdc_ne"][b]["cost"][1,ts]=0.0;
                     else
                             s["xd"]["branchdc_ne"][b]["cost"][1,ts]=s["xd"]["branchdc_ne"][b]["cost"][1,ts]*100;
+                            mn_data["nw"][string(ts)]["branchdc_ne"][b]["status"]=0
+                            #data["branchdc_ne"][b]["status"]=0
                     end
                 end;end;
 
@@ -1444,9 +1446,12 @@ function set_inter_zonal_grid(result_mip,mn_data,s)
                         s["xd"]["ne_branch"][b]["construction_cost"][1,ts]=0.0;
                 else
                     s["xd"]["ne_branch"][b]["construction_cost"][1,ts]=s["xd"]["ne_branch"][b]["construction_cost"][1,ts]*100;
+                    mn_data["nw"][string(ts)]["ne_branch"][b]["status"]=0
+                    #data["ne_branch"][b]["status"]=0
                 end;end;
             end;end
     end;end
+    #print_topology_data_DC(data,s["map_gen_types"]["markets"])#print to verify
     return mn_data, s
 end
 #**#

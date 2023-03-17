@@ -396,7 +396,7 @@ function variable_branch_power_real(pm::_PM.AbstractPowerModel; nw::Int=pm.cnw, 
         for arc in _PM.ref(pm, nw, :arcs)
             l,i,j = arc
             p_rateAC = _PM.var(pm, nw, :p_rateAC, l)
-            println("p_rateAC ", p_rateAC)
+            #println("p_rateAC ", p_rateAC)
             JuMP.@constraint(pm.model, p[arc]-p_rateAC  <= 0)
             JuMP.@constraint(pm.model, p[arc]+p_rateAC  >= 0)
         end
