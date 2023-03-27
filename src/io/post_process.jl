@@ -2650,7 +2650,7 @@ function nodal2zonal(s,result_mip,zones)
     result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
     return result_mip, data, mn_data, s, result_mip_hm_prices
 end
-
+=#
 function zonal2nodal(s,result_mip)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     s["rebalancing"]=true
@@ -2917,4 +2917,3 @@ end
 	PlotlyJS.plot(
 	scatter_vec, PlotlyJS.Layout(yaxis_range=(low_rng, high_rng),yaxis_title="€/MWh",xaxis_title="time steps",title=country))
 end=#
-=#

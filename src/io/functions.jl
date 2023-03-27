@@ -41,6 +41,8 @@ function zonal_market_main(mn_data, data, s)
     return results
 end
 #####################
+
+
 #=##################### Input parameters #################################
 s = Dict(
     "rt_ex"=>pwd()*"\\test\\data\\input\\north_sea\\",#folder path if directly
@@ -160,9 +162,10 @@ function collection_circuit_main(mn_data, data, s)
     return results
 end
 
+
 #**#
 function hidden_settings(s)
-    push!(s,"AC"=>"1"),#0=false, 1=true
+    push!(s,"AC"=>"1")#,0=false, 1=true
     push!(s,"output" => Dict("branch_flows" => false))
     push!(s,"eps"=>0.0001)
     push!(s,"beta"=>5.5)
@@ -255,7 +258,8 @@ function get_topology_data(s, scenario_data)
 end
 
 
-#k_sc="NT2025";scenario_data["Generation"]["Scenarios"][k_sc]["DKW1"]
+#k_sc="Base";sc=scenario_data["Generation"]["Scenarios"][k_sc]
+#k_cunt="2020";cuntree=sc[k_cunt]
 #***#
 function get_scenario_data(s)
     ############### defines size and market of genz and wfs ###################
