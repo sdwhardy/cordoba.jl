@@ -68,10 +68,7 @@ function ppf_Gens(mf,r_df)
 		if (r[1]!='2')
 			println(mf,r);end
 	end
-	#=
-	for r in r_df[!,:gen_type]
-		println(mf,r)
-	end=#
+
 	println(mf,"];")
 end
 
