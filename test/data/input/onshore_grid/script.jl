@@ -40,7 +40,7 @@ s = Dict(
 ######################### Nodal market #########################
 s["home_market"]=[]
 mn_data, data, s = _CBD.data_setup(s);
-_CBD.problemINPUT_map(data, s)
+#_CBD.problemINPUT_map(data, s)
 @time result = _CBD.nodal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
 result["s"]["cost_summary"]=_CBD.print_solution_wcost_data(result["result_mip"], result["s"], result["data"])
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\nodal_market_NORTH_SEA_4G.jld2",result)#09gap was good one
@@ -52,7 +52,8 @@ mn_data, data, s = _CBD.data_setup(s);
 @time result = _CBD.zonal_market_main(mn_data, data, s)#-3359431 -33899162 0.89%
 FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\HMD_results_NORTH_SEA_4G.jld2",result)
 ##################### Post processing ##########################                               
-results = FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_BE_DE_DK\\zonalOBZ_results_NORTH_SEA_0gap.jld2")
+results = FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm24_VOLL5000.jld2")
+
 s, result_mip, data, mn_data = _CBD.summarize_in_s(results);
 s, result_mip, data, mn_data = _CBD.summarize_zonal_in_s(results);
 
