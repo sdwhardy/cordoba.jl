@@ -658,7 +658,7 @@ function AC_cable_options(data,s)
 	#data["branch"]=temp_cables2
     return data
 end
-
+#data["ne_branch"]["11960"]
 function AC_cable_options_collection(scenario_data,data,s)
     
     wf_country=filter(:type=>x->x==0,s["nodes"])[!,:country][1]
@@ -671,6 +671,12 @@ function AC_cable_options_collection(scenario_data,data,s)
        data["ne_branch"][i]=candidateIC_cost_impedance_AC_collection(bac,z_base_ac,pu,wind_profile,kV);
     end
     data["ne_branch"]=unique_candidateIC_AC_collection(data["ne_branch"])#keep only unique candidates
+    if (haskey(s,"cable_losses") && s["cable_losses"]==false)
+    data["ne_branch"]=unique_candidateIC_AC_collection_mm(data["ne_branch"])#keep only unique cross section candidates
+    end
+    if (haskey(s,"cross_section_limit"))
+        data["ne_branch"]=cross_section_limit_candidateIC_AC_collection(data["ne_branch"],s["cross_section_limit"])#keep only unique cross section candidates
+    end
 	temp_cables_ne=Dict{String,Any}()
 	temp_cables=Dict{String,Any}()
 	cable_pu_costs=Dict{String,Any}()
@@ -747,7 +753,7 @@ function candidateIC_cost_impedance_AC_collection(bac,z_base,s_base,wind_profile
     bac["br_x"]=0.000613*cb.length#((cb.elec.xl/cb.num)*cb.length)/z_base
     bac["rate_c"]=bac["rate_a"]=deepcopy(bac["rate_b"]/s_base)
     bac["rate_b"]=bac["rate_a"]
-    bac["mm"]=cb.size
+    bac["mm"]=string(cb.num)*"x"*string(cb.size)
     return bac
 end
 #for each existing AC line capacity an appropriate cable is selected and characteristics stored
@@ -841,6 +847,56 @@ function unique_candidateIC_AC_collection(cand_ics)
                     delete!(cand_ics_final,cable_key0)
                 end
             end
+        end
+    end
+    return cand_ics_final
+end
+
+function unique_candidateIC_AC_collection_mm(cand_ics)
+    cand_ics_final=deepcopy(cand_ics)
+    cable_keys0=string.(sort!(parse.(Int64,keys(cand_ics))))
+    cable_keys1=deepcopy(cable_keys0)
+    for (i0,cable_key0) in enumerate(cable_keys0)
+        for (i1,cable_key1) in enumerate(cable_keys1)
+            if (i0<i1 && cand_ics[cable_key0]["f_bus"]==cand_ics[cable_key1]["f_bus"] && cand_ics[cable_key0]["t_bus"]==cand_ics[cable_key1]["t_bus"] && cand_ics[cable_key0]["mm"]==cand_ics[cable_key1]["mm"])
+                if (cand_ics[cable_key1]["construction_cost"]<=cand_ics[cable_key0]["construction_cost"])
+                    delete!(cand_ics_final,cable_key1)
+                else
+                    delete!(cand_ics_final,cable_key0)
+                end
+            end
+        end
+    end
+    return cand_ics_final
+end
+###PAUSED HERE for meeting with Alexandru################
+function cross_section_limit_candidateIC_AC_collection(cand_ics, cross_section_limit)
+    cand_ics_final=deepcopy(cand_ics)
+    cable_keys0=string.(sort!(parse.(Int64,keys(cand_ics))))
+    cable_keys1=deepcopy(cable_keys0)
+
+    cross_sections=Dict{String,Any}()
+    for (i0,cable_key0) in enumerate(cable_keys0)
+        mm=split(cand_ics[cable_key0]["mm"],"x")[2]
+        if !(haskey(cross_sections,mm))
+            push!(cross_sections,mm=>1) 
+        else
+            cross_sections[mm]=cross_sections[mm]+1
+        end;
+    end
+    cs_tuple=Tuple[]
+    for (k_cs, c_cs) in cross_sections
+        push!(cs_tuple,(k_cs, c_cs));end
+    sort!(cs_tuple, by=x->parse(Float64,first(x)))    
+    sort!(cs_tuple, by=x->last(x))
+    cs_tuple=cs_tuple[end-cross_section_limit+1:end]
+
+    for (i0,cable_key0) in enumerate(cable_keys0)
+        mm=split(cand_ics[cable_key0]["mm"],"x")[2]
+        if !(issubset([mm], first.(cs_tuple)))
+            delete!(cand_ics_final,cable_key0)
+        else
+            #delete!(cand_ics_final,cable_key0)
         end
     end
     return cand_ics_final
@@ -1611,7 +1667,7 @@ function data_update(s,result_mip)
 end
 
 #=s = Dict(
-"rt_ex"=>pwd()*"\\test\\data\\input\\ronne_bank\\",#folder path if directly
+"rt_ex"=>pwd()*"\\test\\data\\input\\princessElizabeth\\",#folder path if directly
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
 ################# temperal parameters #################
 "test"=>true,#if true smallest (2 hour) problem variation is built for testing
@@ -1628,24 +1684,26 @@ end
 "conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,#Max offshore storage capacity
 "strg_lim_onshore"=>10,#Max onshore storage capacity
-"candidate_ics_ac"=>[1,0.83,2/3,1/2],#AC Candidate Cable sizes (fraction of full MVA)
-"candidate_ics_dc"=>[2],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+"candidate_ics_ac"=>[1,3/4,1/2,2/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
 ################ collection circuit options ##############
 "collection_circuit"=>true,
 "no_crossings"=>true,
-"collection_voltage"=>132,
+"collection_voltage"=>66,
 "oss_nodes"=>[2],
-"max_num_strings_per_oss"=>[3],
-"max_num_of_branches_per_turbine"=>2,#1 consider only radial connections >1 branches at turbines 
+"max_num_strings_per_oss"=>[10],
+"max_num_of_branches_per_turbine"=>1,#1 consider only radial connections >1 branches at turbines 
+"cable_losses"=>false,
 #"max_turbines_per_string"=>9,#not functional yet
 #"no_loops"=>true,#not functional yet
 ################## optimization/solver setup options ###################
 "relax_problem" => false,#binaries->continuous variables
 "corridor_limit" => true,#limit cables in parallel?
-"TimeLimit" => 259200,#solver max time in seconds
+"TimeLimit" => 50000,#244800,#solver max time in seconds
 "MIPGap"=>1e-4,#max gap between MIP and convex solution 
-"PoolSearchMode" => 1,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
-"PoolSolutions" => 10)#number of solutions to find
+"PoolSearchMode" => 2,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
+"PoolSolutions" => 3)#number of solutions to find
+
 s=hidden_settings(s)
 mn_data, data, s = data_setup(s);=#
 #***#

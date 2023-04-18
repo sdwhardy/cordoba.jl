@@ -570,7 +570,7 @@ function post_map_Of_Connections_ACDCNTC(results)
 end
 
 #**#
- 
+#data["branchdc_ne"]["1"]["mm"]
 function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
     number_keys=parse.(Int64,keys(result_mip))
     _ts=[]
@@ -586,9 +586,9 @@ function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
     nodes = s["nodes"]
     cvs=data["convdc"]
   
-    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
-    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
-    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
+    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[], "mm"=>[])
+    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[], "mm"=>[])
+    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[], "mm"=>[])
     for (t,t_sol) in enumerate(_ts)   
         if (haskey(t_sol,"ne_branch"))
             for (key_sol,br_sol) in t_sol["ne_branch"] 
@@ -597,14 +597,15 @@ function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
                     df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
                     df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
                     mva=br["rate_a"]
+                    mm=br["mm"]
                     from=string(df_fr_ac.country)#*string(df_fr_ac.type)
                     to=string(df_to_ac.country)#*string(df_to_ac.type)
                     if (t==1)
-                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0,mm])
                     elseif (t==2)
-                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0,mm])
                     else
-                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0,mm])
                     end
                 end
             end
@@ -631,18 +632,18 @@ function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
                     from=string(df_fr_dc.country)#*string(df_fr_dc.type)
                     to=string(df_to_dc.country)#*string(df_to_dc.type)
                     if (t==1)
-                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
+                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to,0.0])
                     elseif (t==2)
-                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
+                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to,0.0])
                     else
-                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
+                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to,0.0])
                     end
                 end
             end
         end
     end
-    _map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:lat_fr, :long_fr, :lat_to, :long_to, :mva], makeunique = false, validate = (false, false))
-    _map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:lat_fr, :long_fr, :lat_to, :long_to, :mva], makeunique = false, validate = (false, false))
+    _map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:lat_fr, :long_fr, :lat_to, :long_to, :mva,:mm], makeunique = false, validate = (false, false))
+    _map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:lat_fr, :long_fr, :lat_to, :long_to, :mva,:mm], makeunique = false, validate = (false, false))
     #_map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:from, :to], makeunique = false, validate = (false, false))
     #_map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:from, :to], makeunique = false, validate = (false, false))
     _map_of_connections=Dict("0"=>_map_of_connections_ACDCNTC0,"1"=>_map_of_connections_ACDCNTC1,"2"=>_map_of_connections_ACDCNTC2)
@@ -826,6 +827,9 @@ function problemOUTPUT_map_byTimeStep(results, txt_x=1)
     return dic
 end
 
+#rez_all= FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\collection_circuit_elizabeth_phase2.jld2")#09gap was good one
+#rez=rez_all["1"]
+#df_map["0"]
 function problemMIP_OUTPUT_map_byTimeStep(rez, txt_x=1)
     result_mip=rez["result_mip"]
     data=rez["data"]
@@ -912,7 +916,7 @@ function problemMIP_OUTPUT_map_byTimeStep(rez, txt_x=1)
     for t in ["0","1","2"]     
     push!(traceAClabels,t=>[PlotlyJS.scattergeo(;mode="text",
     lat=[(row.lat_fr+row.lat_to)/2],
-    lon=[(row.long_fr+row.long_to)/2],text=[string(round(row.mva/10,digits=3))*"GW"], 
+    lon=[(row.long_fr+row.long_to)/2],text=[string(round(row.mva/10,digits=3))*"GW"],#,text=[string(row.mm)] 
     textfont=PlotlyJS.attr(size=15*txt_x,color="black"), marker=lineACtext, textposition="middle bottom") 
     for row in eachrow(df_map[t]) if (row[:type]=="AC")])end
 
