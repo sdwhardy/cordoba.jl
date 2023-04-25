@@ -80,3 +80,5 @@ for (i,br) in mn_data["nw"]["1"]["storage"]["1"]
 end
 
 result["1"]["result_mip"]["1"]["convdc"]
+
+

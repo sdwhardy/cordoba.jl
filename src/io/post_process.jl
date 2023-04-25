@@ -371,7 +371,7 @@ function problemINPUT_map(data, s, txt_x=1)
 
     #country legend
     traceCNT = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x),
-    textposition="top center",text=string(row[:node][1]),
+    textposition="top center",#text=string(row[:node][1]),
                 lat=[row[:lat]],lon=[row[:long]],
                 marker=markerCNT)  for row in eachrow(countries)]
 
@@ -383,7 +383,7 @@ function problemINPUT_map(data, s, txt_x=1)
 
     #windfarm legend
     traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x),
-    textposition="top center",text=string(row[:node][1])*" "*string(row[:gen][1]),
+    textposition="top center",#text=string(row[:node][1])*" "*string(row[:gen][1]),
                 lat=[row[:lat]],lon=[row[:long]],
                 marker=markerWF)  for row in eachrow(owpps)]
     
@@ -415,6 +415,7 @@ function problemINPUT_map(data, s, txt_x=1)
     for row in eachrow(df_map) if (row[:type]=="NTC")]    
 
     #combine plot data                
+    #trace=vcat(traceCNT,traceWF)
     trace=vcat(traceCNT,traceWF,traceDC,traceAC)
     #trace=vcat(traceCNT,traceWF,traceNTC,traceDC,traceAC)
     #trace=vcat(traceCNT,traceWF,traceNTC)
@@ -864,7 +865,7 @@ function problemMIP_OUTPUT_map_byTimeStep(rez, txt_x=1)
     traceWF=Dict()
     for t in ["0","1","2"]
     push!(traceWF,t=>[PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x,color="navy"),
-    textposition="top center",text=string(row[:node][1]),#text=string(row[Symbol("mva"*t)]/10)*"GW",
+    textposition="top center",#text=string(row[:node][1]),#text=string(row[Symbol("mva"*t)]/10)*"GW",
                 lat=[row[:lat]],lon=[row[:long]],
                 marker=markerWF)  for row in eachrow(df_owpp_map)]);end
 
