@@ -28,24 +28,26 @@ s = Dict(
 "conv_lim_offshore"=>4000,#Max Converter size in MVA
 "strg_lim_offshore"=>0.2,#Max offshore storage capacity
 "strg_lim_onshore"=>10,#Max onshore storage capacity
-"candidate_ics_ac"=>[1],#[1,3/4,1/2,2/5],#AC Candidate Cable sizes (fraction of full MVA)
+"candidate_ics_ac"=>[1,3/4,1/2,2/5],#AC Candidate Cable sizes (fraction of full MVA)
 "candidate_ics_dc"=>[1],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
 ################ collection circuit options ##############
 "collection_circuit"=>true,
 "no_crossings"=>true,
 "collection_voltage"=>66,
-"oss_nodes"=>[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34],
-"max_num_strings_per_oss"=>[32,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+"oss_nodes"=>[2],
+"max_num_strings_per_oss"=>[15],
 "max_num_of_branches_per_turbine"=>1,#1 consider only radial connections >1 branches at turbines 
+"cable_losses"=>true,
+#"cross_section_limit"=>5,
 #"max_turbines_per_string"=>9,#not functional yet
 #"no_loops"=>true,#not functional yet
 ################## optimization/solver setup options ###################
 "relax_problem" => false,#binaries->continuous variables
 "corridor_limit" => true,#limit cables in parallel?
-"TimeLimit" => 172800,#244800,#solver max time in seconds
+"TimeLimit" => 75000,#244800,#solver max time in seconds
 "MIPGap"=>1e-4,#max gap between MIP and convex solution 
-"PoolSearchMode" => 2,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
-"PoolSolutions" => 3)#number of solutions to find
+"PoolSearchMode" => 0,#0-single solution, 1- poolsolutions of random quality, 2- poolsolutions of highest quality 
+"PoolSolutions" => 1)#number of solutions to find
 s=_CBD.hidden_settings(s)
 
 ################## Run nodal Formulation ###################
@@ -63,6 +65,7 @@ pdic=_CBD.problemMIP_OUTPUT_map_byTimeStep(result["1"])
 PlotlyJS.plot(pdic["trace0"], pdic["layout"])
 
 
+FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\collection_circuit_elizabeth_phase2.jld2",result)#09gap was good one
 
 
 result["1"]["result_mip"]["1"]["branchdc_ne"]["1"]
@@ -77,3 +80,5 @@ for (i,br) in mn_data["nw"]["1"]["storage"]["1"]
 end
 
 result["1"]["result_mip"]["1"]["convdc"]
+
+

@@ -382,8 +382,8 @@ function problemINPUT_map(data, s, txt_x=1)
 
 
     #windfarm legend
-    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=15*txt_x),
-    textposition="top center",text=string(Int64(row[:gen][1]/10))*" GW",#text=string(row[:node][1])*" "*string(row[:gen][1]),
+    traceWF = [PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x),
+    textposition="top center",#text=string(row[:node][1])*" "*string(row[:gen][1]),
                 lat=[row[:lat]],lon=[row[:long]],
                 marker=markerWF)  for row in eachrow(owpps)]
     
@@ -415,7 +415,8 @@ function problemINPUT_map(data, s, txt_x=1)
     for row in eachrow(df_map) if (row[:type]=="NTC")]    
 
     #combine plot data                
-    trace=vcat(traceCNT,traceWF)#,traceDC,traceAC)
+    #trace=vcat(traceCNT,traceWF)
+    trace=vcat(traceCNT,traceWF,traceDC,traceAC)
     #trace=vcat(traceCNT,traceWF,traceNTC,traceDC,traceAC)
     #trace=vcat(traceCNT,traceWF,traceNTC)
 
@@ -570,7 +571,7 @@ function post_map_Of_Connections_ACDCNTC(results)
 end
 
 #**#
- 
+#data["branchdc_ne"]["1"]["mm"]
 function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
     number_keys=parse.(Int64,keys(result_mip))
     _ts=[]
@@ -586,9 +587,9 @@ function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
     nodes = s["nodes"]
     cvs=data["convdc"]
   
-    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
-    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
-    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[])
+    _map_of_connections_ACDCNTC0=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[], "mm"=>[])
+    _map_of_connections_ACDCNTC1=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[], "mm"=>[])
+    _map_of_connections_ACDCNTC2=DataFrames.DataFrame("from"=>[],"to"=>[],"lat_fr"=>[],"long_fr"=>[],"lat_to"=>[],"long_to"=>[],"mva"=>[],"type"=>[],"conv_from"=>[], "conv_to"=>[], "mm"=>[])
     for (t,t_sol) in enumerate(_ts)   
         if (haskey(t_sol,"ne_branch"))
             for (key_sol,br_sol) in t_sol["ne_branch"] 
@@ -597,14 +598,15 @@ function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
                     df_fr_ac=nodes[only(findall(==(br["f_bus"]), nodes.node)), :]
                     df_to_ac=nodes[only(findall(==(br["t_bus"]), nodes.node)), :]
                     mva=br["rate_a"]
+                    mm=br["mm"]
                     from=string(df_fr_ac.country)#*string(df_fr_ac.type)
                     to=string(df_to_ac.country)#*string(df_to_ac.type)
                     if (t==1)
-                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0,mm])
                     elseif (t==2)
-                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0,mm])
                     else
-                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0])
+                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_ac.lat,df_fr_ac.long,df_to_ac.lat,df_to_ac.long,mva,"AC",0.0,0.0,mm])
                     end
                 end
             end
@@ -631,18 +633,18 @@ function post_map_MIP_Of_Connections_ACDCNTC(result_mip,s,data)
                     from=string(df_fr_dc.country)#*string(df_fr_dc.type)
                     to=string(df_to_dc.country)#*string(df_to_dc.type)
                     if (t==1)
-                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
+                        push!(_map_of_connections_ACDCNTC0,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to,0.0])
                     elseif (t==2)
-                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
+                        push!(_map_of_connections_ACDCNTC1,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to,0.0])
                     else
-                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to])
+                        push!(_map_of_connections_ACDCNTC2,[from,to,df_fr_dc.lat,df_fr_dc.long,df_to_dc.lat,df_to_dc.long,mva,"DC",c_fr,c_to,0.0])
                     end
                 end
             end
         end
     end
-    _map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:lat_fr, :long_fr, :lat_to, :long_to, :mva], makeunique = false, validate = (false, false))
-    _map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:lat_fr, :long_fr, :lat_to, :long_to, :mva], makeunique = false, validate = (false, false))
+    _map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:lat_fr, :long_fr, :lat_to, :long_to, :mva,:mm], makeunique = false, validate = (false, false))
+    _map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:lat_fr, :long_fr, :lat_to, :long_to, :mva,:mm], makeunique = false, validate = (false, false))
     #_map_of_connections_ACDCNTC2=DataFrames.antijoin(_map_of_connections_ACDCNTC2, _map_of_connections_ACDCNTC1; on=[:from, :to], makeunique = false, validate = (false, false))
     #_map_of_connections_ACDCNTC1=DataFrames.antijoin(_map_of_connections_ACDCNTC1, _map_of_connections_ACDCNTC0; on=[:from, :to], makeunique = false, validate = (false, false))
     _map_of_connections=Dict("0"=>_map_of_connections_ACDCNTC0,"1"=>_map_of_connections_ACDCNTC1,"2"=>_map_of_connections_ACDCNTC2)
@@ -826,6 +828,9 @@ function problemOUTPUT_map_byTimeStep(results, txt_x=1)
     return dic
 end
 
+#rez_all= FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\collection_circuit_elizabeth_phase2.jld2")#09gap was good one
+#rez=rez_all["1"]
+#df_map["0"]
 function problemMIP_OUTPUT_map_byTimeStep(rez, txt_x=1)
     result_mip=rez["result_mip"]
     data=rez["data"]
@@ -860,7 +865,7 @@ function problemMIP_OUTPUT_map_byTimeStep(rez, txt_x=1)
     traceWF=Dict()
     for t in ["0","1","2"]
     push!(traceWF,t=>[PlotlyJS.scattergeo(;mode="markers+text",textfont=PlotlyJS.attr(size=10*txt_x,color="navy"),
-    textposition="top center",text=string(row[:node][1]),#text=string(row[Symbol("mva"*t)]/10)*"GW",
+    textposition="top center",#text=string(row[:node][1]),#text=string(row[Symbol("mva"*t)]/10)*"GW",
                 lat=[row[:lat]],lon=[row[:long]],
                 marker=markerWF)  for row in eachrow(df_owpp_map)]);end
 
@@ -912,7 +917,7 @@ function problemMIP_OUTPUT_map_byTimeStep(rez, txt_x=1)
     for t in ["0","1","2"]     
     push!(traceAClabels,t=>[PlotlyJS.scattergeo(;mode="text",
     lat=[(row.lat_fr+row.lat_to)/2],
-    lon=[(row.long_fr+row.long_to)/2],text=[string(round(row.mva/10,digits=3))*"GW"], 
+    lon=[(row.long_fr+row.long_to)/2],text=[string(round(row.mva/10,digits=3))*"GW"],#,text=[string(row.mm)] 
     textfont=PlotlyJS.attr(size=15*txt_x,color="black"), marker=lineACtext, textposition="middle bottom") 
     for row in eachrow(df_map[t]) if (row[:type]=="AC")])end
 
@@ -1798,7 +1803,7 @@ function plot_cumulative_income(s,scenario, node, gen)
 end
 
 ####################################### Print solution ################################
-=#
+
 function tl_totals(s_nodal,data_nodal)
     hrs=s_nodal["hours_length"]
     hourly_income_tl_all_scenarios=s_nodal["income_summary"]["tso"]
@@ -1830,7 +1835,7 @@ function tl_totals(s_nodal,data_nodal)
     push!(s_nodal["income_summary"]["tso"],"totals"=>cum_incomes["all"])
     return s_nodal
 end 
-#=
+
 function generation_color_map()
         color_dict=Dict("Offshore Wind"=>"darkgreen",
         "DSR"=>"aliceblue",
@@ -1884,7 +1889,7 @@ function generation_color_map()
         return color_dict
 end
 
-=#
+
 function owpps_profit_obz(s, result_mip, mn_data)
     for (scenario_num,scenario) in mn_data["scenario"]
         tss=string.(values(scenario))#is this the problem? why keys?
@@ -1979,7 +1984,7 @@ function strg_profit_obz(s, result_mip, scenario, tss, bus)
     return s
 end
       
-#=
+
 
 function SocialWelfare_zonal(s, result_mip, mn_data, data, result_mip_hm_prices)#NOTE CHANGED
     
@@ -2078,15 +2083,8 @@ function SocialWelfare_zonal(s, result_mip, mn_data, data, result_mip_hm_prices)
     push!(social_welfare,"totals"=>totals)
     return social_welfare
 end
-=#
-#=
-println(keys(s["scenario"]["sc_names"]))
-println(keys(s["map_gen_types"]["loads"]["NON1"]))
-k_sc="4";tss=sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))[k_sc]
-k_ts="10";ts=sort(OrderedCollections.OrderedDict(tss), by=x->parse(Int64,x))[k_ts];ts_str=string(ts)
-g="817";gen=result_mip["solution"]["nw"][ts_str]["gen"][g]
-println(social_welfare[k_sc]["price"])
-=#
+
+
 function SocialWelfare(s, result_mip, mn_data, data)#NOTE CHANGED
     
     function undo_npv_hourly(x,current_yr)
@@ -2165,8 +2163,8 @@ function SocialWelfare(s, result_mip, mn_data, data)#NOTE CHANGED
             for (b_k,b) in type
                 if !(haskey(totals["all"],b_k));push!(totals["all"],b_k=>Dict());end
                 if !(haskey(totals["all"][b_k],k_type));push!(totals["all"][b_k],k_type=>0.0);end
-                totals["all"][k_type]=totals["all"][k_type]+(b)/(sl*length(type))
-                totals["all"][b_k][k_type]=totals["all"][b_k][k_type]+(b)/(sl)
+                totals["all"][k_type]=totals["all"][k_type]+(b)/sl
+                totals["all"][b_k][k_type]=totals["all"][b_k][k_type]+(b)/sl
                 totals[k_sc][k_type]=totals[k_sc][k_type]+b
             end
         end
@@ -2174,10 +2172,8 @@ function SocialWelfare(s, result_mip, mn_data, data)#NOTE CHANGED
     push!(social_welfare,"totals"=>totals)
     return social_welfare
 end
-#b_k="1";b=type[b_k]
-#k_type="price";type=sc[k_type]
-#k_sc="1";sc=social_welfare[k_sc];
-#social_welfare["totals"]["all"]["gross_consumer_surplus"]
+
+
 function print_table_summary(s)
     println("transmission CAPEX: "*string(s["cost_summary"]["transmission"])*", Revenue: "*string(s["income_summary"]["tso"]["totals"]["total"]))
     println("OWPP CAPEX: "*string(s["cost_summary"]["owpp"]["all"])*", Revenue: "*string(s["income_summary"]["owpp"]["all"]["income"]))
@@ -2193,7 +2189,7 @@ function print_table_summary(s)
     println("Redispatch cost: "*string(s["social_welfare"]["totals"]["all"]["re_dispatch_cost"]))
 end
 #results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\UK_DE_DK\\zonal_results_hm14_VOLL5000_rc.jld2")
-#=
+
 function summarize_zonal_in_s(results)#NOTE CHANGED
     s=results["s"];result_mip=results["result_mip"];data=results["data"];mn_data=results["mn_data"]
     result_mip_hm_prices=results["result_mip_hm_prices"]
@@ -2206,13 +2202,7 @@ function summarize_zonal_in_s(results)#NOTE CHANGED
     s=strg_profit_obzs(s, result_mip, mn_data)
     return s, result_mip, data, mn_data
 end
-=#
 
-#results=FileIO.load("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\zOBZ2nOBZ_NORTH_SEA_nodal_k4.jld2")
-#results["s"]["scenarios_length"]=6
-#results["result_mip"]["solution"]["nw"]=VOLL_clearing_price(results["result_mip"]["solution"]["nw"],results["s"])
-#results["s"]["cost_summary"]=print_solution_wcost_data(results["result_mip"], results["s"], results["data"])
-#s_nodal, result_mip_nodal, data_nodal, mn_data_nodal=summarize_in_s(results);
 function summarize_in_s(results)
     s=results["s"];result_mip=results["result_mip"];data=results["data"];mn_data=results["mn_data"]
     s= owpps_profit_obz(s, result_mip, mn_data)
@@ -2226,8 +2216,7 @@ function summarize_in_s(results)
     s=strg_profit_obzs(s, result_mip, mn_data)
     return s, result_mip, data, mn_data
 end
-#print_solution_wcost_data(result_mip, s, mn_data)#-856896.0245340846
-#print_table_summary(s)
+
 
 function transmission_lines_profits(s, result_mip, mn_data, data)
     for (scenario_num,scenario) in mn_data["scenario"]
@@ -2327,7 +2316,6 @@ function undo_marginal_price_scaling(s,result_mip)
 end
 
 
-
 function summarize_generator_solution_data(result_mip, data,s)#print solution
 	gen_tbls=build_generator_tables(result_mip, data)
 	gen_by_market=sort_by_country(gen_tbls,s)
@@ -2359,7 +2347,6 @@ function sort_load_by_country(gen_tbls,map_gen_types)
 end
 
 function sort_by_offshore(gen_tbls,set)
-    OWPPs=filter(:type=>x->x==0,DataFrames.DataFrame(XLSX.readtable(set["rt_ex"]*"input.xlsx", "node_generation")...))[!,:node]
 	per_market=Dict()
 	for (s,sc) in gen_tbls
 		if !(haskey(per_market,s));push!(per_market,s=>Dict());end
@@ -2369,30 +2356,20 @@ function sort_by_offshore(gen_tbls,set)
 			if !(haskey(per_market[s],cuntree));push!(per_market[s],cuntree=>DataFrames.DataFrame(Symbol(col_names[1])=>sc[!,Symbol(col_names[1])]));end
 				col_num=findfirst(x->x==gen,col_names)
 				if !(isnothing(col_num))
-				per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol("Offshore Wind")=>sc[!,Symbol(col_names[col_num])]),makeunique=true)
+				per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol("Offshore Wind")=>sc[!,Symbol(col_names[col_num])]))
 			end;end
 		end
 
-		for (cunt_index,cuntree_num) in enumerate(OWPPs)
-			cuntree=set["map_gen_types"]["markets"][2][cunt_index]
+		for cuntree_num in set["offshore_nodes"]
+			cuntree=set["map_gen_types"]["markets"][2][cuntree_num-length(set["onshore_nodes"])]
 			if !(haskey(per_market[s],cuntree));push!(per_market[s],cuntree=>DataFrames.DataFrame(Symbol(col_names[1])=>sc[!,Symbol(col_names[1])]));end
-			per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol("Battery")=>sc[!,Symbol("Battery "*string(cuntree_num))]),makeunique=true)
+			per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol("Battery")=>sc[!,Symbol("Battery "*string(cuntree_num))]))
 		end
 	end
 	return per_market
 end
-#println(keys(set))
-#println(set["onshore_nodes"])
-#set=s
-#s="4";sc=gen_tbls[s]
-#set["offshore_nodes"]
-#set["onshore_nodes"]
-#println(set["onshore_nodes"])
-#println(set["map_gen_types"]["markets"][1])
-#DataFrames.DataFrame(XLSX.readtable(set["rt_ex"]*"input.xlsx", "node_generation")...)
-#DataFrames.DataFrame(XLSX.readtable(set["rt_ex"]*"input.xlsx", "node_generation")...)
+
 function sort_by_country(gen_tbls,set)
-    sub_stations=DataFrames.DataFrame(XLSX.readtable(set["rt_ex"]*"input.xlsx", "node_generation")...)[!,:node]
 	per_market=Dict()
 	for (s,sc) in gen_tbls
 		if !(haskey(per_market,s));push!(per_market,s=>Dict());end
@@ -2412,10 +2389,8 @@ function sort_by_country(gen_tbls,set)
 				end
 			end
 		end
-        onshore_markets=findall(x->!(issubset([x],sub_stations)),set["onshore_nodes"])
-        
-		for (cunt_index,cuntree_num) in enumerate(onshore_markets)
-			cuntree=set["map_gen_types"]["markets"][1][cunt_index]
+		for cuntree_num in set["onshore_nodes"]
+			cuntree=set["map_gen_types"]["markets"][1][cuntree_num]
 			if !(haskey(per_market[s],cuntree));push!(per_market[s],cuntree=>DataFrames.DataFrame(Symbol(col_names[1])=>sc[!,Symbol(col_names[1])]));end
 				per_market[s][cuntree]=hcat(per_market[s][cuntree],DataFrames.DataFrame(Symbol("Battery")=>sc[!,Symbol("Battery "*string(cuntree_num))]),makeunique=true)
 		end
@@ -2447,8 +2422,8 @@ function build_generator_tables(result_mip, data)
 		push!(gen_per_scenario,s=>df)
 	end
 	return gen_per_scenario
-end
-
+end=#
+#=
 function VOLL_clearing_price(rez,s, price_cap::Float64=180.0)
     #constants
     e2me=1000000/rez["1"]["baseMVA"]
@@ -2500,7 +2475,7 @@ function VOLL_clearing_price(rez,s, price_cap::Float64=180.0)
     end
     return rez
 end
-#=
+
 function plot_clearing_price(time_series)
     
     clrs=generation_color_map()
@@ -2679,7 +2654,8 @@ function nodal2zonal(s,result_mip,zones)
     result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     result_mip= hm_market_prices(result_mip, result_mip_hm_prices)
     return result_mip, data, mn_data, s, result_mip_hm_prices
-end=#
+end
+=#
 function zonal2nodal(s,result_mip)
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1)#select solver
     s["rebalancing"]=true
@@ -2689,10 +2665,9 @@ function zonal2nodal(s,result_mip)
     mn_data, data, s = data_update(s,result_mip);#Build data structure for given options
     mn_data, s = set_rebalancing_grid(result_mip,mn_data,s);
     s, mn_data= remove_integers_new_market(result_mip,mn_data,data,s);
-    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s);#Solve problem
+    result_mip = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s)#Solve problem
     return result_mip, data, mn_data, s
 end
-
 
 function remove_integers_new_market(result_mip,mn_data,data,s)
     for (sc,tss) in sort(OrderedCollections.OrderedDict(mn_data["scenario"]), by=x->parse(Int64,x))
@@ -2735,8 +2710,8 @@ function remove_integers_new_market(result_mip,mn_data,data,s)
     return s, mn_data
 end
 ################### deprecated ###########################
-#=
-function SocialWelfare(s, result_mip, mn_data, data)
+
+#=function SocialWelfare(s, result_mip, mn_data, data)
     
     function undo_npv_hourly(x,current_yr)
         cost = (1+s["dr"])^(current_yr-base_year) * x# npv
@@ -2815,8 +2790,9 @@ function SocialWelfare(s, result_mip, mn_data, data)
     end
     push!(social_welfare,"totals"=>totals)
     return social_welfare
-end
+end=#
 
+#=
 function transmission_line_profits(s, result_mip, tss, data)
     hl=1#s["hours_length"]
     yl=1#s["years_length"]

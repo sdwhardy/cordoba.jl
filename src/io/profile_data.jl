@@ -1,3 +1,25 @@
+function reduce_toRegions4YUSO(scenario_data)
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["RES"]["Offshore Wind"])
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["RES"]["Onshore Wind"])
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["RES"]["Solar PV"])
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["Scenarios"]["NT2025"])
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["Scenarios"]["NT2030"])
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["Scenarios"]["NT2040"])
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["Scenarios"]["DE2030"])
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["Scenarios"]["DE2040"])
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["Scenarios"]["GA2030"])
+    filter!(p -> issubset([first(p)],scenario_data["Generation"]["nodes"][!,:node_id]), scenario_data["Generation"]["Scenarios"]["GA2040"])
+    filter(x -> issubset([x],scenario_data["Generation"]["nodes"][!,:node_id]), names(scenario_data["Demand"]["GA2040"]))
+    scenario_data["Demand"]["GA2040"]=scenario_data["Demand"]["GA2040"][!,vcat("time_stamp",scenario_data["Generation"]["nodes"][!,:node_id])]
+    scenario_data["Demand"]["GA2030"]=scenario_data["Demand"]["GA2030"][!,vcat("time_stamp",scenario_data["Generation"]["nodes"][!,:node_id])]
+    scenario_data["Demand"]["DE2040"]=scenario_data["Demand"]["DE2040"][!,vcat("time_stamp",scenario_data["Generation"]["nodes"][!,:node_id])]
+    scenario_data["Demand"]["DE2030"]=scenario_data["Demand"]["DE2030"][!,vcat("time_stamp",scenario_data["Generation"]["nodes"][!,:node_id])]
+    scenario_data["Demand"]["NT2030"]=scenario_data["Demand"]["NT2030"][!,vcat("time_stamp",scenario_data["Generation"]["nodes"][!,:node_id])]
+    scenario_data["Demand"]["NT2040"]=scenario_data["Demand"]["NT2040"][!,vcat("time_stamp",scenario_data["Generation"]["nodes"][!,:node_id])]
+    scenario_data["Demand"]["NT2025"]=scenario_data["Demand"]["NT2025"][!,vcat("time_stamp",scenario_data["Generation"]["nodes"][!,:node_id])]
+    return scenario_data
+end
+
 #load Time series data
 #***#
 function load_time_series_gentypes(s, scenario_data)
@@ -18,6 +40,7 @@ function load_time_series_gentypes(s, scenario_data)
     s["hours_length"] = length(scenario_data["Generation"]["RES"]["Offshore Wind"][country][year].time_stamp)
 	return scenario_data
 end
+
 #keys(scenario_data["Generation"]["RES"]["Solar PV"]["DE05"])
 ############## better copies
 ############################################################################################
@@ -419,7 +442,7 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
                             else
                                 ts=scenario_data["Generation"]["RES"]["Onshore Wind"][cuntree][k_sc[3:6]][!,:time_stamp][h]
                             end
-                            #println(k_sc_sd*k_yr_sd)
+                            println(ts)
                             S_row=filter(:time_stamp=>x->x==ts,scenario_data["Demand"][k_sc_sd*k_yr_sd])[!,Symbol(cuntree)]
                             extradata["gen"][string(l)]["pmax"][1, d] = load["pmax"]*S_row[1]/pu
                             extradata["gen"][string(l)]["pmin"][1, d] = load["pmin"]*S_row[1]/pu
@@ -441,6 +464,8 @@ function create_profile_sets_mesh_wgen_type(data_orig, all_gens, scenario_data, 
 	data_orig["gen"]=data["gen"]
     return extradata, data_orig
 end
+
+#scenario_data["Generation"]["RES"]["Onshore Wind"]["FR01"]["2016"][!,:time_stamp][1410:1420]
 ######################## Scaling cost data ###########################
 #scale investment to hourly cost spread over the year
 #***#
@@ -1986,3 +2011,4 @@ end=#
 
 
 ######################################################################
+

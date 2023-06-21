@@ -1,0 +1,72 @@
+/corres_run/inputs/config.yml
+
+
+
+
+-----------------------------------------------
+Executing CorRES version 1.0.0
+-----------------------------------------------
+
+
+
+config_fn: /corres_run/inputs/config.yml
+locs_fn: /corres_run/inputs/locations.xlsx
+domain: None
+dataset: ERA5
+exec_type: container
+simulation: WPP
+start_date: 2015-01-01
+end_date: 2015-12-31
+group_by: Name
+weigth_var: None
+n_batch: 10
+n_batch_locs_interp: 1000
+
+
+
+
+
+locs_fn does not include WS scaling variable (ratio_gwa2_era5_mean_WS).
+Values have been extracted and are available in /corres_run/results//locations_modified_by_CorRES.xlsx
+
+
+Executing reanalysis interpolation:
+1 batch out of 1, exec. time: 1.1746585369110107
+Client: 'tcp://127.0.0.1:34849' processes=4 threads=4, memory=25.77 GB
+dashboard port: 8787
+
+Executing power conversion:
+1 batch out of 1, exec. time: 3.2743523120880127
+
+Saving output files:
+/corres_run/results/WS.csv
+/corres_run/results/P.csv
+
+Executing wind speed forecast error simulation:
+a1=0.99, b1=0.4069531, lambda=50, MET update freq=24h, Point SD=0.2893359
+forecast15_1: Update freq=24h, Lead time=13h
+Loading the CorRES meso ws and wd data
+Setting up the run...
+Done: took: 0.36930274963378906
+Running the forecar err simulation...
+Done: took: 4.245929002761841
+Saving results to files (NetCDF)...
+Done: took: 1.239948034286499
+/opt/conda/lib/python3.6/site-packages/distributed/dashboard/core.py:72: UserWarning: 
+Port 8787 is already in use. 
+Perhaps you already have a cluster running?
+Hosting the diagnostics dashboard on a random port instead.
+  warnings.warn("\n" + msg)
+Client: 'tcp://127.0.0.1:46137' processes=4 threads=4, memory=25.77 GB
+dashboard port: 42597
+
+Executing power conversion:
+1 batch out of 1, exec. time: 3.1749727725982666
+
+Saving output files:
+/corres_run/results/WS_forecast15_1.csv
+/corres_run/results/P_forecast15_1.csv
+distributed.nanny - WARNING - Restarting worker
+distributed.nanny - WARNING - Restarting worker
+distributed.nanny - WARNING - Restarting worker
+distributed.nanny - WARNING - Restarting worker

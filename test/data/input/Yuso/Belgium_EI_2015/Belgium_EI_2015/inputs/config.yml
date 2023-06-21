@@ -1,0 +1,179 @@
+interpolation:
+  n_stencil: 2
+simulation:
+  CSP:
+    compute_dni_from_ghi: true
+    model: ANI
+    vars_nearest_xy:
+    - varDNI
+    vars_nearest_xyz: []
+    vars_xy: []
+    vars_xy_logz: []
+    vars_xyz: []
+  EXTRACT_ALL_ENTSOE:
+    vars_nearest_xy:
+    - varDNI
+    - varDHI
+    vars_nearest_xyz: []
+    vars_xy: []
+    vars_xy_logz:
+    - varWS
+    vars_xyz:
+    - varWD
+    - varRHO
+  EXTRACT_ALL_ERA5:
+    vars_nearest_xy: []
+    vars_nearest_xyz: []
+    vars_xy:
+    - varRHO
+    - varRMOL
+    - varUST
+    - varTAIR
+    vars_xy_logz:
+    - varWS
+    vars_xyz:
+    - varWD
+  SPP:
+    compute_dni_from_ghi: true
+    vars_nearest_xy: []
+    vars_nearest_xyz: []
+    vars_xy:
+    - varTAIR
+    - varDNI
+    - varDHI
+    vars_xy_logz:
+    - varWS
+    vars_xyz: []
+  WPP:
+    ML_wake: false
+    hi_wind_scaling: []
+    mean_WS_scaler: GWA2
+    storm_shutdown: true
+    vars_nearest_xy: []
+    vars_nearest_xyz: []
+    vars_xy: []
+    vars_xy_logz:
+    - varWS
+    vars_xyz: []
+  WPP_wake:
+    ML_wake: false
+    hi_wind_scaling: []
+    mean_WS_scaler: None
+    storm_shutdown: true
+    vars_nearest_xy: []
+    vars_nearest_xyz: []
+    vars_xy: []
+    vars_xy_logz:
+    - varWS
+    vars_xyz:
+    - varWD
+weather_data:
+  CORDEX:
+    date_format: '%Y-%m-%d_%H:%M:%S'
+    sophia:
+      meso_dir: /groups/FutureWind/CORDEX/CNRM-CERFACS-CNRM-CM5_ALADIN63/processed/test_interp3h_CNRM-CERFACS-CNRM-CM5_ALADIN63_2005-2006.nc
+    varDHI: ''
+    varDNI: ''
+    varGHI: ''
+    varRHO: ''
+    varRMOL: ''
+    varTAIR: ''
+    varUST: ''
+    varWD: ''
+    varWS: WS
+    var_grid:
+    - time
+    - height
+    - longitude
+    - latitude
+    var_x: Longitude
+    var_x_grid: longitude
+    var_y: Latitude
+    var_y_grid: latitude
+    var_z: Hub_height
+    var_z_grid: height
+  ENTSOE:
+    date_format: '%Y-%m-%d_%H:%M:%S'
+    sophia:
+      WL_ML_dir: /groups/INP/corres/corres/WL_predictor
+      meso_dir: /groups/INP/ENTSOE/{domain}/WRF.zarr
+      region_domain_fn: /groups/INP/corres/examples/datasets/MappingCountriesToWRFDomains.xlsx
+    varDHI: DHI
+    varDNI: DNI
+    varGHI: ''
+    varRHO: RHO
+    varRMOL: RMOL
+    varTAIR: TAIR
+    varUST: UST
+    varWD: WD
+    varWS: WS
+    var_grid:
+    - time
+    - height
+    var_x: x
+    var_x_grid: west_east
+    var_y: y
+    var_y_grid: south_north
+    var_z: Hub_height
+    var_z_grid: height
+  ERA5:
+    container:
+      WL_ML_dir: /data/corres/WL_predictor
+      elevation: /data/SRTMv3_plus_ViewFinder_coarsen.nc
+      ghi_dir: /data/ghi.zarr
+      gwa2_scaling: /data/ratio_gwa2_era5.nc
+      gwa3_scaling: /data/ratio_gwa3_era5.nc
+      meso_dir: /data/era5.zarr
+    date_format: '%Y-%m-%d_%H:%M:%S'
+    sophia:
+      WL_ML_dir: /groups/INP/corres/corres/WL_predictor
+      elevation: /groups/INP/era5/SRTMv3_plus_ViewFinder_coarsen.nc
+      ghi_dir: /groups/INP/era5/ghi.zarr
+      gwa2_scaling: /groups/INP/era5/ratio_gwa2_era5.nc
+      gwa3_scaling: /groups/INP/era5/ratio_gwa3_era5.nc
+      meso_dir: /groups/reanalyses/era5/app/era5.zarr
+    varDHI: ''
+    varDNI: ''
+    varGHI: GHI
+    varRHO: RHO
+    varRMOL: RMOL
+    varTAIR: T2
+    varUST: UST
+    varWD: WD
+    varWS: WS
+    var_grid:
+    - time
+    - height
+    - longitude
+    - latitude
+    var_x: Longitude
+    var_x_grid: longitude
+    var_y: Latitude
+    var_y_grid: latitude
+    var_z: Hub_height
+    var_z_grid: height
+  NEWA:
+    date_format: '%Y-%m-%d_%H:%M:%S'
+    sophia:
+      WL_ML_dir: /groups/INP/corres/corres/WL_predictor
+      crs_proj: +units=m +proj=lcc +lat_1=30.0 +lat_2=60.0 +lat_0=54.0 +lon_0=15.0
+        +x_0=0 +y_0=0 +a=6370000 +b=6370000
+      meso_dir: /groups/INP/NEWA/newa.zarr
+    varDHI: SWDDIR
+    varDNI: SWDDNI
+    varGHI: ''
+    varRHO: RHO
+    varRMOL: RMOL
+    varTAIR: T2
+    varUST: UST
+    varWD: WD
+    varWS: WS
+    var_grid:
+    - time
+    - height
+    var_x: x
+    var_x_grid: west_east
+    var_y: y
+    var_y_grid: south_north
+    var_z: Hub_height
+    var_z_grid: height
