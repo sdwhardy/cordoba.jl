@@ -1,0 +1,27 @@
+# --------------------------
+# CorRES simulation file
+# --------------------------
+config_fn: "/etc/corres/config.yml"
+locs_fn: "/corres_run/inputs/locations.xlsx"
+power_curves_fn: "/corres_run/inputs/power_curves.xlsx"
+exec_type: "container"
+out_dir: "/corres_run/results/"
+domain: None
+dataset: ERA5
+end_date: 2015-12-31
+fluctuations: {}
+forecasts:
+  leadTime:
+  - 13
+  met_update_freq: 24
+  name:
+  - forecast15_1
+  seed: 1
+  updateFreq:
+  - 24
+group_by: Name
+gwa2_scaling: true
+ml_wake: false
+simulation: WPP
+start_date: 2015-01-01
+weight_var: null

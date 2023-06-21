@@ -1,0 +1,37 @@
+version: '3.9'
+
+services:
+  corres_api:
+    image: registry.windenergy.dtu.dk/ram-tech-team/dockerhub-private/corres:1.0.6-dev2
+    volumes:
+      - run_data:/corres_run
+      - resource_data:/data:ro
+    environment:
+      - PYTHONUNBUFFERED=TRUE
+    command: ["/bin/bash", "-c", "app_corres_script.py --input_fn /corres_run/inputs/simulation_input.yml --parallel > /corres_run/results/results.log 2>&1"]
+    deploy:
+      resources: # Need to test to see if these should be changed
+        
+        limits:
+          cpus: "4"
+          memory: "24G"
+        reservations:
+          cpus: "4"
+          memory: "16G"
+        
+      restart_policy:
+        condition: none
+
+
+
+volumes:
+  run_data:
+    driver_opts:
+      type: "nfs"
+      o: "addr=130.226.50.245,nolock,soft,timeo=180,rw,nfsvers=4"
+      device: ":/shares/nfs/vind-webtools-ext/rw/corres/runs/afb5419c-16af-4b33-bf7c-a2e336145ddd"
+  resource_data:
+    driver_opts:
+      type: "nfs"
+      o: "addr=130.226.50.245,nolock,soft,timeo=180,ro,nfsvers=4"
+      device: ":/shares/nfs/vind-webtools-ext/ro/Reanalysis"

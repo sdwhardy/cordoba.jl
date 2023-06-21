@@ -240,7 +240,6 @@ function print_mn_data(mn_data,s)
     end
 end=#
 ###########
-
 ##################### Topology input data ############################
 #ACDC problem with storage main logic
 #***#
@@ -261,6 +260,39 @@ end
 #k_sc="Base";sc=scenario_data["Generation"]["Scenarios"][k_sc]
 #k_cunt="2020";cuntree=sc[k_cunt]
 #***#
+
+    function get_scenario_data4YUSO(s, array_of_zones)
+        ############### defines size and market of genz and wfs ###################
+        scenario_data=FileIO.load(s["scenario_data_file"])
+        scenario_data["Generation"]["nodes"]
+        strip.(split(scenario_data["Generation"]["nodes"][!,:Region][10],","))
+        filter!(:Region=>x->!(isempty(intersect!(strip.(split(x,",")),array_of_zones))), scenario_data["Generation"]["nodes"])
+        ######## Batteries are removed and modeled seperately time series #########
+        for (k_sc,sc) in scenario_data["Generation"]["Scenarios"]; for (k_cunt,cuntree) in sc;
+            filter!(:Generation_Type=>x->x!="Battery", cuntree);
+            filter!(:Generation_Type=>x->x!="VOLL", cuntree);
+            push!(cuntree,["SLACK",1000000])
+        end;end
+            push!(scenario_data["Generation"]["keys"],"SLACK")
+            delete!(scenario_data["Generation"]["costs"],"VOLL");
+            #push!(scenario_data["Generation"]["costs"],"SLACK"=>maximum(values(scenario_data["Generation"]["costs"])))
+            push!(scenario_data["Generation"]["costs"],"SLACK"=>5000)
+    
+        ####################### Freeze offshore expansion of data #################
+        if (haskey(s,"collection_circuit") && s["collection_circuit"]==true)
+            nodes_df = DataFrames.DataFrame(XLSX.readtable(s["rt_ex"]*"input.xlsx", "node_generation")...)
+            scenario_data=keep_only_wf_pcc(s,scenario_data)
+            offshore_nodes=filter(:type=>x->x==0,nodes_df)
+            wf_capacity=sum(offshore_nodes[!,:gen])*100
+            onshore_demand=[wf_capacity for i=1:1:length(scenario_data["Demand"][s["scenario_names"][1]][!,last(offshore_nodes[!,:country])])]
+    
+            scenario_data["Demand"][s["scenario_names"][1]][!,last(offshore_nodes[!,:country])]=onshore_demand
+            
+            #scenario_data["Generation"]["costs"]["SLACK"]=5000
+        end
+        return scenario_data
+    end
+
 function get_scenario_data(s)
     ############### defines size and market of genz and wfs ###################
 	scenario_data=FileIO.load(s["scenario_data_file"])
