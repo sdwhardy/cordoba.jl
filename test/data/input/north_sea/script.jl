@@ -35,7 +35,6 @@ s = Dict(
     s=_CBD.hidden_settings(s)
 
 
-
 ######################### Nodal market #########################
 s["home_market"]=[]
 mn_data, data, s = _CBD.data_setup(s);
@@ -64,5 +63,3 @@ Best objective -8.364509426726e+06, best bound -8.364632938305e+06, gap 0.0015%
 Optimal objective -8.371519331e+06
 Optimal objective -8.371099410e+06
 =#
-
-

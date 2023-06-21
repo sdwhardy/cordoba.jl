@@ -1,4 +1,38 @@
+#=s = Dict(
+    "rt_ex"=>pwd()*"\\test\\data\\input\\north_sea\\",#folder path if directly
+    "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
+    ################# temperal parameters #################
+    "test"=>false,#if true smallest (2 hour) problem variation is built for testing
+    "scenario_planning_horizon"=>30,
+    "scenario_names"=>["NT2025","NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"],#["NT","DE","GA"]#,"NT2030","NT2040","DE2030","DE2040","GA2030","GA2040"
+    "k"=>4,#number of representative days modelled (24 hours per day)//#best for maintaining mean/max is k=6 2014, 2015
+    "res_years"=>["2014","2015"],#Options: ["2012","2013","2014","2015","2016"]//#best for maintaining mean/max is k=6 2014, 2015
+    "scenario_years"=>["2020","2030","2040"],#Options: ["2020","2030","2040"]
+    "dr"=>0.04,#discount rate
+    "yearly_investment"=>10000000,
+    ################ electrical parameters ################
+    "conv_lim_onshore"=>36000,#Max Converter size in MVA
+    "conv_lim_offshore"=>36000,#Max Converter size in MVA
+    "strg_lim_offshore"=>0.2,
+    "strg_lim_onshore"=>10,
+    "candidate_ics_ac"=>[1,2,4,8],#AC Candidate Cable sizes (fraction of full MVA)
+    "candidate_ics_dc"=>[1,2,4,8],#DC Candidate Cable sizes (fraction of full MVA)[1,4/5,3/5,2/5]
+    ################## optimization/solver setup options ###################
+    "relax_problem" => false,
+    "corridor_limit" => false,
+    "TimeLimit" => 320000,
+    "MIPGap"=>1e-4, 
+    "PoolSearchMode" => 0, 
+    "PoolSolutions" => 1,
+    "ntc_mva_scale" => 1.0)
+    s=hidden_settings(s)
+    s["home_market"]=[[3,16],[5,13,17,24],[4,12,18,22,23],[6,19,21,27],[1,8,11,14,15,20,25,26],[7,10,28,29],[2,9,30,31]]#HMD
+    #s["home_market"]=[[16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]],#zOBZ
+    mn_data, data, s = data_setup(s);=#
+    #problemINPUT_mapNTCs(data, s)
+    #problemINPUT_map(data, s)
 #**#
+#_k="1"; _v=result_mip_ms["solution"][_k]
 function zonal_market_main(mn_data, data, s)
     hm=deepcopy(s["home_market"]);
     gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"], "PoolSearchMode" => s["PoolSearchMode"], "PoolSolutions" => s["PoolSolutions"])#, "MIPGap"=>9e-3)#select solver
@@ -16,7 +50,7 @@ function zonal_market_main(mn_data, data, s)
         s2["home_market"]=hm
         mn_data, s2 = set_inter_zonal_grid(result_mip2,mn_data,s2);
         s2["home_market"]=[]
-        gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => 36000, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"])#select solver
+        gurobi = JuMP.optimizer_with_attributes(Gurobi.Optimizer,"OutputFlag" => 1, "TimeLimit" => s["TimeLimit"], "MIPGap"=>s["MIPGap"])#, "MIPGap"=>s["MIPGap"])#select solver
         result_mip2 = cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2)#Solve problem
         result_mip3=deepcopy(result_mip2)
     #print_solution_wcost_data(result_mip, s, data)
@@ -36,10 +70,12 @@ function zonal_market_main(mn_data, data, s)
         result_mip2= hm_market_prices(result_mip2, result_mip_hm_prices)
         push!(results,_k=>Dict("result_mip"=>result_mip2,"data"=>data, "mn_data"=>mn_data, "s"=>s2, "result_mip_hm_prices"=>result_mip_hm_prices, "result_mip2"=>result_mip3));
     end
-    #pdic2=problemOUTPUT_map_byTimeStep(results["10"])
-    #PlotlyJS.plot(pdic2["trace0"], pdic2["layout"])
+    #pdic2=problemOUTPUT_map_byTimeStep(results["1"])
+    #PlotlyJS.plot(pdic2["trace012"], pdic2["layout"])
     return results
 end
+#FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\NORTH_SEA_nodal_k4_full_HMD.jld2",results)
+
 #####################
 #=##################### Input parameters #################################
 s = Dict(
@@ -1603,6 +1639,9 @@ function data_update(s,result_mip)
 	s = update_settings_wgenz(s, data)
     mn_data, s  = multi_period_setup_wgen_type(scenario_data, data, all_gens, s);
 	push!(s,"max_invest_per_year"=>max_invest_per_year(s))
+    
+    ####################### WTACH OUT if  s["scenarios_length"]=6 is hared coded onlyt works with 6 scenarios!!!
+    s["scenarios_length"]=6
     return  mn_data, data, s
 end
 
@@ -1676,6 +1715,8 @@ function data_setup(s)
 	s = update_settings_wgenz(s, data)
     mn_data, s  = multi_period_setup_wgen_type(scenario_data, data, all_gens, s);
 	push!(s,"max_invest_per_year"=>max_invest_per_year(s))
+    ####################### WTACH OUT if  s["scenarios_length"]=6 is hared coded onlyt works with 6 scenarios!!!
+    s["scenarios_length"]=6
     return  mn_data, data, s
 end
 #s["xd"]["gen"]["1"]
