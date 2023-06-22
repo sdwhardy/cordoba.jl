@@ -61,7 +61,7 @@ s = Dict(
     data["convdc"]["1"]["cost"]=0.0
     data["convdc"]["2"]["cost"]=0.0
     data["convdc"]["3"]["cost"]=0.0
-    for i in 1:1:11
+    for i in 1:1:5
         data["storage"][string(i)]["cost"]=1000000.0
     end
     
@@ -91,6 +91,7 @@ s = Dict(
     s["relax_problem"]=true
     s["output"]["duals"]=true
     results=Dict{String, Any}();
+    _k="1"; _v=result_mip_ms["solution"][_k]
     for (_k, _v) in result_mip_ms["solution"]
         result_mip2=Dict{String,Any}("solution"=>Dict{String,Any}("nw"=>_v))
         mn_data, data, s2 = _CBD.data_update_4YUSO(deepcopy(s),result_mip2,["NS"]);#Build data structure for given options
