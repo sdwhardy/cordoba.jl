@@ -1737,6 +1737,42 @@ function data_update(s,result_mip)
     return  mn_data, data, s
 end
 
+
+function data_update_4YUSO(s,result_mip,array_of_zones)
+    scenario_data = get_scenario_data(s)#scenario time series
+    filter!(:Region=>x->!(isempty(intersect!(strip.(split(x,",")),array_of_zones))), scenario_data["Generation"]["nodes"])
+    data, s = get_topology_data(s, scenario_data)#topology.m file
+    scenario_data=freeze_offshore_expansion(s["nodes"], scenario_data)
+    ########## untested
+    reduce_nonstoch_gens(scenario_data)
+    ##########
+	###########################################################################
+	all_gens,s = gen_types(data,scenario_data,s)
+    if (haskey(s,"collection_circuit") && s["collection_circuit"]==true)
+        #################### Calculates cable options for collection circuit AC lines
+        data = AC_cable_options_collection(scenario_data,data,s)
+        #################### Calculates cable options for collection circuit DC lines
+        data = DC_cable_options_collection(scenario_data,data,s)
+    else
+        #################### Calculates cable options for AC lines
+        data = AC_cable_options(data,s)
+        #################### Calculates cable options for DC lines
+        data = DC_cable_options(data,s["candidate_ics_dc"],s["ics_dc"],data["baseMVA"])
+    end
+    ############# Sets convex able impedance to the MIP solution ##############
+    data = set_cable_impedance(data, result_mip)
+    additional_params_PMACDC(data)
+    print_topology_data_AC(data,s["map_gen_types"]["markets"])#print to verify
+    print_topology_data_DC(data,s["map_gen_types"]["markets"])#print to verify
+    ##################### load time series data ##############################
+    scenario_data = load_time_series_gentypes(s, scenario_data)
+    ##################### multi period setup #################################
+	s = update_settings_wgenz(s, data)
+    mn_data, s  = multi_period_setup_wgen_type(scenario_data, data, all_gens, s);
+	push!(s,"max_invest_per_year"=>max_invest_per_year(s))
+    return  mn_data, data, s
+end
+
 #=s = Dict(
 "rt_ex"=>pwd()*"\\test\\data\\input\\princessElizabeth\\",#folder path if directly
 "scenario_data_file"=>"C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\scenario_data_4EU.jld2",
