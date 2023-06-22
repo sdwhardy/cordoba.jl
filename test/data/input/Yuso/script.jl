@@ -36,7 +36,9 @@ s = Dict(
     "ntc_mva_scale" => 1.0)
     s=_CBD.hidden_settings(s)
 
-    scenario_data = _CBD.get_scenario_data4YUSO(s,["BS","NS"])#scenario time series
+    scenario_data = _CBD.get_scenario_data4YUSO(s,["NS"])#scenario time series
+    filter!(:EU28=>x->x=="Yes",scenario_data["Generation"]["nodes"])
+    filter!(:node_id=>x->issubset([x],["BE00","UK00"]),scenario_data["Generation"]["nodes"])
     
     scenario_data = _CBD.reduce_toRegions4YUSO(scenario_data)#scenario time series
 
@@ -59,7 +61,7 @@ s = Dict(
     data["convdc"]["1"]["cost"]=0.0
     data["convdc"]["2"]["cost"]=0.0
     data["convdc"]["3"]["cost"]=0.0
-    for i in 1:1:25
+    for i in 1:1:3
         data["storage"][string(i)]["cost"]=1000000.0
     end
     
@@ -101,7 +103,8 @@ s = Dict(
     #result_mip=run_model_p2(jump_result_mip, gurobi);
         push!(results,_k=>Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s2, "result_mip2"=>result_mip2));
     end
-    
+    FileIO.save("C:\\Users\\shardy\\Documents\\julia\\times_series_input_large_files\\onshore_grid\\YUSO_wNuclear.jld2",results)
+
     #s["cost_summary"]=_CBD.print_solution_wcost_data(results["1"]["result_mip"], results["1"]["s"], results["1"]["data"])
     #pdic2=problemOUTPUT_map_byTimeStep(results["4"])
     #PlotlyJS.plot(pdic2["trace012"], pdic2["layout"])
