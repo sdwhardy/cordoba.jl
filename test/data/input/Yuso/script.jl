@@ -61,7 +61,7 @@ s = Dict(
     data["convdc"]["1"]["cost"]=0.0
     data["convdc"]["2"]["cost"]=0.0
     data["convdc"]["3"]["cost"]=0.0
-    for i in 1:1:3
+    for i in 1:1:11
         data["storage"][string(i)]["cost"]=1000000.0
     end
     
