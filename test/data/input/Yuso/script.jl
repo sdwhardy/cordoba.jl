@@ -36,8 +36,10 @@ s = Dict(
     "ntc_mva_scale" => 1.0)
     s=_CBD.hidden_settings(s)
 
-    scenario_data = _CBD.get_scenario_data4YUSO(s,["BS","NS"])#scenario time series
-    
+    scenario_data = _CBD.get_scenario_data4YUSO(s,["NS"])#scenario time series
+    filter!(:EU28=>x->x=="Yes",scenario_data["Generation"]["nodes"])
+    filter!(:node_id=>x->issubset([x],["BE00","UK00"]),scenario_data["Generation"]["nodes"])
+
     scenario_data = _CBD.reduce_toRegions4YUSO(scenario_data)#scenario time series
 
     push!(scenario_data["Generation"]["Scenarios"]["NT2025"]["BE00"],["Nuclear",3500.0])
@@ -59,7 +61,7 @@ s = Dict(
     data["convdc"]["1"]["cost"]=0.0
     data["convdc"]["2"]["cost"]=0.0
     data["convdc"]["3"]["cost"]=0.0
-    for i in 1:1:25
+    for i in 1:1:3
         data["storage"][string(i)]["cost"]=1000000.0
     end
     
@@ -95,18 +97,20 @@ s = Dict(
     
         mn_data, s2 = _CBD.set_rebalancing_grid(result_mip2,mn_data,s2);
         s2, mn_data= _CBD.remove_integers(result_mip2,mn_data,data,s2);
+        result_mip2=[];_v=[];s=[]
         result_mip =  _CBD.cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2)#Solve problem=#
     #result_mip =  cordoba_acdc_wf_strg(mn_data, _PM.DCPPowerModel, ipopt, multinetwork=true; setting = s)#Solve problem=#
     #jump_result_mip =  cordoba_acdc_wf_split(mn_data, _PM.DCPPowerModel, gurobi, multinetwork=true; setting = s2);
     #result_mip=run_model_p2(jump_result_mip, gurobi);
-        push!(results,_k=>Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s2, "result_mip2"=>result_mip2));
+        push!(results,_k=>Dict("result_mip"=>result_mip,"data"=>data, "mn_data"=>mn_data, "s"=>s2));
     end
-    
+    FileIO.save(pwd()*"\\test\\data\\input\\Yuso\\YUSO_wNuclear.jld2",results)
+
     #s["cost_summary"]=_CBD.print_solution_wcost_data(results["1"]["result_mip"], results["1"]["s"], results["1"]["data"])
     #pdic2=problemOUTPUT_map_byTimeStep(results["4"])
     #PlotlyJS.plot(pdic2["trace012"], pdic2["layout"])
     return results
-
+    #_k="1"; _v=result_mip_ms["solution"][_k]
     ###########################################################
     s["xd"]["gen"]["1"]
     println(maximum(s["xd"]["gen"]["60"]["pmax"]))
