@@ -93,7 +93,7 @@ s = Dict(
     results=Dict{String, Any}();
     for (_k, _v) in result_mip_ms["solution"]
         result_mip2=Dict{String,Any}("solution"=>Dict{String,Any}("nw"=>_v))
-        mn_data, data, s2 = _CBD.data_update(deepcopy(s),result_mip2);#Build data structure for given options
+        mn_data, data, s2 = _CBD.data_update_4YUSO(deepcopy(s),result_mip2,["NS"]);#Build data structure for given options
     
         mn_data, s2 = _CBD.set_rebalancing_grid(result_mip2,mn_data,s2);
         s2, mn_data= _CBD.remove_integers(result_mip2,mn_data,data,s2);
